@@ -29,6 +29,8 @@
   .play{align-self:flex-start;background:var(--accent);color:var(--accent-ink);
     text-decoration:none;font-weight:600;padding:10px 22px;border-radius:999px}
   .play:hover{opacity:.9}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap}
+  .play.alt{background:transparent;color:var(--ink);border:2px solid var(--accent)}
   footer{max-width:880px;margin:0 auto;padding:24px;text-align:center;
     color:var(--soft);font-size:.9rem}
 </style>
@@ -45,7 +47,10 @@
       <h2>Popeka!</h2>
     </div>
     <p>A relaxing bubble-pop game with 500 levels: tap matching bubbles, clear the board, and unlock new worlds.</p>
-    <a class="play" href="https://mphaber.github.io/popeka/">Play</a>
+    <div class="btnrow">
+      <a class="play" href="https://mphaber.github.io/popeka/">Play</a>
+      <a class="play alt" href="https://realsparks.itch.io/popeka">On itch.io</a>
+    </div>
   </section>
   <section class="card">
     <div class="top">
