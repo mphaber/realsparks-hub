@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Real Sparks Games</title>
+<meta name="description" content="Small, calm games from Real Sparks. No timers, no energy meters, no noise.">
+<style>
+  :root{
+    --ink:#1d2733; --soft:#5a6a7a; --card:#ffffff; --bg:#f4f1ea;
+    --accent:#e4572e; --accent-ink:#ffffff; --line:#e3ddd0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5}
+  header{max-width:880px;margin:0 auto;padding:56px 24px 8px;text-align:center}
+  header h1{font-size:2.6rem;margin:0 0 10px;letter-spacing:.5px}
+  header h1 .spark{color:var(--accent)}
+  header p{color:var(--soft);font-size:1.1rem;max-width:560px;margin:0 auto}
+  main{max-width:880px;margin:0 auto;padding:32px 24px 16px;
+    display:grid;grid-template-columns:1fr;gap:20px}
+  @media(min-width:640px){main{grid-template-columns:1fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:22px;display:flex;flex-direction:column;gap:12px}
+  .card .top{display:flex;align-items:center;gap:14px}
+  .card img{width:56px;height:56px;border-radius:14px;flex:none}
+  .card h2{font-size:1.35rem;margin:0}
+  .card p{color:var(--soft);margin:0;flex:1}
+  .play{align-self:flex-start;background:var(--accent);color:var(--accent-ink);
+    text-decoration:none;font-weight:600;padding:10px 22px;border-radius:999px}
+  .play:hover{opacity:.9}
+  footer{max-width:880px;margin:0 auto;padding:24px;text-align:center;
+    color:var(--soft);font-size:.9rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>Real Sparks <span class="spark">Games</span></h1>
+  <p>Real Sparks makes small, calm games. No timers, no energy meters, no noise. Just games that respect your evening.</p>
+</header>
+<main>
+  <section class="card">
+    <div class="top">
+      <img src="https://mphaber.github.io/popeka/icon-512.png" alt="Popeka! icon">
+      <h2>Popeka!</h2>
+    </div>
+    <p>A relaxing bubble-pop game with 500 levels: tap matching bubbles, clear the board, and unlock new worlds.</p>
+    <a class="play" href="https://mphaber.github.io/popeka/">Play</a>
+  </section>
+  <section class="card">
+    <div class="top">
+      <img src="https://mphaber.github.io/creature-park/icon-512.png" alt="Creature Park icon">
+      <h2>Creature Park</h2>
+    </div>
+    <p>A learning adventure game for kids: answer questions, earn coins, and collect one-of-a-kind creatures in your own park.</p>
+    <a class="play" href="https://mphaber.github.io/creature-park/">Play</a>
+  </section>
+  <section class="card">
+    <div class="top">
+      <img src="https://mphaber.github.io/chain-placement/icon-512.png" alt="Thrink icon">
+      <h2>Thrink</h2>
+    </div>
+    <p>A quick, brain-teasing tile puzzle for grown-ups: place tiles, link matching groups of three, and chase chain reactions.</p>
+    <a class="play" href="https://mphaber.github.io/chain-placement/">Play</a>
+  </section>
+  <section class="card">
+    <div class="top">
+      <img src="https://mphaber.github.io/xenofront/icon-512.png" alt="Xenofront icon">
+      <h2>Xenofront</h2>
+    </div>
+    <p>A turn-based strategy game of hex warfare: command miniature armies, capture territory, and outsmart the enemy across alien worlds.</p>
+    <a class="play" href="https://mphaber.github.io/xenofront/">Play</a>
+  </section>
+  <section class="card">
+    <div class="top">
+      <img src="https://mphaber.github.io/scribble-siege/icon-512.png" alt="Scribble Siege icon">
+      <h2>Scribble Siege</h2>
+    </div>
+    <p>A hand-drawn paper flick game: flick fighters across the page in Space, Knights, and Tanks battles, and destroy the enemy base in 3 hits.</p>
+    <a class="play" href="https://mphaber.github.io/scribble-siege/">Play</a>
+  </section>
+</main>
+<footer>
+  Real Sparks / Games by Matthew Haber / &copy; 2026 Matthew Haber. All rights reserved.
+</footer>
+</body>
+</html>
