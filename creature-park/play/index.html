@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
   <head>
-<script>try{if(location.hash.indexOf("#xfer=")===0){var d=JSON.parse(decodeURIComponent(location.hash.slice(6)));Object.keys(d).forEach(function(k){if(localStorage.getItem(k)===null)localStorage.setItem(k,d[k])});history.replaceState(null,"",location.pathname+location.search)}}catch(e){}</script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
@@ -14,11 +13,11 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Creature Park" />
     <meta property="og:description" content="Learn, earn Star Coins, and collect creatures in the park." />
-    <meta property="og:url" content="https://games.realsparks.net/creature-park/play/" />
-    <meta property="og:image" content="https://games.realsparks.net/creature-park/play/og-image.png" />
+    <meta property="og:url" content="https://mphaber.github.io/creature-park/" />
+    <meta property="og:image" content="https://mphaber.github.io/creature-park/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Creature Park" />
-    <meta name="twitter:image" content="https://games.realsparks.net/creature-park/play/og-image.png" />
+    <meta name="twitter:image" content="https://mphaber.github.io/creature-park/og-image.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1897,12 +1896,80 @@
         body:has(.hub.show) .site-footer .footer-credit { color: #e6f4dc; }
         body:has(.hub.show) .site-footer .footer-legal { color: rgba(230, 244, 220, 0.85); }
       }
+
+      /* ---------- Real Sparks sharing: entrance sign, shop share, footer social row ---------- */
+      .grownups-bar { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+      body:not(:has(.hub.show)) .grownups-bar { justify-content: flex-end; }
+      .share-wrap { position: relative; display: inline-flex; }
+      .share-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        min-height: 48px; padding: 8px 20px; border-radius: 999px;
+        border: 3px solid var(--card-border); background: var(--card-bg); color: var(--ink);
+        font-family: "Baloo 2", "Nunito", sans-serif; font-weight: 800; font-size: 1rem;
+        cursor: pointer; box-shadow: 0 3px 0 var(--card-border), var(--shadow);
+        transition: transform 0.13s ease, box-shadow 0.13s ease, background-color 0.15s ease, border-color 0.15s ease;
+      }
+      .share-btn svg { width: 19px; height: 19px; flex: none; display: block; }
+      .share-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--card-border); }
+      .share-btn:focus-visible { outline: 5px solid var(--sun); outline-offset: 3px; }
+      /* Entrance: the Share sign matches the Grown-ups sign beside it. */
+      body:not(:has(.hub.show)) .share-btn {
+        background: #fff9ea; color: #4a3a14; border: 3px solid #a5713f;
+        box-shadow: 0 3px 0 #7a4d24, 0 6px 10px rgba(60, 40, 5, 0.2);
+        min-height: 40px; font-size: 0.92rem; padding: 6px 16px; border-radius: 12px;
+      }
+      body:not(:has(.hub.show)) .share-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #7a4d24; }
+      /* Shop: the post-adoption Share sits with the purchase message as a park sign. */
+      .hub .share-btn {
+        background: var(--sign-bg); border-color: var(--sign-border); color: var(--ink);
+        box-shadow: 0 3px 0 var(--sign-edge);
+      }
+      .hub .share-btn:active { box-shadow: 0 1px 0 var(--sign-edge); }
+      .shop-share { display: flex; justify-content: center; margin-top: 42px; }
+      .share-copied {
+        position: absolute; bottom: calc(100% + 8px); left: 50%;
+        transform: translateX(-50%) translateY(4px);
+        background: #02642a; color: #fff; border-radius: 999px; padding: 4px 13px;
+        font-family: "Nunito", sans-serif; font-weight: 800; font-size: 0.9rem; line-height: 1.3;
+        white-space: nowrap; pointer-events: none; z-index: 6;
+        box-shadow: 0 4px 10px rgba(20, 60, 30, 0.3);
+        opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+      .share-copied[hidden] { display: none; }
+      .share-copied.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      /* Footer social row: three quiet icon links, generous tap areas. */
+      .footer-social { display: flex; gap: 4px; justify-content: center; align-items: center; margin-top: 8px; }
+      .footer-social a {
+        width: 44px; height: 44px; flex: none;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 50%; color: var(--ink-soft);
+        transition: color 0.15s ease, background-color 0.15s ease;
+      }
+      .footer-social a svg { width: 21px; height: 21px; display: block; fill: currentColor; }
+      .footer-social a:focus-visible { outline: 4px solid var(--sun); outline-offset: 2px; }
+      @media (hover: hover) and (pointer: fine) {
+        .footer-social a:hover { color: var(--accent); background: rgba(255, 255, 255, 0.4); }
+        .share-btn:hover { border-color: var(--accent); }
+        body:not(:has(.hub.show)) .share-btn:hover { border-color: #a5713f; color: #22301f; }
+        .hub .share-btn:hover { border-color: var(--leaf); }
+      }
+      body:not(:has(.hub.show)) .footer-social { margin-top: 2px; }
+      body:not(:has(.hub.show)) .footer-social a { color: #063d1a; }
+      body:has(.hub.show) .footer-social a { color: #063d1a; }
+      @media (prefers-color-scheme: dark) {
+        body:has(.hub.show) .footer-social a { color: #e6f4dc; }
+      }
+      @media (orientation: landscape) and (max-height: 520px) {
+        body:not(:has(.hub.show)) .share-btn { min-height: 30px; font-size: 0.82rem; padding: 4px 13px; }
+        body:not(:has(.hub.show)) .footer-social { margin-top: 0; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .share-btn, .share-copied, .footer-social a { transition: none; }
+      }
     </style>
-  <style>.rs-nav{background:#fff;border-bottom:1px solid #E4E1D8;font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;color:#3F4653}.rs-nav .rs-in{max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 20px;flex-wrap:wrap}.rs-nav a.rs-logo{display:flex;align-items:center}.rs-nav img.rs-logoimg{height:30px;width:auto;display:block}.rs-links{display:flex;gap:22px;flex-wrap:wrap}.rs-links a{color:#3F4653;text-decoration:none;font-weight:600;font-size:.95rem}.rs-links a:hover{color:#E4572E}.rs-subnav{background:#3F4653;font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif}.rs-subnav .rs-in{max-width:1060px;margin:0 auto;display:flex;gap:4px;align-items:center;padding:7px 20px;flex-wrap:wrap}.rs-subnav a{color:#F2EDE3;text-decoration:none;font-weight:600;font-size:.85rem;padding:3px 9px;border-radius:999px}.rs-subnav a:hover{background:rgba(255,255,255,.16)}.rs-subnav a.rs-all{border:1px solid rgba(255,255,255,.4);color:#fff}.rs-subnav .rs-cur{color:#F5B324;font-weight:700;font-size:.85rem;padding:3px 9px}</style>
-</head>
+  </head>
   <body>
-<nav class="rs-nav" style="position:relative;z-index:50" aria-label="Real Sparks"><div class="rs-in"><a class="rs-logo" href="https://realsparks.net/" aria-label="Real Sparks home"><img class="rs-logoimg" src="https://games.realsparks.net/logo.svg" alt="Real Sparks"></a><div class="rs-links"><a href="https://realsparks.net/about.html">About</a><a href="https://games.realsparks.net/">Games</a><a href="https://www.linkedin.com/in/matthewhaber/" target="_blank" rel="noopener">LinkedIn</a></div></div></nav>
-<nav class="rs-subnav" style="position:relative;z-index:50" aria-label="Games"><div class="rs-in"><a class="rs-all" href="https://games.realsparks.net/">All games</a><a href="https://games.realsparks.net/popeka/">Popeka!</a><span class="rs-cur" aria-current="page">Creature Park</span><a href="https://games.realsparks.net/thrink/">Thrink</a><a href="https://games.realsparks.net/xenofront/">Xenofront</a><a href="https://games.realsparks.net/scribble-siege/">Scribble Siege</a><a href="https://games.realsparks.net/breadcrumb/">Breadcrumb</a></div></nav>
     <div class="entrance-scene" aria-hidden="true">
       <svg viewBox="0 0 800 430" preserveAspectRatio="xMidYMid slice">
         <defs>
@@ -1973,6 +2040,13 @@
       <section class="confirmed" id="confirmed" aria-live="polite"></section>
 
       <div class="grownups-bar" id="grownBar">
+        <span class="share-wrap">
+          <button type="button" class="share-btn" id="entranceShareBtn" aria-label="Share Creature Park">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4"/><path d="M15.4 6.5l-6.8 4"/></svg>
+            <span>Share</span>
+          </button>
+          <span class="share-copied" role="status" hidden>Copied</span>
+        </span>
         <button type="button" class="grown-btn" id="grownBtn">Grown-ups</button>
       </div>
 
@@ -2027,7 +2101,11 @@
         <p class="footer-brand">Creature Park<span class="tm" aria-hidden="true">™</span></p>
         <p class="footer-credit">Created for Hazel &amp; Hudson by Matthew Haber</p>
         <p class="footer-legal">© 2026 Real Sparks. All rights reserved. Creature Park™ is a trademark of Real Sparks. The Creature Park name, characters, artwork, and game content may not be reproduced or redistributed without permission.</p>
-        <p class="footer-legal"><a href="https://games.realsparks.net/sitemap.html" style="color:inherit">Sitemap</a></p>
+        <div class="footer-social">
+          <a href="https://realsparks.itch.io" target="_blank" rel="noopener" aria-label="Real Sparks on itch.io"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.2 2.8h17.6a.6.6 0 0 1 .6.8l-.9 4.1a2.75 2.75 0 0 1-5 .7 2.85 2.85 0 0 1-3.5-1.2 2.85 2.85 0 0 1-3.5 1.2 2.75 2.75 0 0 1-5-.7l-.9-4.1a.6.6 0 0 1 .6-.8zM5.3 10.9a4.3 4.3 0 0 0 2.9.7A4.6 4.6 0 0 0 12 10a4.6 4.6 0 0 0 3.8 1.6 4.3 4.3 0 0 0 2.9-.7V20a1.6 1.6 0 0 1-1.6 1.6h-3.4a.4.4 0 0 1-.4-.4v-4.7H10.7v4.7a.4.4 0 0 1-.4.4H6.9A1.6 1.6 0 0 1 5.3 20v-9.1z"/></svg></a>
+          <a href="https://www.youtube.com/@Realsparksgames" target="_blank" rel="noopener" aria-label="Real Sparks on YouTube"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></a>
+          <a href="https://www.linkedin.com/company/realsparks/" target="_blank" rel="noopener" aria-label="Real Sparks on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+        </div>
       </footer>
     </main>
 
@@ -3826,6 +3904,58 @@ var NARRATION_CLIPS = [
         };
 
         var SAVE_PREFIX = "hh-creature-park-v1-";
+        /* Real Sparks sharing standard (v1): one share URL for every
+           Share button in the park (entrance sign + post-adoption). */
+        var SHARE_URL = "https://games.realsparks.net/creature-park/play/";
+        var SHARE_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4"/><path d="M15.4 6.5l-6.8 4"/></svg>';
+        function showShareCopied(btn) {
+          var wrap = btn && btn.closest ? btn.closest(".share-wrap") : null;
+          var el = wrap ? wrap.querySelector(".share-copied") : null;
+          if (!el) return;
+          el.hidden = false;
+          void el.offsetWidth;
+          el.classList.add("show");
+          if (btn._shareTimer) clearTimeout(btn._shareTimer);
+          btn._shareTimer = setTimeout(function () {
+            el.classList.remove("show");
+            setTimeout(function () { el.hidden = true; }, 350);
+          }, 2000);
+        }
+        function fallbackShareCopy(text) {
+          try {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            ta.setAttribute("readonly", "");
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = document.execCommand("copy");
+            document.body.removeChild(ta);
+            return !!ok;
+          } catch (e) { return false; }
+        }
+        /* Triggered directly from a Share tap. Native share sheet when
+           the browser offers one (a cancelled sheet stays silent);
+           otherwise copy "line + space + URL" and flash Copied nearby. */
+        function shareGame(text, btn) {
+          if (navigator.share) {
+            try {
+              var p = navigator.share({ title: "Creature Park", text: text, url: SHARE_URL });
+              if (p && p.catch) p.catch(function () {});
+            } catch (e) { /* cancelled or unavailable: stay silent */ }
+            return;
+          }
+          var payload = text + " " + SHARE_URL;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(payload).then(
+              function () { showShareCopied(btn); },
+              function () { if (fallbackShareCopy(payload)) showShareCopied(btn); }
+            );
+          } else {
+            if (fallbackShareCopy(payload)) showShareCopied(btn);
+          }
+        }
         var STARTERS = { hazel: 0, hudson: 0, demo: 60 };
         var RARITY_ORDER = ["common", "uncommon", "rare", "legendary"];
         var RARITY = {
@@ -3840,6 +3970,7 @@ var NARRATION_CLIPS = [
         var round = null;
         var qLocked = false;
         var shopMsg = "";
+        var shopShareName = ""; /* creature name for the post-adoption Share; set only by a successful creature purchase, cleared on any other purchase, shop-tab switch, or leaving the shop */
         var shopTab = "pets";
         var justArrived = null; /* creature id that hops in beside its buyer on its first scene visit */
         var LEVEL_CAPS = { hazel: 8, hudson: 5, demo: 8 };
@@ -4491,6 +4622,7 @@ var NARRATION_CLIPS = [
           if (typeof closeHubMenu === "function") closeHubMenu();
           if (name !== "park") { stopParkFx(); stopMusic(); }
           currentScreen = name;
+          if (name !== "shop") shopShareName = "";
           renderNotices();
           if (typeof updateSoundBar === "function") updateSoundBar();
           var tabs = document.querySelectorAll("#tabs .tab");
@@ -6642,7 +6774,10 @@ var NARRATION_CLIPS = [
                 return '<button type="button" class="shop-tab' + (shopTab === tb[0] ? " active" : "") + '" data-shop-tab="' + tb[0] + '">' + tb[1] + "</button>";
               }).join("") +
             "</div>" +
-            '<p class="status-line" role="status">' + shopMsg + "</p>";
+            '<p class="status-line" role="status">' + shopMsg + "</p>" +
+            (shopShareName
+              ? '<div class="shop-share"><span class="share-wrap"><button type="button" class="share-btn" data-share-adopt="1" aria-label="Share adopting ' + shopShareName + '">' + SHARE_ICON_SVG + "<span>Share</span></button><span class=\"share-copied\" role=\"status\" hidden>Copied</span></span></div>"
+              : "");
           if (shopTab === "pets") {
             html += '<p class="screen-sub">' + (selected === "demo"
               ? "Demo friends belong to the demo park only: they cost demo coins, and collecting them never touches Hazel's or Hudson's creatures."
@@ -6794,6 +6929,7 @@ var NARRATION_CLIPS = [
           saveCurrent();
           renderWallet();
           shopMsg = a.name + " is yours! Find it in the Collection book to put it on.";
+          shopShareName = "";
           renderShop();
           playSfx("register");
           if (selected === "hudson") speak(a.name + " is yours now! Great work!");
@@ -6835,6 +6971,7 @@ var NARRATION_CLIPS = [
           shopMsg = c.name + " joined your collection! " + (wentTo
             ? c.name + " is out playing in " + placeById(wentTo).name + " now."
             : placeById(homePlace).name + " is full, so " + c.name + " is resting in the stable. Swap " + (c.id === "kyoshi" || c.id === "katara" ? "her" : "them") + " in from the Collection book!");
+          shopShareName = c.name;
           renderShop();
           playSfx("register");
           if (selected === "hudson") speak(c.name + " is yours now! Great work!");
@@ -7264,6 +7401,7 @@ var NARRATION_CLIPS = [
           saveCurrent();
           renderWallet();
           shopMsg = pl.name + " is unlocked! Head to the Hangout tab and pick it any time.";
+          shopShareName = "";
           renderShop();
           playSfx("register");
           if (selected === "hudson") speak(pl.name + " is yours now! Great saving!");
@@ -7950,6 +8088,7 @@ var NARRATION_CLIPS = [
           saveCurrent();
           renderWallet();
           shopMsg = a.name + " is unlocked for the whole family! Head to the Hangout to play.";
+          shopShareName = "";
           renderShop();
           playSfx("register");
           if (selected === "hudson") speak(a.name + " is yours now! The whole family can play!");
@@ -8512,12 +8651,14 @@ var NARRATION_CLIPS = [
           if (buyPlaceBtn) { buyPlace(buyPlaceBtn.getAttribute("data-buy-place")); return; }
           var buyActBtn = t.closest("[data-buy-activity]");
           if (buyActBtn) { buyActivity(buyActBtn.getAttribute("data-buy-activity")); return; }
+          var shareAdopt = t.closest("[data-share-adopt]");
+          if (shareAdopt) { if (shopShareName) shareGame("I adopted " + shopShareName + " in Creature Park.", shareAdopt); return; }
           var buy = t.closest("[data-buy]");
           if (buy) { buyCreature(buy.getAttribute("data-buy")); return; }
           var buyAcc = t.closest("[data-buy-acc]");
           if (buyAcc) { buyAccessory(buyAcc.getAttribute("data-buy-acc")); return; }
           var sTab = t.closest("[data-shop-tab]");
-          if (sTab) { shopTab = sTab.getAttribute("data-shop-tab"); shopMsg = ""; renderShop(); return; }
+          if (sTab) { shopTab = sTab.getAttribute("data-shop-tab"); shopMsg = ""; shopShareName = ""; renderShop(); return; }
           var wear = t.closest("[data-acc-wear]");
           if (wear) { wearAvatarAcc(wear.getAttribute("data-acc-wear")); return; }
           if (t.closest("[data-acc-unwear]")) { unwearAvatarAcc(); return; }
@@ -8965,6 +9106,10 @@ var NARRATION_CLIPS = [
         }
         var grownBtnEl = document.getElementById("grownBtn");
         if (grownBtnEl) grownBtnEl.addEventListener("click", openGrownups);
+        var entranceShareBtnEl = document.getElementById("entranceShareBtn");
+        if (entranceShareBtnEl) entranceShareBtnEl.addEventListener("click", function () {
+          shareGame("I am collecting friendly creatures in Creature Park, a gentle learning game.", entranceShareBtnEl);
+        });
         if (grownOverlay) {
           grownOverlay.addEventListener("keydown", function (ev) {
             if (ev.key === "Enter" && ev.target && ev.target.id === "gateInput") {
