@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Meander, a calm daily wander</title>
+<meta name="description" content="Meander is a calm daily game. Wander from one article to another by tapping links. No timer, just a quiet walk.">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#F6EAD2">
+<style>
+  :root{
+    /* Palette anchored on the chosen treasure map logo: parchment cream,
+       near-black warm ink, and red reserved for the X. */
+    --paper:#F6EAD2;
+    --paper-2:#EFE0C3;
+    --ink:#2B211A;
+    --ink-soft:#6E5F4E;
+    --sage:#8A7A5F;
+    --sage-deep:#2B211A;
+    --sage-tint:#F0E4C8;
+    --river:#D9C9A8;
+    --line:#DCCBA9;
+    --card:#FFFDF7;
+    --gold:#B8912A;
+    --gold-soft:#F1E3B6;
+    --xred:#BE3A2B;
+    --xred-tint:#F9E7E1;
+    --terra:#C0764A;
+    --radius:18px;
+    --shadow:0 10px 30px rgba(43,33,26,.10), 0 2px 6px rgba(43,33,26,.07);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 85% -80px, #FBF2DC 0%, rgba(251,242,220,0) 60%),
+      radial-gradient(900px 480px at -10% 30%, #F1E2C2 0%, rgba(241,226,194,0) 55%),
+      var(--paper);
+    color:var(--ink);
+    font-family: ui-rounded, "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:680px; margin:0 auto; padding:18px 16px 28px;}
+  header.top{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:6px 2px 14px;}
+  .brand{display:flex; align-items:center; gap:11px;}
+  .mark{
+    width:46px; height:46px; border-radius:14px; flex:0 0 auto;
+    background:#FBF3DF; border:1.5px solid var(--line);
+    display:grid; place-items:center; box-shadow:var(--shadow);
+  }
+  .mark svg{width:34px; height:34px;}
+  h1.wordmark{
+    font-family:inherit;
+    font-size:31px; line-height:1; margin:0; font-weight:700; letter-spacing:.2px; color:var(--ink);
+  }
+  .tagline{margin:3px 0 0; font-size:13px; color:var(--ink-soft);}
+  .datemeta{text-align:right;}
+  .date-line{font-size:13px; color:var(--ink-soft); white-space:nowrap;}
+  .streak-line{font-size:13px; color:var(--sage-deep); font-weight:700; white-space:nowrap; margin-top:3px;}
+  .streak-line:empty{display:none;}
+
+  /* Journey cards: the entrance teaches the game in one glance */
+  .journey{
+    background:var(--card); border:1px solid var(--line); border-radius:22px;
+    box-shadow:var(--shadow); padding:16px; position:relative; overflow:hidden;
+  }
+  .journey-row{display:flex; align-items:stretch; gap:10px;}
+  .place-card{
+    flex:1 1 0; border-radius:16px; padding:12px 13px; min-width:0;
+    border:1.5px solid var(--line); background:#FBF7EC;
+  }
+  .place-card .kicker{font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--ink-soft);}
+  .place-card .place-name{font-family:Georgia, serif; font-size:19px; line-height:1.15; margin-top:4px; overflow-wrap:anywhere;}
+  .place-card.start{border-color:var(--river); background:#FBF3DF;}
+  .place-card.target{border:1.5px dashed var(--ink); background:#FDF8E7; position:relative;}
+  .place-card.target.arrived{animation:pulse 1.1s ease 2; border-color:var(--xred); border-style:solid; background:var(--gold-soft);}
+  @keyframes pulse{0%{transform:scale(1)} 35%{transform:scale(1.035)} 100%{transform:scale(1)}}
+  .x-badge{position:absolute; top:7px; right:9px; width:15px; height:15px;}
+  .contours{position:absolute; top:-14px; left:-10px; width:170px; height:120px; opacity:.16; pointer-events:none;}
+  .journey-row, .journey-meta, .invite, .mode-banner{position:relative;}
+  .path-col{display:flex; align-items:center; justify-content:center; min-width:40px;}
+  .path-col svg{width:40px; height:64px;}
+  .journey-meta{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:13px;}
+  .pill{
+    font-size:12.5px; font-weight:700; border-radius:999px; padding:6px 11px;
+    background:var(--sage-tint); color:var(--sage-deep); border:1px solid #D9C9A8;
+  }
+  .pill.gold{background:var(--gold-soft); border-color:#E3CE8A; color:#6E5710;}
+  .pill.plain{background:#F4EFE1; border-color:var(--line); color:var(--ink-soft); font-weight:600;}
+  .invite{margin:11px 2px 0; font-size:14px; color:var(--ink-soft); line-height:1.45;}
+  .via-note{margin:11px 2px 0; font-size:14px; line-height:1.5; color:#6E5710; background:var(--gold-soft); border:1px solid #E3CE8A; border-radius:12px; padding:9px 12px;}
+  .kind-tag{flex:0 0 auto; font-size:10.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; background:var(--sage-tint); color:var(--sage-deep); border:1px solid #D9C9A8; border-radius:999px; padding:3px 7px;}
+  .mode-banner{
+    display:none; margin-top:12px; font-size:13px; font-weight:700; color:#6E5710;
+    background:var(--gold-soft); border:1px solid #E3CE8A; border-radius:12px; padding:8px 12px;
+  }
+  .mode-banner.show{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .mode-banner button{border:0; background:transparent; color:var(--sage-deep); font-weight:800; font-size:13px; cursor:pointer; padding:4px 2px;}
+
+  /* Breadcrumbs */
+  .crumbs{margin:14px 2px 0;}
+  .crumbs-label{font-size:11px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--ink-soft); margin-bottom:7px;}
+  .crumb-track{display:flex; gap:7px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none;}
+  .crumb-track::-webkit-scrollbar{display:none;}
+  .crumb{
+    flex:0 0 auto; max-width:210px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    border:1.5px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:999px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .crumb.current{border-color:var(--sage); background:var(--sage-tint); color:var(--sage-deep); cursor:default;}
+  .crumb-sep{align-self:center; color:var(--sage); font-size:12px; flex:0 0 auto;}
+
+  .controls{display:flex; gap:9px; margin:13px 0 0; flex-wrap:wrap;}
+
+  /* Guided practice coach card */
+  .coach{display:none; margin-top:14px; background:#FBF3DF; border:1.5px solid var(--river); border-radius:18px; padding:14px 16px;}
+  .coach.show{display:block;}
+  .coach-kicker{font-size:11px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--xred); margin-bottom:5px;}
+  .coach-text{margin:0; font-size:14.5px; line-height:1.55; color:var(--ink);}
+  .coach-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:11px;}
+
+  /* Play style: casual and ranked */
+  .style-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:13px 2px 0;}
+  .style-label{font-size:12px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--ink-soft);}
+  .segmented{display:inline-flex; background:#EFE3CB; border:1px solid var(--line); border-radius:999px; padding:3px;}
+  .segmented button{appearance:none; border:0; background:transparent; color:var(--ink-soft); font:inherit; font-size:13px; font-weight:700; padding:6px 14px; border-radius:999px; cursor:pointer;}
+  .segmented button.on{background:var(--ink); color:#FFF6EC;}
+  .style-note{flex:1 1 100%; margin:2px 0 0; font-size:12.5px; color:var(--ink-soft); line-height:1.45;}
+
+  /* Levels list */
+  .tier-head{font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:800; color:var(--ink-soft); margin:15px 2px 2px;}
+  .tier-head:first-child{margin-top:2px;}
+  .level-num{flex:0 0 auto; width:26px; height:26px; border-radius:50%; background:var(--sage-tint); border:1px solid var(--line); display:grid; place-items:center; font-size:12.5px; font-weight:800; color:var(--ink);}
+  .level-stars{flex:0 0 auto; color:var(--gold); font-size:13px; letter-spacing:1px; font-weight:800;}
+  .next-tag{flex:0 0 auto; font-size:10.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; background:var(--xred); color:#FFF6EC; border-radius:999px; padding:3px 7px;}
+
+  .link-btn.suggested{border-color:var(--gold); animation:suggestPulse 1.8s ease-in-out infinite;}
+  @keyframes suggestPulse{0%,100%{box-shadow:0 0 0 0 rgba(184,145,42,0)} 50%{box-shadow:0 0 0 3px rgba(184,145,42,.45)}}
+  .btn{
+    appearance:none; border:1.5px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:999px; padding:10px 16px; font-size:14px; font-weight:700; cursor:pointer;
+    font-family:inherit;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn.primary{background:var(--sage-deep); border-color:var(--sage-deep); color:#fff;}
+  .btn.gold{background:var(--gold); border-color:var(--gold); color:#2E2503;}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btn.small{padding:7px 12px; font-size:13px;}
+
+  /* Article */
+  .article{
+    margin-top:14px; background:var(--card); border:1px solid var(--line);
+    border-radius:22px; box-shadow:var(--shadow); padding:20px 18px 16px;
+  }
+  .article h2{
+    font-family:Georgia, serif; font-size:27px; line-height:1.12; margin:0 0 8px; font-weight:600; overflow-wrap:anywhere;
+  }
+  .extract{font-size:15.5px; line-height:1.62; color:#37443B; margin:0;}
+  .extract:empty{display:none;}
+  .attrib{margin:12px 0 0; font-size:12px; color:var(--ink-soft); line-height:1.5;}
+  .attrib a{color:var(--sage-deep); font-weight:700;}
+  .filter-row{margin:16px 0 10px;}
+  .filter-row input{
+    width:100%; border:1.5px solid var(--line); border-radius:13px; background:#FBF7EC;
+    padding:12px 14px; font-size:15px; color:var(--ink); font-family:inherit; outline:none;
+  }
+  .filter-row input:focus{border-color:var(--sage); background:#fff;}
+  .links-head{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+  .links-head .count{font-size:12.5px; color:var(--ink-soft);}
+  .links-head .hintline{font-size:12.5px; color:var(--ink-soft);}
+  .link-list{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+  .link-btn{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; text-align:left; width:100%;
+    border:1.5px solid #E2DCC9; background:#FFFefa; background:#FFFDF7; border-radius:14px;
+    padding:13px 14px; font-size:15.5px; font-weight:600; color:var(--ink); cursor:pointer; font-family:inherit;
+  }
+  .link-btn:active{transform:scale(.99);}
+  .link-btn .go{color:var(--sage); font-weight:800; flex:0 0 auto;}
+  .link-btn.is-target{border:1.5px dashed var(--ink); background:var(--xred-tint);}
+  .target-tag{
+    flex:0 0 auto; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--xred); color:#FFF6EC; border-radius:999px; padding:4px 8px;
+  }
+  .target-tag::before{content:"✕ ";}
+  .no-results{font-size:14px; color:var(--ink-soft); padding:10px 2px; display:none;}
+  .loading{padding:26px 6px; text-align:center; color:var(--ink-soft); font-size:14.5px;}
+  .loading .wander-dots{display:flex; gap:6px; justify-content:center; margin-bottom:10px;}
+  .loading .wander-dots i{width:7px; height:7px; border-radius:50%; background:var(--sage); display:block; animation:bob 1s ease-in-out infinite;}
+  .loading .wander-dots i:nth-child(2){animation-delay:.15s;} .loading .wander-dots i:nth-child(3){animation-delay:.3s;}
+  @keyframes bob{0%,100%{transform:translateY(0); opacity:.5} 50%{transform:translateY(-5px); opacity:1}}
+  .error-box{display:none; background:#FDF0E7; border:1px solid #EBC9AC; color:#6B3A1E; border-radius:14px; padding:13px 14px; font-size:14px; line-height:1.5; margin-top:14px;}
+  .error-box.show{display:block;}
+  .error-box button{margin-top:9px;}
+
+  /* Win panel */
+  .win{
+    display:none; margin-top:14px; background:linear-gradient(160deg, #FDF8E7, #F6EFCE);
+    border:1.5px dashed var(--ink); border-radius:22px; padding:20px 18px; text-align:center; box-shadow:var(--shadow);
+  }
+  .win.show{display:block;}
+  .win .x-mark{width:30px; height:30px; margin:0 auto 6px; display:block;}
+  .win .arrived-word{font-family:Georgia, serif; font-size:24px; margin:0;}
+  .stars{font-size:31px; letter-spacing:6px; color:var(--gold); margin:9px 0 2px; line-height:1;}
+  .stars .dim{color:#D9CD9E;}
+  .win .win-meta{font-size:14.5px; color:#5C4D12; margin:6px 0 0;}
+  .win .win-trivia{font-size:13px; color:var(--ink-soft); margin:7px 0 0;}
+  .share-box{
+    margin:14px auto 0; max-width:520px; background:#fff; border:1px dashed #CBB96B; border-radius:13px;
+    padding:11px 12px; font-size:14px; color:var(--ink); overflow-wrap:anywhere;
+  }
+  .win .btn-row{display:flex; gap:9px; justify-content:center; flex-wrap:wrap; margin-top:14px;}
+  .copied-note{font-size:13px; color:var(--sage-deep); font-weight:700; min-height:18px; margin-top:8px;}
+
+  /* Practice picker */
+  .practice{display:none; margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:22px; box-shadow:var(--shadow); padding:18px;}
+  .practice.show{display:block;}
+  .practice h3{font-family:Georgia, serif; font-size:20px; margin:0 0 4px; font-weight:600;}
+  .practice p{font-size:13.5px; color:var(--ink-soft); margin:0 0 12px; line-height:1.5;}
+  .practice-list{display:flex; flex-direction:column; gap:8px;}
+  .practice-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; text-align:left;
+    border:1.5px solid #E2DCC9; background:#FFFDF7; border-radius:14px; padding:12px 13px; cursor:pointer; font-family:inherit;
+  }
+  .practice-item .route{font-size:14.5px; font-weight:600; color:var(--ink); line-height:1.35;}
+  .practice-item .par{flex:0 0 auto;}
+
+  .history-line{margin:16px 2px 0; font-size:13px; color:var(--ink-soft); line-height:1.55;}
+  .history-line:empty{display:none;}
+  footer.site{
+    margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
+    text-align:center; font-size:12.5px; color:var(--ink-soft); line-height:1.6;
+  }
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
+  @media (max-width:430px){
+    h1.wordmark{font-size:26px;}
+    .place-card .place-name{font-size:17px;}
+    .article h2{font-size:24px;}
+    .wrap{padding:14px 12px 24px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <path d="M7 6 C13 4 16 7 15 12 C14 17 8 17 9 22 C10 27 17 26 20 29" stroke="#2B211A" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="4.5 4"/>
+          <path d="M27 25 L37 35 M37 25 L27 35" stroke="#BE3A2B" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="wordmark">meander</h1>
+        <p class="tagline">A calm daily wander.</p>
+      </div>
+    </div>
+    <div class="datemeta">
+      <div class="date-line" id="dateLine"></div>
+      <div class="streak-line" id="streakLine"></div>
+    </div>
+  </header>
+
+  <section class="journey" aria-label="Today's journey">
+    <svg class="contours" viewBox="0 0 170 120" fill="none" aria-hidden="true">
+      <g stroke="#2B211A" stroke-width="1.4">
+        <path d="M-10 18 C30 -6 62 10 78 34 C92 55 84 84 104 108"/>
+        <path d="M-10 38 C24 16 50 28 64 48 C76 66 70 88 86 110"/>
+        <path d="M-8 60 C18 42 38 50 50 66 C60 80 56 96 68 112"/>
+        <path d="M-6 82 C14 66 30 72 40 84 C48 94 46 104 54 114"/>
+      </g>
+    </svg>
+    <div class="journey-row">
+      <div class="place-card start">
+        <div class="kicker">Start</div>
+        <div class="place-name" id="startName">Loading</div>
+      </div>
+      <div class="path-col" aria-hidden="true">
+        <svg viewBox="0 0 40 64" fill="none" aria-hidden="true">
+          <path d="M8 6 C30 12 10 26 22 36 C32 44 24 52 30 56" stroke="#2B211A" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="4.5 4"/>
+          <path d="M27 51 L36 60 M36 51 L27 60" stroke="#BE3A2B" stroke-width="2.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="place-card target" id="targetCard">
+        <svg class="x-badge" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 2 L14 14 M14 2 L2 14" stroke="#BE3A2B" stroke-width="2.6" stroke-linecap="round"/></svg>
+        <div class="kicker">Target</div>
+        <div class="place-name" id="targetName">Loading</div>
+      </div>
+    </div>
+    <div class="journey-meta">
+      <span class="pill" id="hopPill">0 hops</span>
+      <span class="pill gold" id="parPill">Par 0</span>
+      <span class="pill plain" id="starPill">Finish for a star</span>
+      <span class="pill plain" id="stylePill" hidden>Ranked play</span>
+      <span class="pill gold" id="viaPill" hidden></span>
+      <span class="pill" id="banPill" hidden></span>
+    </div>
+    <p class="via-note" id="viaNote" hidden></p>
+    <p class="invite" id="inviteLine">Wander from the start to the target by tapping links in each article. Take as long as you like.</p>
+    <div class="mode-banner" id="practiceBanner"><span id="modeBannerText"></span><button type="button" id="exitPracticeBtn">Back to today</button></div>
+  </section>
+
+  <section class="coach" id="coachCard">
+    <div class="coach-kicker" id="coachKicker">Guided practice</div>
+    <p class="coach-text" id="coachText"></p>
+    <div class="coach-actions">
+      <button class="btn small" type="button" id="coachSkipBtn">Skip the tour</button>
+      <button class="btn small primary" type="button" id="coachTodayBtn" hidden>Play today's wander</button>
+      <button class="btn small" type="button" id="coachLevelsBtn" hidden>See the levels</button>
+    </div>
+  </section>
+
+  <section class="crumbs" id="crumbsSection" aria-label="Your path so far">
+    <div class="crumbs-label">Your path</div>
+    <div class="crumb-track" id="crumbTrack"></div>
+  </section>
+
+  <div class="controls">
+    <button class="btn" type="button" id="undoBtn">Undo</button>
+    <button class="btn" type="button" id="restartBtn">Start over</button>
+    <button class="btn" type="button" id="levelsBtn">Levels</button>
+    <button class="btn" type="button" id="practiceBtn">Practice</button>
+    <button class="btn" type="button" id="settingsBtn">Settings</button>
+  </div>
+
+  <section class="practice" id="settingsPanel">
+    <h3>Settings</h3>
+    <p>Set these once and they stay set, on every wander.</p>
+  <div class="style-row">
+    <span class="style-label">Play style</span>
+    <div class="segmented" role="group" aria-label="Play style">
+      <button type="button" id="styleCasualBtn">Casual</button>
+      <button type="button" id="styleRankedBtn">Ranked</button>
+    </div>
+    <p class="style-note" id="styleNote"></p>
+  </div>
+
+  <div class="style-row">
+    <span class="style-label">Sound</span>
+    <div class="segmented" role="group" aria-label="Sound">
+      <button type="button" id="soundOnBtn">On</button>
+      <button type="button" id="soundOffBtn">Off</button>
+    </div>
+    <span class="style-label">Music</span>
+    <div class="segmented" role="group" aria-label="Music">
+      <button type="button" id="musicOffBtn">Off</button>
+      <button type="button" id="musicTrailBtn">Trailhead</button>
+      <button type="button" id="musicContourBtn">Contour</button>
+      <button type="button" id="musicBothBtn">Both</button>
+    </div>
+  </div>
+
+  </section>
+
+  <div class="error-box" id="errorBox">
+    <span id="errorText">That article could not be loaded. Check your connection and try again.</span><br>
+    <button class="btn small" type="button" id="retryBtn">Try again</button>
+  </div>
+
+  <main class="article" id="articleCard" aria-live="polite">
+    <div class="loading" id="loadingBox">
+      <div class="wander-dots"><i></i><i></i><i></i></div>
+      <div>Wandering over…</div>
+    </div>
+    <div id="articleBody" hidden>
+      <h2 id="articleTitle"></h2>
+      <p class="extract" id="articleExtract"></p>
+      <p class="attrib" id="articleAttrib"></p>
+      <div class="filter-row">
+        <label class="sr" for="filterInput">Filter links</label>
+        <input id="filterInput" type="search" placeholder="Filter links" autocomplete="off">
+      </div>
+      <div class="links-head">
+        <span class="hintline">Tap a link to wander there.</span>
+        <span class="count" id="linkCount"></span>
+      </div>
+      <div class="no-results" id="noResults">No links match that filter.</div>
+      <div class="link-list" id="linkList"></div>
+    </div>
+  </main>
+
+  <section class="win" id="winPanel" aria-live="polite">
+    <svg class="x-mark" viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 4 L26 26 M26 4 L4 26" stroke="#BE3A2B" stroke-width="3.4" stroke-linecap="round"/></svg>
+    <p class="arrived-word">You arrived.</p>
+    <div class="stars" id="winStars"></div>
+    <p class="win-meta" id="winMeta"></p>
+    <p class="win-trivia" id="winTrivia" hidden></p>
+    <div class="share-box" id="shareText"></div>
+    <div class="btn-row">
+      <button class="btn gold" type="button" id="shareBtn">Share</button>
+      <button class="btn" type="button" id="copyBtn">Copy result</button>
+      <button class="btn primary" type="button" id="winNextBtn" hidden>Next level</button>
+      <button class="btn" type="button" id="winPracticeBtn">Try the guided practice</button>
+    </div>
+    <div class="copied-note" id="copiedNote"></div>
+  </section>
+
+  <section class="practice" id="levelsPanel">
+    <h3>Levels</h3>
+    <p id="levelsProgress">A journey of wanders, gentle first. Every level is open: skip ahead and come back any time.</p>
+    <div class="practice-list" id="levelsList"></div>
+  </section>
+
+  <p class="history-line" id="historyLine"></p>
+
+  <footer class="site">
+    <div>Meander / Created by Matthew Haber / © 2026 Real Sparks. All rights reserved.</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Daily pairs, pars verified at build time ----------
+     Each par is the length of the shortest route found by a bounded
+     breadth-first search over outgoing article links. The search method
+     and the route for each pair are recorded in PAIRS_NOTES in the
+     build notes that ship with this staging folder. */
+  /* Daily catalog: seven weekday slots, Monday through Sunday, two
+     pairs per slot taking turns week by week. The week is a ramp:
+     Monday is the gentlest wander and Sunday the deepest. Dailies
+     are fully separate from the levels: no article title appears
+     in both, and no title repeats anywhere in the catalog. Every
+     par was verified by full-graph breadth-first search (method
+     and routes are recorded in BUILD_NOTES.md). */
+  var DAILY_WEEK = [
+    [ { start: "Apple", target: "Pizza", par: 3 }, { start: "Kangaroo", target: "Moon", par: 3 } ],
+    [ { start: "Piano", target: "Sahara", par: 3 }, { start: "Whale", target: "Mermaid", par: 3 } ],
+    [ { start: "Rainbow", target: "Elvis Presley", par: 3 }, { start: "Lighthouse", target: "Atlantis", par: 3 } ],
+    [ { start: "Volcano", target: "Unicorn", par: 3 }, { start: "Bear", target: "Mona Lisa", par: 3 } ],
+    [ { start: "Turtle", target: "Black hole", par: 3 }, { start: "Eagle", target: "Joan of Arc", par: 3 } ],
+    [ { start: "Titanic", target: "Shangri-La", par: 3 }, { start: "Jazz", target: "Troy", par: 3 } ],
+    [ { start: "Apollo 11", target: "Medusa", par: 3 }, { start: "Ancient Egypt", target: "Ludwig van Beethoven", par: 3 } ]
+  ];
+  var PAIRS = [];
+  DAILY_WEEK.forEach(function(row){ row.forEach(function(p){ PAIRS.push(p); }); });
+
+  /* Levels: themed trails, gentle first, with two special kinds
+     introduced along the way: waypoint levels (via) and banned-word
+     levels (banned). Every level is open from the start. */
+  var LEVELS = [
+    { tier: "First Steps", start: "Coffee", target: "Space Needle", par: 3 },
+    { tier: "First Steps", start: "Sushi", target: "Pearl Harbor", par: 3 },
+    { tier: "First Steps", start: "Banana", target: "Godzilla", par: 3 },
+    { tier: "Wild Things", start: "Elephant", target: "Kraken", par: 3 },
+    { tier: "Wild Things", start: "Frog", target: "Excalibur", par: 3 },
+    { tier: "Wild Things", start: "Tiger", target: "El Dorado", par: 3 },
+    { tier: "Makers and Masterpieces", start: "Vincent van Gogh", target: "Rosetta Stone", par: 3, via: "The Great Wave off Kanagawa" },
+    { tier: "Makers and Masterpieces", start: "Guitar", target: "Hercules", par: 3 },
+    { tier: "Makers and Masterpieces", start: "Train", target: "The Starry Night", par: 3 },
+    { tier: "Makers and Masterpieces", start: "Octopus", target: "Mount Fuji", par: 3 },
+    { tier: "Stories and Legends", start: "Chocolate", target: "Young Frankenstein", par: 3 },
+    { tier: "Stories and Legends", start: "Sherlock Holmes", target: "Camelot", par: 3, via: "Edinburgh" },
+    { tier: "Stories and Legends", start: "Castle", target: "Hamlet", par: 3 },
+    { tier: "Deep Trails", start: "Penguin", target: "Diamond", par: 3, banned: "Antarctica" },
+    { tier: "Deep Trails", start: "Bicycle", target: "Otto Frank", par: 3, banned: "Cycling" }
+  ];
+
+  /* Guided practice walks this route and talks you through it. It is
+     also Level 1, so finishing the tour finishes that level. */
+  var TUTORIAL_PAIR = LEVELS[0];
+  var TOUR_ROUTE = ["Coffee", "Starbucks", "Seattle", "Space Needle"];
+
+  /* Ranked play hides these famous shortcut articles from link lists.
+     Casual play allows any term. The list is deliberately small, and
+     every pair above keeps a verified shortest route that avoids it,
+     so pars stay exact under ranked rules. A finish only counts as
+     ranked when ranked style was on for the whole wander, start to
+     finish. */
+  var BANNED_TERMS = [
+    "United States", "United Kingdom", "England", "Europe", "Earth",
+    "World War I", "World War II", "France", "Germany", "China",
+    "India", "Russia", "Canada", "Australia", "Italy", "Spain",
+    "Mexico", "Brazil", "Africa", "Asia", "North America", "South America"
+  ];
+
+  /* Redirect titles that land on a banned article (USA lands on
+     United States, First World War on World War I, and so on). Banned
+     checks resolve through this map, so a shortcut cannot slip in
+     under another name. Only the common link forms are baked in. */
+  var BANNED_ALIASES = {"USA": "United States", "U.S.": "United States", "U.S.A.": "United States", "US": "United States", "U.S": "United States", "America": "United States", "The United States": "United States", "United States of America": "United States", "The United States of America": "United States", "UK": "United Kingdom", "U.K.": "United Kingdom", "The UK": "United Kingdom", "United Kingdom of Great Britain and Northern Ireland": "United Kingdom", "The United Kingdom": "United Kingdom", "WWI": "World War I", "WW1": "World War I", "First World War": "World War I", "World War One": "World War I", "World War 1": "World War I", "Great War": "World War I", "The Great War": "World War I", "WWII": "World War II", "WW2": "World War II", "Second World War": "World War II", "World War Two": "World War II", "World War 2": "World War II", "The Earth": "Earth", "Planet Earth": "Earth", "Earth (planet)": "Earth", "People's Republic of China": "China", "The People's Republic of China": "China", "PRC": "China", "Russian Federation": "Russia", "French Republic": "France", "Republic of France": "France", "Federal Republic of Germany": "Germany", "Kingdom of Spain": "Spain", "Italia": "Italy", "Republic of India": "India", "European continent": "Europe", "North American continent": "North America", "North American": "North America", "South American": "South America", "African continent": "Africa", "Commonwealth of Australia": "Australia", "Federative Republic of Brazil": "Brazil", "Bicycling": "Cycling", "Biking": "Cycling"};
+
+  var SAVE_KEY = "meander-v1";
+  var API = "https://en.wikipedia.org/w/api.php";
+  /* The game's home once published. Every shared result carries this
+     link back, so a good wander recruits the next player. One place
+     to change if the address ever moves. */
+  var GAME_URL = "https://games.realsparks.net/meander/";
+
+  /* ---------- Guarded audio session: ambient by default ----------
+     Setting the session to ambient lets soft game sounds mix with
+     other apps instead of pausing them. Applied at startup, on taps,
+     and before any sound starts. Browsers without navigator.audioSession
+     simply skip it. */
+  var audioSessionState = { supported: false, type: null };
+  function applyAudioSession(){
+    try{
+      if (typeof navigator !== "undefined" && navigator.audioSession){
+        navigator.audioSession.type = "ambient";
+        audioSessionState.supported = true;
+        audioSessionState.type = navigator.audioSession.type;
+      }
+    }catch(e){ /* older browsers: nothing to set */ }
+    return audioSessionState.type;
+  }
+  applyAudioSession();
+  window.__meanderAudioSession = { state: audioSessionState, apply: applyAudioSession };
+
+  var audioCtx = null;
+  function ensureAudioContext(){
+    applyAudioSession();
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!audioCtx) audioCtx = new AC();
+      if (audioCtx.state === "suspended" || audioCtx.state === "interrupted"){
+        var p = audioCtx.resume();
+        if (p && p.catch) p.catch(function(){});
+      }
+      return audioCtx;
+    }catch(e){ return null; }
+  }
+  if (window.addEventListener){
+    window.addEventListener("pointerdown", function(){ applyAudioSession(); ensureAudioContext(); refreshMusic(); }, false);
+  }
+
+  function softTone(freq, delay, dur, vol){
+    /* The master Sound switch silences every tone at this one gate. */
+    if (typeof state !== "undefined" && state && state.settings && state.settings.sound === false) return;
+    var ctx = ensureAudioContext();
+    if (!ctx) return;
+    try{
+      var t = ctx.currentTime + (delay || 0);
+      var osc = ctx.createOscillator();
+      var g = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(Math.max(vol || 0.04, 0.0002), t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.35));
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + (dur || 0.35) + 0.05);
+    }catch(e){ /* sound is a garnish, never a blocker */ }
+  }
+  function tapSound(){ softTone(660, 0, 0.18, 0.025); }
+  function arriveSound(){ softTone(523.25, 0, 0.5, 0.04); softTone(783.99, 0.14, 0.65, 0.04); }
+  function undoSound(){ softTone(392, 0, 0.22, 0.018); softTone(329.63, 0.07, 0.3, 0.015); }
+  function waypointSound(){ softTone(587.33, 0, 0.45, 0.028); softTone(880, 0.13, 0.6, 0.028); }
+
+  /* ---------- Generative music: two calm pieces, both Matthew's picks ----------
+     Trailhead: warm plucks wandering an A major pentatonic over a soft pad.
+     Contour Lines: a marimba-like walking melody over a light pad, C major.
+     "Both" alternates by wander: even levels and even days get Trailhead,
+     odd ones get Contour Lines, and practice always gets Trailhead.
+     Music is a garnish: it never touches game state or the daily seeding,
+     every call is guarded, and the master Sound switch silences it too. */
+  var musicBus = null, musicTimerPad = null, musicTimerMel = null;
+  var musicPlaying = false, musicPiece = null, musicGen = 0;
+  var melPos = 2, melStepIdx = 0, chordIdx = 0;
+  var PIECES = {
+    trailhead: { chords: [[57,61,64],[54,57,61],[50,54,57],[52,56,59]], chordDur: 8200, scale: [69,73,76,78,81,85], padVol: 0.05 },
+    contour: { chords: [[48,55,64],[43,55,62],[45,57,64],[41,53,60],[48,55,64]], chordDur: 8000, step: 1220, padVol: 0.04,
+      melody: [72,74,76,79,76,74,72,69,72,74,76,81,79,76,74,72,69,72,74,76,79,81,84,81,79,76,74,76,72,69,67,72] }
+  };
+  function midiHz(m){ return 440 * Math.pow(2, (m - 69) / 12); }
+  function musicSetting(){ var m = (typeof state !== "undefined" && state && state.settings) ? state.settings.music : "off"; return (m === "trailhead" || m === "contour" || m === "both") ? m : "off"; }
+  function soundOn(){ return !(typeof state !== "undefined" && state && state.settings && state.settings.sound === false); }
+  function resolvedPiece(){
+    var m = musicSetting();
+    if (m === "trailhead" || m === "contour") return m;
+    if (m === "both"){
+      if (mode === "level") return levelIndex % 2 === 0 ? "trailhead" : "contour";
+      if (mode === "practice") return "trailhead";
+      return Math.floor(Date.now() / 86400000) % 2 === 0 ? "trailhead" : "contour";
+    }
+    return null;
+  }
+  function ensureMusicBus(ctx){
+    if (!musicBus){ musicBus = ctx.createGain(); musicBus.gain.value = 0.9; musicBus.connect(ctx.destination); }
+    return musicBus;
+  }
+  function mOsc(freq, t, dur, vol){
+    var ctx = audioCtx; if (!ctx) return;
+    try{
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(Math.max(vol, 0.0002), t + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ensureMusicBus(ctx));
+      o.start(t); o.stop(t + dur + 0.05);
+    }catch(e){ /* music is a garnish, never a blocker */ }
+  }
+  function mPad(midis, t, dur, vol){
+    var ctx = audioCtx; if (!ctx) return;
+    midis.forEach(function(m, i){
+      try{
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = midiHz(m) * (i % 2 ? 1.0012 : 0.9988);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(vol, t + 2.5);
+        g.gain.setValueAtTime(vol, t + Math.max(2.5, dur - 2.5));
+        g.gain.linearRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(ensureMusicBus(ctx));
+        o.start(t); o.stop(t + dur + 0.05);
+      }catch(e){ /* garnish */ }
+    });
+  }
+  function mPluck(midi, t, vol){
+    var f = midiHz(midi);
+    mOsc(f, t, 2.8, vol); mOsc(f * 2, t, 1.4, vol * 0.28); mOsc(f * 3, t, 0.8, vol * 0.10);
+  }
+  function mMarimba(midi, t, vol){
+    var f = midiHz(midi);
+    mOsc(f, t, 1.5, vol); mOsc(f * 4.02, t, 0.35, vol * 0.25);
+  }
+  function schedulePad(gen){
+    if (!musicPlaying || gen !== musicGen) return;
+    var p = PIECES[musicPiece], ctx = audioCtx;
+    if (ctx) mPad(p.chords[chordIdx % p.chords.length], ctx.currentTime + 0.05, p.chordDur / 1000 + 1.2, p.padVol);
+    chordIdx++;
+    musicTimerPad = setTimeout(function(){ schedulePad(gen); }, p.chordDur);
+  }
+  function scheduleMel(gen){
+    if (!musicPlaying || gen !== musicGen) return;
+    var p = PIECES[musicPiece], ctx = audioCtx, wait;
+    if (musicPiece === "trailhead"){
+      if (ctx && Math.random() > 0.16){
+        mPluck(p.scale[melPos], ctx.currentTime + 0.03, 0.14);
+        if (Math.random() < 0.22) mPluck(p.scale[melPos] - 12, ctx.currentTime + 0.55, 0.07);
+      }
+      melPos = Math.max(0, Math.min(p.scale.length - 1, melPos + [-2,-1,-1,0,1,1,2][Math.floor(Math.random() * 7)]));
+      wait = [1100, 1600, 2200][Math.floor(Math.random() * 3)];
+    } else {
+      var m = p.melody[melStepIdx % p.melody.length];
+      if (ctx){ mMarimba(m, ctx.currentTime + 0.03, 0.13); if (melStepIdx % 4 === 0) mMarimba(m - 24, ctx.currentTime + 0.03, 0.06); }
+      melStepIdx++;
+      wait = p.step;
+    }
+    musicTimerMel = setTimeout(function(){ scheduleMel(gen); }, wait);
+  }
+  function startMusic(){
+    var piece = resolvedPiece();
+    if (!piece || !soundOn()){ stopMusic(); return; }
+    var ctx = ensureAudioContext();
+    if (!ctx) return;
+    if (musicPlaying && musicPiece === piece) return;
+    stopMusic();
+    musicPiece = piece; musicPlaying = true; musicGen++;
+    chordIdx = 0; melStepIdx = 0; melPos = 2;
+    var gen = musicGen;
+    schedulePad(gen); scheduleMel(gen);
+  }
+  function stopMusic(){
+    musicPlaying = false; musicPiece = null; musicGen++;
+    if (musicTimerPad){ clearTimeout(musicTimerPad); musicTimerPad = null; }
+    if (musicTimerMel){ clearTimeout(musicTimerMel); musicTimerMel = null; }
+  }
+  function refreshMusic(){
+    if (!soundOn() || musicSetting() === "off"){ stopMusic(); return; }
+    startMusic();
+  }
+  if (typeof document !== "undefined" && document.addEventListener){
+    document.addEventListener("visibilitychange", function(){
+      if (document.hidden) stopMusic(); else refreshMusic();
+    });
+  }
+
+  /* ---------- Dates and daily seeding ---------- */
+  function dateKeyLocal(d){
+    var y = d.getFullYear();
+    var m = String(d.getMonth()+1).padStart(2,"0");
+    var day = String(d.getDate()).padStart(2,"0");
+    return y + "-" + m + "-" + day;
+  }
+  function todayKey(){ return dateKeyLocal(new Date()); }
+  function daysSinceEpoch(key){
+    var parts = key.split("-");
+    var ms = Date.UTC(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+    return Math.floor(ms / 86400000);
+  }
+  /* Daily seeding: the week is a ramp. Monday is the gentlest slot and
+     Sunday the deepest, and each weekday holds two pairs that take
+     turns week by week, so the ramp repeats without repeating itself.
+     The epoch for week counting is Monday 1970-01-05 (day 4). */
+  function dailyPairIndex(key){
+    var parts = key.split("-");
+    var weekday = new Date(Date.UTC(Number(parts[0]), Number(parts[1])-1, Number(parts[2]))).getUTCDay();
+    var slot = (weekday + 6) % 7; /* Monday = 0 */
+    var weekIndex = Math.floor((daysSinceEpoch(key) - 4) / 7);
+    var row = DAILY_WEEK[slot];
+    var variant = ((weekIndex % row.length) + row.length) % row.length;
+    var idx = variant;
+    for (var i = 0; i < slot; i++) idx += DAILY_WEEK[i].length;
+    return idx;
+  }
+  function prettyDate(key){
+    var parts = key.split("-");
+    var d = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+    return d.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric", year:"numeric" });
+  }
+  function shiftKey(key, delta){
+    var parts = key.split("-");
+    var ms = Date.UTC(Number(parts[0]), Number(parts[1])-1, Number(parts[2])) + delta*86400000;
+    var d = new Date(ms);
+    return dateKeyLocal(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  }
+
+  /* ---------- Save state ---------- */
+  function defaultState(){
+    return {
+      v: 1,
+      daily: null,
+      history: {},
+      streak: { count: 0, lastDate: null },
+      practice: null,
+      levels: {},
+      level: null,
+      seen: {},
+      settings: { style: "casual", music: "off", sound: true }
+    };
+  }
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return defaultState();
+      var s = JSON.parse(raw);
+      if (!s || typeof s !== "object") return defaultState();
+      if (!s.history) s.history = {};
+      if (!s.streak) s.streak = { count: 0, lastDate: null };
+      if (!s.levels) s.levels = {};
+      if (!s.seen) s.seen = {};
+      if (!s.settings) s.settings = { style: "casual" };
+      if (typeof s.settings.sound !== "boolean") s.settings.sound = true;
+      if (!s.settings.music) s.settings.music = "off";
+      return s;
+    }catch(e){ return defaultState(); }
+  }
+  function saveState(){
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){ /* private mode: play on without saving */ }
+  }
+  var state = loadState();
+
+  function ensureDaily(){
+    var key = todayKey();
+    var idx = dailyPairIndex(key);
+    if (!state.daily || state.daily.date !== key || state.daily.pairIndex !== idx){
+      state.daily = {
+        date: key,
+        pairIndex: idx,
+        path: [PAIRS[idx].start],
+        finished: false,
+        hops: null,
+        stars: null,
+        ranked: false
+      };
+      saveState();
+    }
+    return state.daily;
+  }
+
+  /* ---------- Runtime ---------- */
+  var mode = "daily"; /* daily | practice | level */
+  var levelIndex = 0;
+  var currentPath = [];
+  var finished = false;
+  var runRanked = false; /* ranked style held for this whole wander */
+  var winAltAction = "practice"; /* what the win panel's second button does */
+  var viaChimed = false; /* the waypoint chime rings once per wander */
+  var justNavigated = false; /* set by a hop, so a resume never chimes */
+  var cache = {};
+  var lastFailedTitle = null;
+
+  var els = {};
+  ["dateLine","streakLine","startName","targetName","targetCard","hopPill","parPill","starPill","stylePill","inviteLine","practiceBanner","modeBannerText",
+   "crumbTrack","undoBtn","restartBtn","practiceBtn","levelsBtn","errorBox","errorText","retryBtn","loadingBox","articleBody",
+   "articleTitle","articleExtract","articleAttrib","filterInput","linkCount","noResults","linkList",
+   "winPanel","winStars","winMeta","winTrivia","shareText","shareBtn","copyBtn","winPracticeBtn","winNextBtn","copiedNote",
+   "levelsPanel","levelsList","levelsProgress","historyLine","exitPracticeBtn","settingsPanel","settingsBtn",
+   "coachCard","coachKicker","coachText","coachSkipBtn","coachTodayBtn","coachLevelsBtn",
+   "viaPill","banPill","viaNote",
+   "styleCasualBtn","styleRankedBtn","styleNote",
+   "soundOnBtn","soundOffBtn","musicOffBtn","musicTrailBtn","musicContourBtn","musicBothBtn"].forEach(function(id){ els[id] = document.getElementById(id); });
+
+  function playStyle(){ return (state.settings && state.settings.style === "ranked") ? "ranked" : "casual"; }
+  function isBanned(title){
+    var root = BANNED_ALIASES[title] || title;
+    if (playStyle() === "ranked" && BANNED_TERMS.indexOf(root) !== -1) return true;
+    if (mode === "level"){
+      var p = LEVELS[levelIndex];
+      if (p.banned && root === p.banned) return true;
+    }
+    return false;
+  }
+  function viaSatisfied(pair){
+    return !pair.via || currentPath.indexOf(pair.via) !== -1;
+  }
+
+  function activePair(){
+    if (mode === "practice") return TUTORIAL_PAIR;
+    if (mode === "level") return LEVELS[levelIndex];
+    var d = ensureDaily();
+    return PAIRS[d.pairIndex];
+  }
+  function hops(){ return Math.max(0, currentPath.length - 1); }
+  function starsFor(h, par){
+    if (h <= par) return 3;
+    if (h === par + 1) return 2;
+    return 1;
+  }
+  function starString(n){
+    var s = "";
+    for (var i=0;i<3;i++) s += (i < n ? "★" : "☆");
+    return s;
+  }
+
+  function renderHeader(){
+    var pair = activePair();
+    els.dateLine.textContent = prettyDate(todayKey());
+    els.startName.textContent = pair.start;
+    els.targetName.textContent = pair.target;
+    els.hopPill.textContent = hops() + (hops() === 1 ? " hop" : " hops");
+    /* Casual play carries no pressure: par and stars are never shown.
+       They belong to Ranked, where the comparison is the point. */
+    var casual = playStyle() === "casual";
+    els.parPill.hidden = casual;
+    els.starPill.hidden = casual;
+    if (!casual){
+      els.parPill.textContent = "Par " + pair.par;
+      if (finished){
+        var st = starsFor(hops(), pair.par);
+        els.starPill.textContent = starString(st) + " earned";
+      } else if (hops() <= pair.par){
+        els.starPill.textContent = "On par pace";
+      } else if (hops() === pair.par + 1){
+        els.starPill.textContent = "One over par";
+      } else {
+        els.starPill.textContent = "Finish for a star";
+      }
+    }
+    els.practiceBanner.classList.toggle("show", mode === "level");
+    if (mode === "level"){
+      els.modeBannerText.textContent = "Level " + (levelIndex + 1) + " of " + LEVELS.length + " · " + pair.start + " to " + pair.target
+        + (pair.via ? " · Waypoint level" : "") + (pair.banned ? " · Banned-word level" : "");
+    }
+    els.viaPill.hidden = !pair.via;
+    if (pair.via){
+      els.viaPill.textContent = viaSatisfied(pair) ? "By way of " + pair.via + " · done" : "By way of: " + pair.via;
+    }
+    els.banPill.hidden = !(mode === "level" && pair.banned);
+    if (mode === "level" && pair.banned){
+      els.banPill.textContent = "Off limits: " + pair.banned;
+    }
+    els.stylePill.hidden = playStyle() !== "ranked";
+    els.styleCasualBtn.classList.toggle("on", playStyle() === "casual");
+    els.styleRankedBtn.classList.toggle("on", playStyle() === "ranked");
+    renderSoundControls();
+    els.styleNote.textContent = playStyle() === "ranked"
+      ? "Ranked: famous shortcut articles are hidden, and a finish counts as ranked only if ranked style stays on for the whole wander."
+      : "Casual: any link goes. Just wander.";
+    els.targetCard.classList.toggle("arrived", finished);
+    renderCoach();
+    if (state.streak && state.streak.count > 0){
+      els.streakLine.textContent = state.streak.count + (state.streak.count === 1 ? " day streak" : " day streak");
+    } else {
+      els.streakLine.textContent = "";
+    }
+    renderCrumbs();
+    renderHistory();
+    els.undoBtn.disabled = currentPath.length <= 1 || finished;
+    els.restartBtn.disabled = currentPath.length <= 1 && !finished;
+  }
+
+  function renderCrumbs(){
+    els.crumbTrack.innerHTML = "";
+    currentPath.forEach(function(title, i){
+      if (i > 0){
+        var sep = document.createElement("span");
+        sep.className = "crumb-sep"; sep.textContent = "›";
+        els.crumbTrack.appendChild(sep);
+      }
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "crumb" + (i === currentPath.length-1 ? " current" : "");
+      b.textContent = title;
+      b.title = title;
+      if (i < currentPath.length-1 && !finished){
+        b.addEventListener("click", function(){ applyAudioSession(); jumpTo(i); });
+      }
+      els.crumbTrack.appendChild(b);
+    });
+    els.crumbTrack.scrollLeft = els.crumbTrack.scrollWidth;
+  }
+
+  function renderHistory(){
+    var keys = Object.keys(state.history).sort().reverse();
+    if (!keys.length){ els.historyLine.textContent = ""; return; }
+    var casualH = playStyle() === "casual";
+    var recent = keys.slice(0, 3).map(function(k){
+      var h = state.history[k];
+      return casualH ? k + ": " + h.hops + " hops" : k + ": " + h.hops + " hops, " + starString(h.stars);
+    });
+    els.historyLine.textContent = "Recent days: " + recent.join(" · ");
+  }
+
+  /* ---------- Guided practice ---------- */
+  function tourSuggestion(){
+    if (mode !== "practice" || finished) return null;
+    for (var i = 0; i < currentPath.length; i++){
+      if (currentPath[i] !== TOUR_ROUTE[i]) return null;
+    }
+    return currentPath.length < TOUR_ROUTE.length ? TOUR_ROUTE[currentPath.length] : null;
+  }
+
+  var introKind = null; /* "via" | "banned" while a level intro is showing */
+  function renderCoach(){
+    if (mode === "level"){
+      var lp = LEVELS[levelIndex];
+      var kind = lp.via ? "via" : (lp.banned ? "banned" : null);
+      if (kind && !finished && hops() === 0 && !(state.seen && state.seen[kind])){
+        introKind = kind;
+        els.coachCard.classList.add("show");
+        els.coachKicker.textContent = "A new kind of wander";
+        els.coachSkipBtn.hidden = false;
+        els.coachSkipBtn.textContent = "Got it";
+        els.coachTodayBtn.hidden = true;
+        els.coachLevelsBtn.hidden = true;
+        els.coachText.textContent = kind === "via"
+          ? "This is a waypoint wander. The road to " + lp.target + " carries one promise: pass by way of " + lp.via + " on your way. Reaching the target without it will not finish the level. The pill under the cards keeps track of the promise."
+          : "This is a banned-word wander. One tempting article is off limits the whole way: " + lp.banned + " will not appear in any link list. The shortest roads all avoid it anyway, so the wander is no longer than it ever was.";
+        return;
+      }
+      introKind = null;
+      els.coachCard.classList.remove("show");
+      return;
+    }
+    introKind = null;
+    if (mode !== "practice"){
+      els.coachCard.classList.remove("show");
+      return;
+    }
+    els.coachKicker.textContent = "Guided practice";
+    els.coachSkipBtn.textContent = "Skip the tour";
+    els.coachCard.classList.add("show");
+    var sug = tourSuggestion();
+    var h = hops();
+    var done = finished;
+    els.coachSkipBtn.hidden = done;
+    els.coachTodayBtn.hidden = !done;
+    els.coachLevelsBtn.hidden = !done;
+    if (done){
+      els.coachText.textContent = playStyle() === "ranked"
+        ? "You arrived in " + h + (h === 1 ? " hop" : " hops") + ", exactly par, so that is 3 stars. The line in the panel below is made for sharing: it gives the day, your hops, and your stars, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now."
+        : "You arrived in " + h + (h === 1 ? " hop" : " hops") + ". The line in the panel below is made for sharing: it gives the day and your hops, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now.";
+    } else if (h === 0){
+      els.coachText.textContent = "Welcome to the guided wander. The cards up top show where you start and where you are headed: Coffee to Space Needle. Each article below offers its links. Tap one and you hop to a new article. Starbucks, glowing gently down the list, is a friendly first hop.";
+    } else if (!sug){
+      els.coachText.textContent = "Off the short path, and that is fine. Wandering is the game, and there are no wrong turns here. Your path so far sits under the cards, and Undo or any earlier stop takes you back. The target is still Space Needle.";
+    } else if (h === 1){
+      els.coachText.textContent = playStyle() === "ranked"
+        ? "One hop used. The pills up top count your hops and show par, the shortest possible route. Your breadcrumb path is under them, and tapping any earlier stop rewinds to it. Seattle, glowing below, brings you close."
+        : "One hop used. The pill up top counts your hops. Your breadcrumb path is under it, and tapping any earlier stop rewinds to it. Seattle, glowing below, brings you close.";
+    } else {
+      els.coachText.textContent = "Two hops. Space Needle is among this article's links, and your target is always marked in red. Tap it to arrive.";
+    }
+  }
+
+  /* ---------- Wikipedia API ---------- */
+  function cleanLinks(titles){
+    var seen = {};
+    var out = [];
+    (titles || []).forEach(function(t){
+      if (!t || seen[t]) return;
+      var low = t.toLowerCase();
+      if (low.indexOf("(disambiguation)") !== -1) return;
+      if (/^(list of|lists of|index of|outline of|timeline of|glossary of)/.test(low)) return;
+      if (t.indexOf(":") !== -1) return;
+      if (/^\d{3,4}$/.test(t)) return;
+      seen[t] = true;
+      out.push(t);
+    });
+    out.sort(function(a,b){ return a.localeCompare(b); });
+    return out;
+  }
+
+  function fetchArticle(title){
+    if (cache[title]) return Promise.resolve(cache[title]);
+    var base = API + "?action=query&format=json&formatversion=2&origin=*&redirects=1"
+      + "&prop=extracts%7Clinks"
+      + "&exintro=1&explaintext=1&exchars=700"
+      + "&pllimit=500&plnamespace=0"
+      + "&titles=" + encodeURIComponent(title);
+    var collected = null;
+    function step(url, roundsLeft){
+      return fetch(url).then(function(r){
+        if (!r.ok) throw new Error("http " + r.status);
+        return r.json();
+      }).then(function(data){
+        var pages = (data && data.query && data.query.pages) || [];
+        var page = pages[0];
+        if (!page || page.missing) throw new Error("missing");
+        if (!collected){
+          collected = { title: page.title, extract: (page.extract || "").trim(), rawLinks: [] };
+        }
+        (page.links || []).forEach(function(l){ collected.rawLinks.push(l.title); });
+        var cont = data["continue"];
+        if (cont && cont.plcontinue && roundsLeft > 0){
+          var next = base + "&plcontinue=" + encodeURIComponent(cont.plcontinue);
+          return step(next, roundsLeft - 1);
+        }
+        var article = {
+          title: collected.title,
+          extract: collected.extract,
+          links: cleanLinks(collected.rawLinks)
+        };
+        cache[article.title] = article;
+        cache[title] = article;
+        return article;
+      });
+    }
+    return step(base, 3);
+  }
+
+  function showLoading(){
+    els.loadingBox.style.display = "block";
+    els.articleBody.hidden = true;
+    els.errorBox.classList.remove("show");
+  }
+  function showError(title){
+    lastFailedTitle = title;
+    els.loadingBox.style.display = "none";
+    els.errorBox.classList.add("show");
+  }
+
+  function renderArticle(article){
+    els.loadingBox.style.display = "none";
+    els.articleBody.hidden = false;
+    els.errorBox.classList.remove("show");
+    els.articleTitle.textContent = article.title;
+    els.articleExtract.textContent = article.extract || "No short introduction is available for this article yet. Its links are below.";
+    var href = "https://en.wikipedia.org/wiki/" + encodeURIComponent(article.title.replace(/ /g, "_"));
+    els.articleAttrib.innerHTML = "";
+    var span = document.createElement("span");
+    span.textContent = "Article text from Wikipedia, available under CC BY-SA. ";
+    var a = document.createElement("a");
+    a.href = href; a.target = "_blank"; a.rel = "noopener";
+    a.textContent = "Read the full article";
+    els.articleAttrib.appendChild(span);
+    els.articleAttrib.appendChild(a);
+
+    els.filterInput.value = "";
+    renderLinks(article, "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function renderLinks(article, filter){
+    var pair = activePair();
+    var f = (filter || "").trim().toLowerCase();
+    var sug = tourSuggestion();
+    var list = article.links.filter(function(t){
+      if (isBanned(t)) return false;
+      return !f || t.toLowerCase().indexOf(f) !== -1;
+    });
+    els.linkCount.textContent = list.length + (list.length === 1 ? " link" : " links");
+    els.noResults.style.display = list.length ? "none" : "block";
+    /* Long articles can carry thousands of links. Render the first chunk
+       and offer the rest on tap, so the page stays light on a phone.
+       Filtering always searches the full list, and the target is always
+       pulled into the first chunk when it is present. */
+    var DISPLAY_CAP = 400;
+    var shown = list;
+    var truncated = false;
+    if (!f && list.length > DISPLAY_CAP){
+      shown = list.slice(0, DISPLAY_CAP);
+      [pair.target, sug].forEach(function(keep){
+        if (keep && list.indexOf(keep) !== -1 && shown.indexOf(keep) === -1){
+          for (var k = shown.length - 1; k >= 0; k--){
+            if (shown[k] !== pair.target && shown[k] !== sug){ shown[k] = keep; break; }
+          }
+        }
+      });
+      truncated = true;
+    }
+    function buildButton(t){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "link-btn" + (t === pair.target ? " is-target" : "") + (sug && t === sug ? " suggested" : "");
+      var label = document.createElement("span");
+      label.textContent = t;
+      b.appendChild(label);
+      if (t === pair.target){
+        var tag = document.createElement("span");
+        tag.className = "target-tag"; tag.textContent = "Target";
+        b.appendChild(tag);
+      } else {
+        var go = document.createElement("span");
+        go.className = "go"; go.textContent = "›";
+        b.appendChild(go);
+      }
+      b.addEventListener("click", function(){ applyAudioSession(); tapSound(); navigateTo(t); });
+      return b;
+    }
+    els.linkList.innerHTML = "";
+    shown.forEach(function(t){ els.linkList.appendChild(buildButton(t)); });
+    if (truncated){
+      var more = document.createElement("button");
+      more.type = "button";
+      more.className = "btn";
+      more.style.marginTop = "4px";
+      more.textContent = "Show all " + list.length + " links";
+      more.addEventListener("click", function(){
+        applyAudioSession();
+        els.linkList.innerHTML = "";
+        list.forEach(function(t){ els.linkList.appendChild(buildButton(t)); });
+      });
+      els.linkList.appendChild(more);
+    }
+  }
+
+  function currentArticle(){
+    var t = currentPath[currentPath.length-1];
+    return cache[t] || null;
+  }
+
+  function loadCurrent(){
+    var title = currentPath[currentPath.length-1];
+    showLoading();
+    fetchArticle(title).then(function(article){
+      /* Canonical title may differ after redirects. Keep the path honest. */
+      if (article.title !== title){
+        currentPath[currentPath.length-1] = article.title;
+        persistProgress();
+      }
+      renderHeader();
+      renderArticle(article);
+      if (article.title !== activePair().target) els.viaNote.hidden = true;
+      checkWin(article.title);
+      if (justNavigated && !finished && !viaChimed){
+        var pr = activePair();
+        if (pr.via && currentPath.indexOf(pr.via) !== -1){ viaChimed = true; waypointSound(); }
+      }
+      justNavigated = false;
+    }).catch(function(){ showError(title); });
+  }
+
+  function navigateTo(title){
+    if (finished) return;
+    currentPath.push(title);
+    justNavigated = true;
+    persistProgress();
+    renderHeader();
+    loadCurrent();
+  }
+
+  function jumpTo(index){
+    if (finished) return;
+    justNavigated = true;
+    currentPath = currentPath.slice(0, index+1);
+    persistProgress();
+    renderHeader();
+    loadCurrent();
+  }
+
+  function undo(){
+    if (finished || currentPath.length <= 1) return;
+    currentPath.pop();
+    undoSound();
+    persistProgress();
+    renderHeader();
+    loadCurrent();
+  }
+
+  function restart(){
+    var pair = activePair();
+    currentPath = [pair.start];
+    finished = false;
+    viaChimed = false;
+    runRanked = playStyle() === "ranked";
+    els.winPanel.classList.remove("show");
+    persistProgress();
+    renderHeader();
+    loadCurrent();
+  }
+
+  function persistProgress(){
+    if (mode === "daily"){
+      var d = ensureDaily();
+      d.path = currentPath.slice();
+      d.finished = finished;
+      d.ranked = runRanked;
+      if (finished){ d.hops = hops(); d.stars = starsFor(hops(), activePair().par); }
+      saveState();
+    } else if (mode === "level"){
+      state.level = { index: levelIndex, path: currentPath.slice(), finished: finished, ranked: runRanked };
+      saveState();
+    } else {
+      state.practice = { path: currentPath.slice(), finished: finished, ranked: runRanked };
+      saveState();
+    }
+  }
+
+  function recordLevelResult(idx, h, st, ranked){
+    var prev = state.levels[idx];
+    if (!prev || st > prev.stars || (st === prev.stars && h < prev.hops)){
+      state.levels[idx] = { hops: h, stars: st, ranked: !!ranked };
+    }
+    saveState();
+  }
+
+  function checkWin(title){
+    var pair = activePair();
+    if (title !== pair.target) return;
+    if (!viaSatisfied(pair)){
+      els.viaNote.hidden = false;
+      els.viaNote.textContent = "You found " + pair.target + ", but this wander asks you to pass by way of " + pair.via + " first. Step back with Undo and come back through " + pair.via + ", and the arrival will count.";
+      renderHeader();
+      return;
+    }
+    els.viaNote.hidden = true;
+    if (!finished){
+      finished = true;
+      persistProgress();
+      var st = starsFor(hops(), pair.par);
+      if (mode === "daily"){
+        var key = todayKey();
+        state.history[key] = { hops: hops(), par: pair.par, stars: st, start: pair.start, target: pair.target, ranked: runRanked };
+        if (state.streak.lastDate !== key){
+          var yesterday = shiftKey(key, -1);
+          state.streak.count = (state.streak.lastDate === yesterday) ? (state.streak.count || 0) + 1 : 1;
+          state.streak.lastDate = key;
+        }
+        saveState();
+      } else if (mode === "level"){
+        recordLevelResult(levelIndex, hops(), st, runRanked);
+      } else if (mode === "practice"){
+        recordLevelResult(0, hops(), st, runRanked);
+      }
+    }
+    renderHeader();
+    showWin();
+    arriveSound();
+  }
+
+  function showWin(){
+    var pair = activePair();
+    var st = starsFor(hops(), pair.par);
+    /* The finish presentation follows the run: a ranked finish shows
+       par and stars; a casual finish is just the warm arrival, the hop
+       count as a plain fact, and the shortest route as after-trivia. */
+    els.winStars.innerHTML = "";
+    els.winStars.style.display = runRanked ? "" : "none";
+    if (runRanked){
+      for (var i=0;i<3;i++){
+        var s = document.createElement("span");
+        s.textContent = "★";
+        if (i >= st) s.className = "dim";
+        els.winStars.appendChild(s);
+      }
+    }
+    els.winTrivia.hidden = runRanked;
+    if (!runRanked){
+      els.winTrivia.textContent = "For the curious: the shortest known route for this wander is " + pair.par + (pair.par === 1 ? " hop." : " hops.");
+    }
+    var hopWord = hops() + (hops() === 1 ? " hop" : " hops");
+    var label;
+    if (mode === "level"){
+      els.winMeta.textContent = runRanked
+        ? hopWord + ", par " + pair.par + ". Level " + (levelIndex + 1) + " complete." +
+          (pair.via ? " By way of " + pair.via + ", as promised." : "") +
+          (pair.banned ? " " + pair.banned + " stayed off limits." : "") +
+          " Ranked finish." +
+          (levelIndex + 1 < LEVELS.length ? " Level " + (levelIndex + 2) + " is open whenever you are ready." : " That is the whole journey, well wandered.")
+        : hopWord + ". Level " + (levelIndex + 1) + " complete." +
+          (pair.via ? " By way of " + pair.via + ", as promised." : "") +
+          (pair.banned ? " " + pair.banned + " stayed off limits." : "") +
+          (levelIndex + 1 < LEVELS.length ? " Level " + (levelIndex + 2) + " is open whenever you are ready." : " That is the whole journey, well wandered.");
+      label = "Meander Level " + (levelIndex + 1);
+      els.winNextBtn.hidden = levelIndex + 1 >= LEVELS.length;
+      els.winPracticeBtn.textContent = "All levels";
+    } else if (mode === "practice"){
+      els.winMeta.textContent = runRanked
+        ? hopWord + ", par " + pair.par + ". Guided practice complete. Ranked finish."
+        : hopWord + ". Guided practice complete.";
+      label = "Meander practice";
+      els.winNextBtn.hidden = true;
+      /* If today's wander is already finished, point at the levels
+         instead of sending the player back to a completed daily. */
+      winAltAction = ensureDaily().finished ? "levels" : "daily";
+      els.winPracticeBtn.textContent = ensureDaily().finished ? "Try the levels" : "Play today's wander";
+    } else {
+      els.winMeta.textContent = runRanked
+        ? hopWord + ", par " + pair.par + ". Ranked finish. Come back tomorrow for a new wander, or try the levels any time."
+        : hopWord + ". Come back tomorrow for a new wander, or try the levels any time.";
+      label = "Meander " + todayKey();
+      els.winNextBtn.hidden = true;
+      /* Once the tour is done, the daily's second button points at the
+         levels; before that it offers the guided practice first. */
+      winAltAction = state.levels[0] ? "levels" : "practice";
+      els.winPracticeBtn.textContent = state.levels[0] ? "Try the levels" : "Try the guided practice";
+    }
+    els.shareText.textContent = runRanked
+      ? label + " · " + hopWord + " · par " + pair.par + " · " + starString(st) + " · ranked"
+      : label + " · " + hopWord + " · finished";
+    els.copiedNote.textContent = "";
+    els.winPanel.classList.add("show");
+    els.winPanel.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }
+
+  function startDaily(){
+    mode = "daily";
+    var d = ensureDaily();
+    currentPath = (d.path && d.path.length) ? d.path.slice() : [PAIRS[d.pairIndex].start];
+    finished = !!d.finished && currentPath[currentPath.length-1] === PAIRS[d.pairIndex].target;
+    runRanked = !!d.ranked;
+    els.winPanel.classList.remove("show");
+    els.levelsPanel.classList.remove("show");
+    els.settingsPanel.classList.remove("show");
+    viaChimed = false;
+    renderHeader();
+    refreshMusic();
+    loadCurrent();
+    if (finished) showWin();
+  }
+
+  function startPractice(){
+    mode = "practice";
+    var p = state.practice;
+    if (p && p.path && p.path.length && p.path[0] === TUTORIAL_PAIR.start){
+      currentPath = p.path.slice();
+      finished = !!p.finished && currentPath[currentPath.length-1] === TUTORIAL_PAIR.target;
+      runRanked = !!p.ranked;
+    } else {
+      currentPath = [TUTORIAL_PAIR.start];
+      finished = false;
+      runRanked = playStyle() === "ranked";
+    }
+    els.winPanel.classList.remove("show");
+    els.levelsPanel.classList.remove("show");
+    els.settingsPanel.classList.remove("show");
+    persistProgress();
+    viaChimed = false;
+    renderHeader();
+    refreshMusic();
+    loadCurrent();
+    if (finished) showWin();
+  }
+
+  function startLevel(idx){
+    mode = "level";
+    levelIndex = idx;
+    var lv = state.level;
+    if (lv && lv.index === idx && lv.path && lv.path.length && lv.path[0] === LEVELS[idx].start){
+      currentPath = lv.path.slice();
+      finished = !!lv.finished && currentPath[currentPath.length-1] === LEVELS[idx].target;
+      runRanked = !!lv.ranked;
+    } else {
+      currentPath = [LEVELS[idx].start];
+      finished = false;
+      runRanked = playStyle() === "ranked";
+    }
+    els.winPanel.classList.remove("show");
+    els.levelsPanel.classList.remove("show");
+    els.settingsPanel.classList.remove("show");
+    persistProgress();
+    viaChimed = false;
+    renderHeader();
+    refreshMusic();
+    loadCurrent();
+    if (finished) showWin();
+  }
+
+  function renderLevelsList(){
+    els.levelsList.innerHTML = "";
+    var doneCount = 0, starTotal = 0, nextIdx = -1;
+    LEVELS.forEach(function(lv, i){ if (state.levels[i]) { doneCount++; starTotal += state.levels[i].stars; } });
+    for (var n = 0; n < LEVELS.length; n++){ if (!state.levels[n]) { nextIdx = n; break; } }
+    var casualL = playStyle() === "casual";
+    els.levelsProgress.textContent = doneCount === 0
+      ? "A journey of wanders, gentle first. Every level is open: skip ahead and come back any time."
+      : casualL
+        ? doneCount + " of " + LEVELS.length + " finished. Every level is open: skip ahead and come back any time."
+        : doneCount + " of " + LEVELS.length + " finished, " + starTotal + (starTotal === 1 ? " star" : " stars") + " earned. Every level is open: skip ahead and come back any time.";
+    var lastTier = null;
+    LEVELS.forEach(function(lv, i){
+      if (lv.tier !== lastTier){
+        lastTier = lv.tier;
+        var head = document.createElement("div");
+        head.className = "tier-head"; head.textContent = lv.tier;
+        els.levelsList.appendChild(head);
+      }
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "practice-item";
+      var num = document.createElement("span");
+      num.className = "level-num"; num.textContent = i + 1;
+      var route = document.createElement("span");
+      route.className = "route";
+      route.textContent = lv.start + "  ›  " + lv.target;
+      b.appendChild(num); b.appendChild(route);
+      var res = state.levels[i];
+      if (res && !casualL){
+        var st = document.createElement("span");
+        st.className = "level-stars"; st.textContent = starString(res.stars);
+        b.appendChild(st);
+      } else if (!res && i === nextIdx){
+        var tag = document.createElement("span");
+        tag.className = "next-tag"; tag.textContent = "Next";
+        b.appendChild(tag);
+      }
+      if (!casualL){
+        var par = document.createElement("span");
+        par.className = "pill gold par"; par.textContent = "Par " + lv.par;
+        b.appendChild(par);
+      }
+      if (lv.via){
+        var kt = document.createElement("span");
+        kt.className = "kind-tag"; kt.textContent = "Waypoint";
+        b.appendChild(kt);
+      }
+      if (lv.banned){
+        var kt2 = document.createElement("span");
+        kt2.className = "kind-tag"; kt2.textContent = "Banned word";
+        b.appendChild(kt2);
+      }
+      b.addEventListener("click", function(){ applyAudioSession(); startLevel(i); });
+      els.levelsList.appendChild(b);
+    });
+  }
+
+  /* ---------- Wiring ---------- */
+  els.filterInput.addEventListener("input", function(){
+    var a = currentArticle();
+    if (a) renderLinks(a, els.filterInput.value);
+  });
+  els.undoBtn.addEventListener("click", function(){ applyAudioSession(); undo(); });
+  els.restartBtn.addEventListener("click", function(){ applyAudioSession(); restart(); });
+  els.retryBtn.addEventListener("click", function(){ applyAudioSession(); loadCurrent(); });
+  function toggleLevelsPanel(open){
+    renderLevelsList();
+    els.levelsPanel.classList.toggle("show", open === undefined ? undefined : open);
+    if (els.levelsPanel.classList.contains("show")) els.levelsPanel.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }
+  function toggleSettingsPanel(open){
+    els.settingsPanel.classList.toggle("show", open === undefined ? undefined : open);
+    if (els.settingsPanel.classList.contains("show")) els.settingsPanel.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }
+  els.settingsBtn.addEventListener("click", function(){ applyAudioSession(); toggleSettingsPanel(); });
+  els.levelsBtn.addEventListener("click", function(){ applyAudioSession(); toggleLevelsPanel(); });
+  els.practiceBtn.addEventListener("click", function(){ applyAudioSession(); startPractice(); });
+  els.winPracticeBtn.addEventListener("click", function(){
+    applyAudioSession();
+    if (mode === "level"){ toggleLevelsPanel(true); }
+    else if (winAltAction === "levels"){ toggleLevelsPanel(true); }
+    else if (mode === "practice"){ startDaily(); }
+    else { startPractice(); }
+  });
+  els.winNextBtn.addEventListener("click", function(){
+    applyAudioSession();
+    if (mode === "level" && levelIndex + 1 < LEVELS.length) startLevel(levelIndex + 1);
+  });
+  els.exitPracticeBtn.addEventListener("click", function(){ applyAudioSession(); startDaily(); });
+  els.coachSkipBtn.addEventListener("click", function(){
+    applyAudioSession();
+    if (introKind){
+      state.seen[introKind] = true;
+      saveState();
+      introKind = null;
+      renderHeader();
+      return;
+    }
+    startDaily();
+  });
+  els.coachTodayBtn.addEventListener("click", function(){ applyAudioSession(); startDaily(); });
+  els.coachLevelsBtn.addEventListener("click", function(){ applyAudioSession(); toggleLevelsPanel(true); });
+
+  function setStyle(style){
+    if (playStyle() === style) return;
+    state.settings.style = style;
+    /* Switching style mid-wander ends ranked eligibility for this run:
+       a ranked finish needs ranked rules from the first hop. */
+    if (currentPath.length && !finished) runRanked = false;
+    saveState();
+    persistProgress();
+    renderHeader();
+    if (finished) showWin();
+    if (els.levelsPanel.classList.contains("show")) renderLevelsList();
+    var a = currentArticle();
+    if (a) renderLinks(a, els.filterInput.value);
+  }
+  function renderSoundControls(){
+    if (!els.soundOnBtn) return;
+    els.soundOnBtn.classList.toggle("on", soundOn());
+    els.soundOffBtn.classList.toggle("on", !soundOn());
+    var m = musicSetting();
+    els.musicOffBtn.classList.toggle("on", m === "off");
+    els.musicTrailBtn.classList.toggle("on", m === "trailhead");
+    els.musicContourBtn.classList.toggle("on", m === "contour");
+    els.musicBothBtn.classList.toggle("on", m === "both");
+  }
+  function setSound(on){
+    if (!state.settings) state.settings = { style: "casual" };
+    state.settings.sound = !!on;
+    saveState();
+    renderSoundControls();
+    if (!on) stopMusic(); else refreshMusic();
+  }
+  function setMusic(m){
+    if (!state.settings) state.settings = { style: "casual" };
+    state.settings.music = m;
+    saveState();
+    renderSoundControls();
+    refreshMusic();
+  }
+  els.soundOnBtn.addEventListener("click", function(){ applyAudioSession(); setSound(true); });
+  els.soundOffBtn.addEventListener("click", function(){ applyAudioSession(); setSound(false); });
+  els.musicOffBtn.addEventListener("click", function(){ applyAudioSession(); setMusic("off"); });
+  els.musicTrailBtn.addEventListener("click", function(){ applyAudioSession(); setMusic("trailhead"); });
+  els.musicContourBtn.addEventListener("click", function(){ applyAudioSession(); setMusic("contour"); });
+  els.musicBothBtn.addEventListener("click", function(){ applyAudioSession(); setMusic("both"); });
+  els.styleCasualBtn.addEventListener("click", function(){ applyAudioSession(); setStyle("casual"); });
+  els.styleRankedBtn.addEventListener("click", function(){ applyAudioSession(); setStyle("ranked"); });
+  els.copyBtn.addEventListener("click", function(){
+    applyAudioSession();
+    /* Even a plain copy carries the link home, so pasting promotes the game. */
+    var text = els.shareText.textContent + "\n" + GAME_URL;
+    function done(){ els.copiedNote.textContent = "Copied. Share it anywhere."; }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text); done(); });
+    } else { fallbackCopy(text); done(); }
+  });
+  els.shareBtn.addEventListener("click", function(){
+    applyAudioSession();
+    shareResult();
+  });
+  function shareResult(){
+    var line = els.shareText.textContent;
+    if (navigator.share){
+      /* The native sheet: Messages, Mail, and every social app the
+         player has. The result and the link travel as separate
+         fields so each app presents them its own way. */
+      navigator.share({ title: "Meander", text: line, url: GAME_URL }).then(function(){
+        els.copiedNote.textContent = "Shared. Thanks for spreading the word.";
+      }).catch(function(){ /* the player closed the sheet; nothing to say */ });
+    } else {
+      var text = line + "\n" + GAME_URL;
+      function done(){ els.copiedNote.textContent = "This browser cannot open a share sheet, so your result and the game link were copied instead. Paste them anywhere."; }
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text); done(); });
+      } else { fallbackCopy(text); done(); }
+    }
+  }
+  function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); }catch(e){ /* the share box stays selectable */ }
+    document.body.removeChild(ta);
+  }
+
+  /* Exposed for build verification only. Harmless in play. */
+  window.__meander = {
+    pairs: PAIRS,
+    dailyWeek: DAILY_WEEK,
+    levels: LEVELS,
+    bannedTerms: BANNED_TERMS,
+    todayKey: todayKey,
+    dailyPairIndex: dailyPairIndex,
+    starsFor: starsFor,
+    saveKey: SAVE_KEY,
+    getState: function(){ return state; },
+    getPath: function(){ return currentPath.slice(); },
+    getMode: function(){ return mode; },
+    getLevelIndex: function(){ return levelIndex; },
+    getStyle: playStyle,
+    getRunRanked: function(){ return runRanked; },
+    gameUrl: GAME_URL,
+    getMusicSetting: musicSetting,
+    getMusicPiece: function(){ return musicPlaying ? musicPiece : null; },
+    getSoundOn: soundOn,
+    setMusic: function(m){ setMusic(m); },
+    setSound: function(on){ setSound(on); },
+    navigateTo: function(t){ navigateTo(t); },
+    undo: function(){ undo(); },
+    restart: function(){ restart(); },
+    startLevel: function(i){ startLevel(i); },
+    startPractice: function(){ startPractice(); },
+    startDaily: function(){ startDaily(); },
+    setStyle: function(s){ setStyle(s); }
+  };
+
+  ensureDaily();
+  startDaily();
+})();
+</script>
+</body>
+</html>
