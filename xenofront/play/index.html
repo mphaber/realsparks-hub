@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Xenofront</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1020">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Xenofront">
+<meta property="og:description" content="A hex tactics campaign in ten small maps. Quick turns, clean fights, no luck: outsmart the rogue Array.">
+<meta property="og:url" content="https://games.realsparks.net/xenofront/play/">
+<meta property="og:image" content="https://games.realsparks.net/xenofront/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Xenofront">
+<meta name="twitter:description" content="A hex tactics campaign in ten small maps. Quick turns, clean fights, no luck: outsmart the rogue Array.">
+<meta name="twitter:image" content="https://games.realsparks.net/xenofront/icon-512.png">
+<meta name="description" content="A hex tactics campaign in ten small maps. Quick turns, clean fights, no luck: outsmart the rogue Array.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Crect width='1024' height='1024' fill='%230a0e22'/%3E%3Cpolygon points='512,167 811,340 811,684 512,857 213,684 213,340' fill='none' stroke='%233fe0c5' stroke-width='30' stroke-linejoin='round'/%3E%3Cpath fill='%233fe0c5' fill-rule='evenodd' d='M495 255 h34 v90 h73 a36 36 0 0 1 36 36 v273 a36 36 0 0 1 -36 36 h-180 a36 36 0 0 1 -36 -36 v-273 a36 36 0 0 1 36 -36 h73 z M512 419 a61.5 61.5 0 1 0 0 123 a61.5 61.5 0 1 0 0 -123 z'/%3E%3C/svg%3E">
+<!--
+  Xenofront - single file build, staging only.
+  Test hooks: window.__XM exposes the live game for headless verification.
+    __XM.getState()          live mutable battle state (units, structures, credits, turn)
+    __XM.state               same live state via getter
+    __XM.startBattle(mapId)  start a campaign map (1 to 10)
+    __XM.selectAt(col, row)  same tap logic as tapping a hex
+    __XM.tryMove(col, row)   move the selected unit to a reachable hex, returns true/false
+    __XM.tryAttack(id)       resolve an attack by the selected unit on a unit id
+                             (also accepts tryAttack(col, row) for a target hex)
+    __XM.capture()           capture with the selected unit
+    __XM.buildUnit(type)     build at the selected factory, type: drone/striker/cannon/bulwark
+                             (also accepts buildUnit(type, side, col, row))
+    __XM.endTurn()           finish player turn, run the full enemy phase synchronously,
+                             then start the next player turn
+    __XM.runEnemyAI()        run one enemy phase on demand
+    __XM.restart()           restart the current map
+    __XM.damageCalc(a, d)    deterministic combat forecast between two unit objects
+    __XM.getSave()           parsed localStorage save object
+    __XM.MAPS, __XM.TYPES    data tables
+  Forcing a loss in tests: mutate getState().units (set player hp to 1), then let the
+  enemy phase run through endTurn(), or set a player HQ owner to enemy and call
+  __XM.checkEnd(). Save key: xenofront-mini-v1 (never rename).
+-->
+<style>
+:root{
+  --bg:#0b1020; --bg2:#0e1730; --panel:#141c33; --panel2:#1a2442; --line:#2a3a63;
+  --ink:#e8eefc; --dim:#9fb0d8; --cyan:#38bdf8; --teal:#2dd4bf; --gold:#f0bd55;
+  --rose:#fb7185; --rose-dim:#9f2d44; --good:#34d399; --radius:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%;}
+body{min-height:100vh; min-height:100dvh; display:flex; flex-direction:column;
+  background:radial-gradient(1200px 600px at 50% -10%, #16224a 0%, var(--bg) 55%);}
+button{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);
+  border-radius:12px;padding:12px 16px;min-height:48px;cursor:pointer;font-size:16px;}
+button:hover{border-color:var(--cyan);}
+button:disabled{opacity:.38;cursor:default;}
+button.primary{background:linear-gradient(180deg,#1d9ecb,#14749b);border-color:var(--cyan);color:#fff;font-weight:700;}
+button.gold{background:linear-gradient(180deg,#8a6420,#6e4f16);border-color:var(--gold);color:#ffe9bd;font-weight:700;}
+button.danger{background:#5b1626;border-color:var(--rose);color:#ffd7de;font-weight:700;}
+button.ghost{background:transparent;}
+.wrap{width:100%;max-width:720px;margin:0 auto;padding:14px 14px 8px;flex:1;display:flex;flex-direction:column;gap:12px;}
+h1.title{font-size:40px;letter-spacing:3px;margin:10px 0 2px;text-align:center;color:#fff;
+  text-shadow:0 0 24px rgba(56,189,248,.55);}
+h1.title span{color:var(--teal);}
+.tagline{text-align:center;color:var(--dim);font-size:16px;margin:0 0 6px;}
+.hero{border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px;text-align:center;
+  background:linear-gradient(180deg,rgba(56,189,248,.10),rgba(45,212,191,.04) 60%,transparent);}
+.hero .glyph{font-size:54px;color:var(--teal);line-height:1;}
+.stack{display:flex;flex-direction:column;gap:10px;}
+.row{display:flex;gap:10px;flex-wrap:wrap;}
+.row > button{flex:1;}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;}
+.footer{ text-align:center;color:var(--dim);font-size:13px;padding:12px 10px 18px;line-height:1.5;}
+.socialrow{display:flex;gap:6px;justify-content:center;margin:0 0 8px;}
+.socialrow a{color:#8fa3c8;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;}
+.socialrow a:hover{color:var(--teal);}
+.mapgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.mapbtn{text-align:left;padding:14px;min-height:64px;}
+.mapbtn .mn{font-weight:700;font-size:17px;display:block;}
+.mapbtn .ms{color:var(--gold);font-size:15px;letter-spacing:2px;}
+.mapbtn .ml{color:var(--dim);font-size:13px;display:block;margin-top:2px;}
+.mapbtn.locked{opacity:.45;}
+.topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.topbar .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:8px 12px;font-size:15px;font-weight:600;}
+.topbar .stat small{display:block;color:var(--dim);font-size:12px;font-weight:400;letter-spacing:1px;}
+.topbar .spacer{flex:1;}
+#banner{border-radius:12px;padding:10px 14px;font-size:17px;font-weight:700;text-align:center;
+  background:linear-gradient(90deg,rgba(45,212,191,.22),rgba(56,189,248,.22));border:1px solid var(--teal);}
+#banner.enemy{background:linear-gradient(90deg,rgba(251,113,133,.22),rgba(159,45,68,.22));border-color:var(--rose);}
+#boardbox{display:flex;justify-content:center;}
+svg#board{width:100%;max-width:560px;height:auto;display:block;touch-action:manipulation;}
+.hex{stroke:#0b1020;stroke-width:1.4;cursor:pointer;}
+.hex-open{fill:#3d465e;} .hex-open2{fill:#384158;}
+.hex-crystal{fill:#173f45;} .hex-high{fill:#463f56;}
+.hex-sel{stroke:var(--gold) !important;stroke-width:3.4;}
+.hex-target{stroke:var(--rose) !important;stroke-width:3.4;}
+.targetring{animation:tpulse 1s ease-in-out infinite;}
+@keyframes tpulse{0%,100%{opacity:.95}50%{opacity:.3}}
+.hexstruct{font-size:8.5px;font-weight:700;fill:#dfe9ff;text-anchor:middle;letter-spacing:.4px;}
+.unithp{font-size:10.5px;font-weight:700;text-anchor:middle;fill:#fff;}
+.legend svg{vertical-align:middle;}
+.buildmenu button svg{pointer-events:none;}
+.hero .glyph svg{filter:drop-shadow(0 0 14px rgba(45,212,191,.45));}
+#readout{font-size:15px;line-height:1.45;min-height:64px;}
+#readout .big{font-size:17px;font-weight:700;}
+#readout .sub{color:var(--dim);font-size:14px;}
+.forecast{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;}
+.forecast div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:15px;}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:sticky;bottom:6px;z-index:30;background:rgba(10,15,30,.94);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 -8px 28px rgba(0,0,0,.45);}
+.controls .wide{grid-column:1 / -1;}
+.buildmenu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.hidden{display:none !important;}
+.overlay{position:fixed;inset:0;background:rgba(4,8,20,.78);display:flex;align-items:center;justify-content:center;
+  padding:18px;z-index:40;}
+.overlay .card{background:var(--panel);border:1px solid var(--cyan);border-radius:18px;padding:26px 22px;
+  max-width:420px;width:100%;text-align:center;}
+.overlay h2{margin:0 0 6px;font-size:30px;}
+.overlay .stars{color:var(--gold);font-size:30px;letter-spacing:6px;}
+.legend{font-size:13px;color:var(--dim);text-align:center;line-height:1.7;}
+.legend b{color:var(--ink);}
+.helpbody{font-size:15px;line-height:1.55;text-align:left;}
+.helpbody li{margin-bottom:7px;}
+@media (min-width:700px){
+  svg#board{max-width:600px;}
+  .mapgrid{grid-template-columns:1fr 1fr 1fr;}
+  h1.title{font-size:48px;}
+}
+@media (orientation:landscape) and (max-height:600px){
+  .wrap{gap:8px;padding:6px;max-width:none;}
+  .footer{display:none;}
+  /* Military Madness layout: the map owns the screen, a narrow command
+     column runs down the right edge, and the readout is a bottom strip. */
+  #screen-battle{display:grid;column-gap:10px;row-gap:8px;position:fixed;inset:0;z-index:5;background:var(--bg);box-sizing:border-box;
+    grid-template-columns:minmax(0,1fr) 178px;
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+    grid-template-areas:"board top" "board banner" "board controls" "readout controls";}
+  #screen-battle .topbar{grid-area:top;flex-direction:row;flex-wrap:wrap;gap:6px;align-items:stretch;}
+  #screen-battle .topbar .spacer{display:none;}
+  #screen-battle .topbar .stat{padding:5px 10px;font-size:14px;flex:1 1 100%;}
+  #screen-battle .topbar button{flex:1 1 40%;}
+  #screen-battle .topbar .stat small{display:inline;margin-right:7px;}
+  #screen-battle .topbar button{min-height:48px;padding:8px 6px;font-size:14px;}
+  #screen-battle #banner{grid-area:banner;padding:7px 8px;font-size:15px;}
+  #screen-battle #boardbox{grid-area:board;align-self:stretch;display:flex;align-items:center;justify-content:center;min-height:0;}
+  svg#board{width:100%;height:100%;max-width:none;max-height:100%;}
+  #screen-battle #readout{grid-area:readout;min-height:0;align-self:stretch;font-size:13px;line-height:1.3;padding:6px 12px;overflow-y:auto;}
+  #screen-battle #readout .big{font-size:15px;}
+  #screen-battle #buildbox{position:fixed;left:10px;bottom:74px;width:324px;z-index:35;box-shadow:0 8px 30px rgba(0,0,0,.55);}
+  #screen-battle .controls{grid-area:controls;display:flex;flex-direction:column;gap:8px;align-self:start;}
+  #screen-battle .controls .wide{grid-column:auto;}
+  #screen-battle .legend{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div id="screen-title" class="wrap">
+  <div class="hero">
+    <div class="glyph" id="hero-icon"></div>
+    <h1 class="title">XENO<span>FRONT</span></h1>
+    <p class="tagline" id="tagline">A drone squad against the rogue Array. Small maps, quick turns, clean fights.</p>
+  </div>
+  <div class="stack">
+    <button id="btn-continue" class="primary hidden">Continue Battle</button>
+    <button id="btn-campaign" class="gold">Campaign</button>
+    <button id="btn-how" class="ghost">How to Play</button>
+    <button id="btn-music" class="ghost">Music: On</button>
+    <button id="btn-share-title" class="ghost"><svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-3px;margin-right:7px;' aria-hidden='true'><path d='M12 15V4'/><path d='M7.2 7.6 12 2.8l4.8 4.8'/><path d='M4.5 13.5V19a1.5 1.5 0 0 0 1.5 1.5h12A1.5 1.5 0 0 0 19.5 19v-5.5'/></svg>Share</button>
+  </div>
+  <div class="panel legend">
+    <span class="legendicon" data-icon="drone"></span> <b>Drone</b> fast scout &nbsp; <span class="legendicon" data-icon="infantry"></span> <b>Infantry</b> cheap boots &nbsp; <span class="legendicon" data-icon="striker"></span> <b>Striker</b> all rounder &nbsp; <span class="legendicon" data-icon="dart"></span> <b>Dart</b> fastest on the field &nbsp; <span class="legendicon" data-icon="cannon"></span> <b>Cannon</b> long range, must stay planted to fire &nbsp; <span class="legendicon" data-icon="flak"></span> <b>Flak</b> anti-air &nbsp; <span class="legendicon" data-icon="bulwark"></span> <b>Bulwark</b> slow wall &nbsp; <span class="legendicon" data-icon="gunship"></span> <b>Gunship</b> flies, takes no structures. New units join as the campaign advances
+  </div>
+</div>
+
+<!-- MAP SELECT -->
+<div id="screen-maps" class="wrap hidden">
+  <div class="row">
+    <button id="btn-maps-back" style="flex:0 0 auto;">&#8592; Back</button>
+    <div style="align-self:center;font-size:20px;font-weight:700;">Campaign</div>
+  </div>
+  <p class="tagline" style="text-align:left;">Win by wiping out the Array force or taking its HQ. Replay any cleared map.</p>
+  <div id="mapgrid" class="mapgrid"></div>
+</div>
+
+<!-- BATTLE SCREEN -->
+<div id="screen-battle" class="wrap hidden">
+  <div class="topbar">
+    <div class="stat"><small>MAP</small><span id="st-map">-</span></div>
+    <div class="stat"><small>TURN</small><span id="st-turn">1</span></div>
+    <div class="stat"><small>CREDITS</small><span id="st-credits" style="color:var(--gold);">0</span></div>
+    <div class="spacer"></div>
+    <button id="btn-restart" class="ghost" style="min-height:48px;">Restart</button>
+    <button id="btn-music2" class="ghost" style="min-height:48px;">Music: On</button>
+    <button id="btn-menu" class="ghost" style="min-height:48px;">Maps</button>
+    <button id="btn-quit" class="ghost" style="min-height:48px;">Quit</button>
+  </div>
+  <div id="banner">Your Turn</div>
+  <div id="boardbox"><svg id="board" role="img" aria-label="Battle map"></svg></div>
+  <div id="readout" class="panel">Tap one of your units to select it.</div>
+  <div id="buildbox" class="hidden"></div>
+  <div class="controls">
+    <button id="btn-attack" class="danger hidden">Attack</button>
+    <button id="btn-capture" class="gold hidden">Capture</button>
+    <button id="btn-wait" class="hidden">Wait</button>
+    <button id="btn-cancel" class="ghost hidden">Cancel</button>
+    <button id="btn-endturn" class="primary wide">End Turn</button>
+  </div>
+  <div class="legend">
+    Light hexes: where the selected unit can move. &nbsp;<b style="color:var(--teal);">Crystal</b> defense 20% &nbsp;<b style="color:#b7a6ff;">High ground</b> defense 30%<br>
+    Structures pay each turn: HQ 200, Factory 150, Outpost 100. Tap your Factory to build.
+  </div>
+</div>
+
+<!-- END OVERLAY -->
+<div id="overlay-end" class="overlay hidden">
+  <div class="card">
+    <h2 id="end-title">Victory</h2>
+    <div class="stars" id="end-stars"></div>
+    <p id="end-text" style="color:var(--dim);font-size:16px;line-height:1.5;"></p>
+    <div class="stack">
+      <button id="btn-next" class="primary hidden">Next Map</button>
+      <button id="btn-replay" class="gold">Replay Map</button>
+      <button id="btn-tomaps" class="ghost">Campaign Maps</button>
+      <button id="btn-share-result" class="ghost"><svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-3px;margin-right:7px;' aria-hidden='true'><path d='M12 15V4'/><path d='M7.2 7.6 12 2.8l4.8 4.8'/><path d='M4.5 13.5V19a1.5 1.5 0 0 0 1.5 1.5h12A1.5 1.5 0 0 0 19.5 19v-5.5'/></svg>Share</button>
+    </div>
+  </div>
+</div>
+
+<!-- HELP OVERLAY -->
+<div id="overlay-help" class="overlay hidden">
+  <div class="card" style="text-align:left;max-width:460px;">
+    <h2 style="text-align:center;">How to Play</h2>
+    <ul class="helpbody">
+      <li>Tap a unit, tap a lit hex to move. Enemies it can hit are ringed in red: tap one to see the forecast, tap it again to fire (the Attack button works too).</li>
+      <li>Strength is health, 10 down to 0. A hurt unit hits softer, in proportion to its strength.</li>
+      <li>Surround bonus: each extra friendly unit next to the target adds 10% damage.</li>
+      <li>Crystal fields cut damage by 20%, high ground by 30%. A Bulwark shrugs off a further 15%.</li>
+      <li>An HQ is a fortress: a unit holding one takes 40% less damage. All cover combined caps at 50%.</li>
+      <li>If the defender survives and you are in its range, it counterattacks at 70% power.</li>
+      <li>Cannon range is 2 to 3 hexes, and it cannot move and fire on the same turn.</li>
+      <li>Infantry are cheap boots: weak shots, tiny price, made for holding ground. The Dart is the fastest unit on the field.</li>
+      <li>Flak is anti-air: weak against ground targets, deadly against aircraft, and the only ground unit that can hit them. Its range is 1 to 2 hexes.</li>
+      <li>Gunships fly: they cross any hex and ignore ground cover, but they cannot capture structures, and only Flak or another Gunship can shoot them down.</li>
+      <li>Every unit is Land or Air, and its readout says which, and what it can attack. Land units attack land targets only, except Flak, which attacks land and air. Gunships are Air and attack land and air.</li>
+      <li>New unit types join your build roster as the campaign advances: Infantry at map 2, the Dart at map 4, Flak at map 6, and the Gunship at map 7.</li>
+      <li>End a move on an enemy or neutral structure and hold it. If your unit is still there at the start of your next turn, the structure flips to you. Tap Capture to end that unit's turn holding it.</li>
+      <li>Tap your own Factory to build new units with credits. New units rest until next turn.</li>
+      <li>Win by destroying every Array unit or capturing the Array HQ. Lose if your squad falls or your HQ is taken.</li>
+    </ul>
+    <button id="btn-help-close" class="primary" style="width:100%;">Got It</button>
+  </div>
+</div>
+
+<div class="footer" id="page-footer"><div class="socialrow"><a href="https://realsparks.itch.io" target="_blank" rel="noopener" aria-label="Real Sparks on itch.io"><svg width='23' height='23' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'><circle cx='12' cy='5.2' r='2.6'/><rect x='10.9' y='7.4' width='2.2' height='6.2' rx='1'/><path d='M4.5 20.2 6.6 13.8h10.8l2.1 6.4z'/></svg></a><a href="https://www.youtube.com/@Realsparksgames" target="_blank" rel="noopener" aria-label="Real Sparks on YouTube"><svg width='24' height='24' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'><path d='M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8c1.6.4 7.8.4 7.8.4s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8z'/><path d='M10 15.2V8.8L15.5 12z' style='fill:var(--bg);'/></svg></a><a href="https://www.linkedin.com/company/realsparks/" target="_blank" rel="noopener" aria-label="Real Sparks on LinkedIn"><svg width='22' height='22' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'><rect x='2.6' y='2.6' width='18.8' height='18.8' rx='2.6'/><g style='fill:var(--bg);'><rect x='6' y='10.2' width='2.9' height='8'/><circle cx='7.45' cy='7.3' r='1.75'/><path d='M11.6 18.2v-8h2.7v1.1h.1a3 3 0 0 1 2.7-1.3c2.4 0 3.4 1.5 3.4 4v4.2h-2.9v-3.9c0-1.1-.3-1.9-1.4-1.9-1.2 0-1.7.8-1.7 1.9v3.9z'/></g></svg></a></div><div>Xenofront / Created by Matthew Haber / © 2026 Real Sparks. All rights reserved.</div></div>
+
+<script>
+"use strict";
+/* ============================== AUDIO ============================== */
+var actx = null;
+function ensureAudio(){
+  try{
+    if (typeof navigator !== "undefined" && navigator.audioSession){
+      navigator.audioSession.type = "ambient";
+    }
+  }catch(e){}
+  try{
+    if (!actx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) actx = new AC();
+    }
+    if (actx && actx.state === "suspended"){ actx.resume(); }
+  }catch(e){}
+  return actx;
+}
+function tone(freq, dur, type, vol, delay){
+  try{
+    var ctx = ensureAudio(); if (!ctx) return;
+    var t = ctx.currentTime + (delay || 0);
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.08, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.12));
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + (dur || 0.12) + 0.05);
+  }catch(e){}
+}
+function sfx(name){
+  ensureAudio();
+  if (name === "select") tone(620, 0.07, "sine", 0.05);
+  else if (name === "move"){ tone(330, 0.08, "triangle", 0.05); tone(440, 0.08, "triangle", 0.04, 0.06); }
+  else if (name === "fire"){ tone(180, 0.12, "square", 0.05); tone(120, 0.14, "square", 0.04, 0.03); }
+  else if (name === "hit"){ tone(140, 0.15, "sawtooth", 0.06); }
+  else if (name === "capture"){ tone(523, 0.1, "sine", 0.06); tone(784, 0.14, "sine", 0.06, 0.09); }
+  else if (name === "build"){ tone(392, 0.09, "triangle", 0.06); tone(587, 0.12, "triangle", 0.06, 0.08); }
+  else if (name === "victory"){ tone(523, 0.14, "sine", 0.07); tone(659, 0.14, "sine", 0.07, 0.13); tone(784, 0.22, "sine", 0.07, 0.26); }
+  else if (name === "defeat"){ tone(392, 0.16, "sine", 0.07); tone(311, 0.16, "sine", 0.07, 0.15); tone(233, 0.26, "sine", 0.07, 0.3); }
+  else if (name === "error"){ tone(220, 0.1, "sine", 0.05); }
+}
+var musicOn = true, musicTimer = null, musicNodes = [], chordIdx = 0;
+var CHORDS = [
+  [110.00, 164.81, 220.00, 261.63],
+  [87.31, 130.81, 174.61, 220.00],
+  [98.00, 146.83, 196.00, 246.94],
+  [130.81, 196.00, 261.63, 329.63]
+];
+function stopChord(){
+  for (var i = 0; i < musicNodes.length; i++){ try{ musicNodes[i].stop(); }catch(e){} }
+  musicNodes = [];
+}
+function startMusic(){
+  if (!musicOn || musicTimer) return;
+  var ctx = ensureAudio(); if (!ctx) return;
+  function chord(){
+    musicTimer = null;
+    if (!musicOn) return;
+    var c = ensureAudio(); if (!c) return;
+    stopChord();
+    var freqs = CHORDS[chordIdx % CHORDS.length]; chordIdx++;
+    var t = c.currentTime;
+    for (var i = 0; i < freqs.length; i++){
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = i < 2 ? "sine" : "triangle";
+      o.frequency.value = freqs[i] * (i === 3 ? 2 : 1);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(i < 2 ? 0.026 : 0.011, t + 2.5);
+      g.gain.linearRampToValueAtTime(0.0001, t + 9.5);
+      o.connect(g); g.connect(c.destination);
+      o.start(t); o.stop(t + 10);
+      musicNodes.push(o);
+    }
+    if (Math.random() < 0.6){
+      var pf = [880, 1046.5, 1318.5][Math.floor(Math.random() * 3)];
+      tone(pf, 1.6, "sine", 0.008, 2 + Math.random() * 4);
+    }
+    musicTimer = setTimeout(chord, 8000);
+  }
+  chord();
+}
+function stopMusic(){
+  if (musicTimer){ clearTimeout(musicTimer); musicTimer = null; }
+  stopChord();
+}
+function setMusic(on){
+  musicOn = !!on;
+  if (musicOn) startMusic(); else stopMusic();
+  saveGame(); refreshMusicBtns();
+}
+function refreshMusicBtns(){
+  var label = musicOn ? "Music: On" : "Music: Off";
+  var a = document.getElementById("btn-music"); if (a) a.textContent = label;
+  var b = document.getElementById("btn-music2"); if (b) b.textContent = label;
+}
+if (typeof document !== "undefined"){
+  document.addEventListener("pointerdown", function(){ ensureAudio(); startMusic(); }, {passive:true});
+  document.addEventListener("touchstart", function(){ ensureAudio(); startMusic(); }, {passive:true});
+}
+ensureAudio();
+
+/* ============================== DATA ============================== */
+var COLS = 9, ROWS = 7;
+var SAVE_KEY = "xenofront-mini-v1";
+var TYPES = {
+  drone:   { key:"drone",   name:"Drone",   letter:"D", move:4, minR:1, maxR:1, atk:4, cost:100, unlock:1, blurb:"Fast and light. Long legs, soft sting." },
+  infantry:{ key:"infantry",name:"Infantry",letter:"I", move:3, minR:1, maxR:1, atk:2, cost:50,  unlock:2, blurb:"Boots on the ground. Weak shot, tiny price, made for holding structures." },
+  striker: { key:"striker", name:"Striker", letter:"S", move:3, minR:1, maxR:1, atk:6, cost:200, unlock:1, blurb:"The balanced all rounder of the squad." },
+  dart:    { key:"dart",    name:"Dart",    letter:"T", move:6, minR:1, maxR:1, atk:3, cost:150, unlock:4, blurb:"Hoverbike scout. The fastest thing on the field." },
+  cannon:  { key:"cannon",  name:"Cannon",  letter:"C", move:2, minR:2, maxR:3, atk:8, cost:250, unlock:1, blurb:"Hits hard from 2 to 3 hexes. Must stay planted to fire." },
+  flak:    { key:"flak",    name:"Flak",    letter:"F", move:2, minR:1, maxR:2, atk:3, atkAir:9, aa:true, cost:250, unlock:6, blurb:"Anti-air turret truck. Plinks at ground targets, shreds aircraft." },
+  bulwark: { key:"bulwark", name:"Bulwark", letter:"B", move:2, minR:1, maxR:1, atk:5, cost:300, unlock:1, blurb:"Slow wall. Shrugs off 15% of all damage." },
+  gunship: { key:"gunship", name:"Gunship", letter:"G", move:5, minR:1, maxR:1, atk:7, cost:400, unlock:7, air:true, blurb:"Rotor gunship. Flies over everything and ignores ground cover, but cannot take structures. Only Flak or another Gunship can bring it down." }
+};
+var TERRAIN = {
+  ".": { key:".", name:"Open Ground", def:0 },
+  "c": { key:"c", name:"Crystal Field", def:0.20 },
+  "h": { key:"h", name:"High Ground", def:0.30 }
+};
+var STRUCT_INFO = {
+  hq:      { name:"HQ",      label:"HQ", income:200, def:0.40 },
+  factory: { name:"Factory", label:"FAC", income:150 },
+  outpost: { name:"Outpost", label:"OUT", income:100 }
+};
+/* Terrain rows: 7 strings of 9 chars. "." open, "c" crystal, "h" high ground.
+   Columns run west to east: col 0 is the player (west) side, col 8 is the Array (east) side.
+   Spawns and structures use [col, row] in that same west to east layout. */
+var MAPS = [
+  { id:1, name:"First Signal", par:6,
+    brief:"A relay outpost went quiet overnight. Take the squad in to see why.",
+    terrain:[".........",".........",".c....c..",".....h...","...c.....",".........","........."],
+    structures:[["hq","enemy",8,6],["outpost","neutral",4,3],["factory","player",0,1],["hq","player",0,0]],
+    player:[["striker",1,1],["drone",1,2],["bulwark",1,0]],
+    enemy:[["drone",7,5],["striker",7,6]],
+    credits:[300,200] },
+  { id:2, name:"Crystal Flats", par:7, newUnit:"infantry",
+    brief:"The Array is digging in among the crystal flats. Use the fields for cover.",
+    terrain:[".........","......cc.","....h.cc.","....h....","..cc.....","..cc..h..","........."],
+    structures:[["hq","enemy",8,6],["factory","enemy",8,5],["outpost","neutral",4,3],["factory","player",0,1],["hq","player",0,0]],
+    player:[["striker",1,1],["drone",2,1],["drone",1,2],["striker",2,0],["infantry",1,3]],
+    enemy:[["striker",7,5],["drone",7,4],["drone",6,6],["infantry",7,3]],
+    credits:[500,250] },
+  { id:3, name:"The Causeway", par:7,
+    brief:"One ridge of high ground splits the valley. Whoever holds it, holds the road.",
+    terrain:[".........",".........",".....c...","..hhhhhh.",".....c...",".........","........."],
+    structures:[["hq","enemy",8,3],["outpost","neutral",4,3],["outpost","neutral",4,0],["outpost","neutral",4,6],["hq","player",0,3]],
+    player:[["striker",1,2],["drone",2,3],["bulwark",1,3],["drone",1,4],["infantry",2,4]],
+    enemy:[["striker",7,2],["bulwark",7,4],["drone",7,3],["infantry",6,3]],
+    credits:[450,300] },
+  { id:4, name:"Two Forges", par:8, newUnit:"dart",
+    brief:"Both sides have a forge running. Outbuild the Array, or outfight it.",
+    terrain:[".........",".....h...",".h.....c.",".........","...c.....",".....h...","........."],
+    structures:[["hq","enemy",8,6],["factory","enemy",8,4],["outpost","neutral",4,3],["factory","player",0,2],["hq","player",0,0]],
+    player:[["striker",1,1],["drone",2,2],["drone",1,3],["cannon",2,1],["dart",1,4]],
+    enemy:[["striker",7,5],["drone",7,3],["cannon",6,5],["dart",7,4]],
+    credits:[600,450] },
+  { id:5, name:"Crossing", par:8,
+    brief:"Array constructs are crossing the flats in force. Meet them in the middle.",
+    terrain:[".........",".....c...","..h..c..c",".........","c..c..h..","...c.....","........."],
+    structures:[["hq","enemy",8,6],["outpost","neutral",5,3],["outpost","neutral",3,3],["factory","player",0,1],["hq","player",0,0]],
+    player:[["striker",1,1],["drone",2,1],["striker",2,2],["drone",1,3],["bulwark",1,0],["dart",2,4]],
+    enemy:[["striker",7,5],["striker",6,4],["drone",7,3],["drone",6,6],["infantry",6,2]],
+    credits:[500,350] },
+  { id:6, name:"High Hollow", par:9, newUnit:"flak",
+    brief:"A hollow ringed with high ground. The Array got there first this time.",
+    terrain:[".........","..c......","..c..hhh.","....c..h.",".....hhh.",".........","........."],
+    structures:[["hq","enemy",8,3],["factory","enemy",7,5],["outpost","neutral",4,3],["hq","player",0,3],["factory","player",0,1]],
+    player:[["striker",1,2],["drone",2,2],["cannon",1,4],["drone",2,3],["bulwark",1,1],["flak",2,4]],
+    enemy:[["bulwark",6,3],["striker",6,2],["striker",6,4],["drone",7,3],["flak",6,5]],
+    credits:[550,400] },
+  { id:7, name:"The Gauntlet", par:9, newUnit:"gunship",
+    brief:"A narrow run of crystal and stone, with Array guns at the far end.",
+    terrain:[".........","...c.c.c.","..h.h.h..",".........","..h.h.h..","...c.c.c.","........."],
+    structures:[["hq","enemy",8,3],["outpost","neutral",6,3],["outpost","neutral",2,3],["outpost","neutral",4,0],["outpost","neutral",4,6],["hq","player",0,3]],
+    player:[["striker",1,2],["drone",2,3],["striker",1,4],["bulwark",1,3],["drone",1,1],["drone",1,5],["gunship",2,0]],
+    enemy:[["cannon",7,3],["striker",7,2],["striker",7,4],["bulwark",6,3],["gunship",7,0]],
+    credits:[550,450] },
+  { id:8, name:"Iron Ring", par:10,
+    brief:"The Array has ringed its HQ with heavy constructs. Break the ring anywhere.",
+    terrain:[".........",".h...h...","...c...c.",".........","...c...c.",".h...h...","........."],
+    structures:[["hq","enemy",8,3],["factory","enemy",8,1],["outpost","enemy",8,5],["outpost","neutral",4,3],["factory","player",0,3],["hq","player",0,0]],
+    player:[["striker",1,1],["drone",2,3],["cannon",1,2],["bulwark",1,4],["drone",1,5],["drone",2,0],["dart",2,5]],
+    enemy:[["bulwark",7,2],["striker",6,1],["striker",6,5],["striker",7,3],["flak",7,4]],
+    credits:[750,400] },
+  { id:9, name:"Broken Array", par:10,
+    brief:"The Array core is fragmenting. Its constructs fight on anyway, harder than ever.",
+    terrain:[".........","c...c...c","..h.c.h..","..h...h..","..h.c.h..","c...c...c","........."],
+    structures:[["hq","enemy",8,3],["factory","enemy",8,6],["outpost","neutral",4,0],["outpost","neutral",4,6],["outpost","neutral",4,3],["factory","player",0,0],["hq","player",0,3]],
+    player:[["striker",1,2],["drone",2,2],["striker",1,4],["cannon",1,1],["bulwark",1,5],["drone",2,3],["flak",2,4]],
+    enemy:[["striker",7,2],["striker",7,4],["cannon",7,5],["bulwark",7,1],["drone",6,3],["gunship",7,0]],
+    credits:[650,550] },
+  { id:10, name:"The Heart", par:12,
+    brief:"The rogue core itself, in a fortress of crystal and stone. End this.",
+    terrain:[".........",".c..c..c.","h.h.c.h.h","h...c...h","h.h.c.h.h",".c..c..c.","........."],
+    structures:[["hq","enemy",8,3],["factory","enemy",7,1],["factory","enemy",7,5],["outpost","neutral",4,3],["factory","player",0,3],["hq","player",0,0],["outpost","player",0,6]],
+    player:[["striker",1,1],["drone",2,3],["striker",1,5],["cannon",2,2],["bulwark",2,4],["drone",1,0],["drone",1,6],["dart",2,0]],
+    enemy:[["bulwark",7,2],["cannon",6,3],["striker",6,1],["striker",6,5],["drone",7,0],["drone",7,6],["gunship",7,4]],
+    credits:[750,600] }
+];
+
+/* ============================== STATE ============================== */
+var state = null;          /* live battle state, or null between battles */
+var campaign = { unlocked:1, stars:{}, completed:{} };
+var selectedId = null;     /* selected player unit id */
+var selectedFactory = null;/* structure object selected for building */
+var pendingAttack = null;  /* {attackerId, targetId, calc} */
+var lastHex = null;        /* last tapped [col,row] for the readout */
+var nextId = 1;
+
+function key(c, r){ return c + "," + r; }
+function inBounds(c, r){ return c >= 0 && c < COLS && r >= 0 && r < ROWS; }
+function mapById(id){ for (var i = 0; i < MAPS.length; i++) if (MAPS[i].id === id) return MAPS[i]; return MAPS[0]; }
+function unitAt(c, r){ if (!state) return null; for (var i = 0; i < state.units.length; i++){ var u = state.units[i]; if (u.hp > 0 && u.c === c && u.r === r) return u; } return null; }
+function structAt(c, r){ if (!state) return null; for (var i = 0; i < state.structures.length; i++){ var s = state.structures[i]; if (s.c === c && s.r === r) return s; } return null; }
+function unitById(id){ if (!state) return null; for (var i = 0; i < state.units.length; i++) if (state.units[i].id === id) return state.units[i]; return null; }
+function aliveUnits(side){ return state.units.filter(function(u){ return u.hp > 0 && (!side || u.side === side); }); }
+function terrainAt(c, r){ var m = mapById(state.mapId); var ch = m.terrain[r].charAt(c); return TERRAIN[ch] || TERRAIN["."]; }
+function terrainChar(c, r){ var m = mapById(state.mapId); return m.terrain[r].charAt(c); }
+
+/* Hex geometry, odd-r offset coordinates */
+function neighbors(c, r){
+  var odd = (r % 2) === 1;
+  var d = odd ? [[1,0],[1,-1],[0,-1],[-1,0],[0,1],[1,1]] : [[1,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1]];
+  var out = [];
+  for (var i = 0; i < d.length; i++){ var nc = c + d[i][0], nr = r + d[i][1]; if (inBounds(nc, nr)) out.push([nc, nr]); }
+  return out;
+}
+function toCube(c, r){ var x = c - ((r - (r & 1)) >> 1); var z = r; var y = -x - z; return [x, y, z]; }
+function hexDist(c1, r1, c2, r2){
+  var a = toCube(c1, r1), b = toCube(c2, r2);
+  return (Math.abs(a[0]-b[0]) + Math.abs(a[1]-b[1]) + Math.abs(a[2]-b[2])) / 2;
+}
+function reachableMap(unit){
+  /* BFS, all hexes cost 1. Ground units are blocked by any unit. Air units fly over
+     units but still cannot land on one. Includes start at cost 0. */
+  var out = {}; out[key(unit.c, unit.r)] = 0;
+  var seen = {}; seen[key(unit.c, unit.r)] = 1;
+  var fly = !!TYPES[unit.type].air;
+  var q = [[unit.c, unit.r, 0]];
+  while (q.length){
+    var cur = q.shift();
+    if (cur[2] >= TYPES[unit.type].move) continue;
+    var ns = neighbors(cur[0], cur[1]);
+    for (var i = 0; i < ns.length; i++){
+      var nc = ns[i][0], nr = ns[i][1], k = key(nc, nr);
+      if (seen[k]) continue;
+      seen[k] = 1;
+      var occ = unitAt(nc, nr);
+      if (occ && !fly) continue;
+      if (!occ) out[k] = cur[2] + 1;
+      q.push([nc, nr, cur[2] + 1]);
+    }
+  }
+  return out;
+}
+function canUnitAttack(att, def){
+  if (!att || !def || att.hp <= 0 || def.hp <= 0 || att.side === def.side) return false;
+  if (att.spent || att.attacked) return false;
+  if (TYPES[def.type].air && !TYPES[att.type].air && !TYPES[att.type].aa) return false;
+  if (att.type === "cannon" && att.moved) return false;
+  var t = TYPES[att.type], d = hexDist(att.c, att.r, def.c, def.r);
+  return d >= t.minR && d <= t.maxR;
+}
+/* Total cover for a unit on a hex: terrain, plus 40% for holding an HQ (a fortress
+   hex, either side's), plus a Bulwark's 15% plating. Flying units get none of the
+   ground cover. Everything caps at 50%. */
+function coverAt(c, r, unit){
+  var d = 0;
+  if (!TYPES[unit.type].air){
+    d += terrainAt(c, r).def;
+    var st = structAt(c, r);
+    if (st && st.type === "hq") d += (STRUCT_INFO.hq.def || 0.40);
+  }
+  if (unit.type === "bulwark") d += 0.15;
+  return d > 0.5 ? 0.5 : d;
+}
+/* Deterministic combat. No randomness at all. */
+function damageCalc(att, def){
+  var t = TYPES[att.type];
+  var support = 0;
+  for (var i = 0; i < state.units.length; i++){
+    var u = state.units[i];
+    if (u.hp > 0 && u.side === att.side && u.id !== att.id && hexDist(u.c, u.r, def.c, def.r) === 1) support++;
+  }
+  var defTerr = coverAt(def.c, def.r, def);
+  var atkVal = (TYPES[def.type].air && t.atkAir) ? t.atkAir : t.atk;
+  var raw = atkVal * (att.hp / 10) * (1 + 0.10 * support);
+  var dmg = Math.max(1, Math.round(raw * (1 - defTerr)));
+  var counter = 0, cSupport = 0, defHpAfter = def.hp - dmg;
+  if (defHpAfter > 0){
+    var dt = TYPES[def.type], dd = hexDist(def.c, def.r, att.c, att.r);
+    if (dd >= dt.minR && dd <= dt.maxR && !(def.type === "cannon" && def.moved) && !(TYPES[att.type].air && !dt.air && !dt.aa)){
+      for (var j = 0; j < state.units.length; j++){
+        var v = state.units[j];
+        if (v.hp > 0 && v.side === def.side && v.id !== def.id && hexDist(v.c, v.r, att.c, att.r) === 1) cSupport++;
+      }
+      var attTerr = coverAt(att.c, att.r, att);
+      var dAtk = (TYPES[att.type].air && dt.atkAir) ? dt.atkAir : dt.atk;
+      var craw = dAtk * (defHpAfter / 10) * (1 + 0.10 * cSupport) * 0.7;
+      counter = Math.max(1, Math.round(craw * (1 - attTerr)));
+    }
+  }
+  return { dmg:dmg, support:support, terrain:defTerr, counter:counter, counterSupport:cSupport, kill: defHpAfter <= 0 };
+}
+
+/* ============================== SAVE ============================== */
+function serializeBattle(){
+  if (!state) return null;
+  return { mapId:state.mapId, turn:state.turn, phase:state.phase, finished:state.finished,
+    result:state.result, aiBuiltLast:!!state.aiBuiltLast, credits:{ player:state.credits.player, enemy:state.credits.enemy },
+    initialPlayerHp:state.initialPlayerHp, nextId:nextId,
+    units:state.units.map(function(u){ return {id:u.id, side:u.side, type:u.type, c:u.c, r:u.r, hp:u.hp, moved:u.moved, attacked:u.attacked, spent:u.spent, cap:!!u.cap}; }),
+    structures:state.structures.map(function(s){ return {type:s.type, owner:s.owner, c:s.c, r:s.r}; }) };
+}
+var PLAY_URL = "https://games.realsparks.net/xenofront/play/";
+var lastShareText = "";
+function flashCopied(btn){
+  if (!btn) return;
+  if (!btn.getAttribute("data-label")) btn.setAttribute("data-label", btn.innerHTML);
+  btn.innerHTML = "Copied";
+  setTimeout(function(){ btn.innerHTML = btn.getAttribute("data-label"); }, 1600);
+}
+function legacyCopy(t){
+  try{
+    var ta = document.createElement("textarea");
+    ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }catch(e){}
+}
+function shareGame(text, btn){
+  ensureAudio();
+  if (navigator.share){
+    navigator.share({ title:"Xenofront", text:text, url:PLAY_URL }).catch(function(){});
+    return;
+  }
+  var full = text + " " + PLAY_URL;
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(full).then(function(){ flashCopied(btn); }, function(){ legacyCopy(full); flashCopied(btn); });
+  else { legacyCopy(full); flashCopied(btn); }
+}
+var quitArmed = false, quitTimer = null;
+function quitLevel(){
+  if (!quitArmed){
+    quitArmed = true;
+    el("btn-quit").textContent = "Tap again to quit";
+    if (state && state.phase === "player") setReadout("<span class='big'>Leave this battle?</span><br><span class='sub'>Tap Quit again to abandon the battle and return to the map list. Your stars and unlocked maps are kept; this battle restarts from scratch next time.</span>");
+    quitTimer = setTimeout(function(){ quitArmed = false; el("btn-quit").textContent = "Quit"; }, 4000);
+    return;
+  }
+  clearTimeout(quitTimer); quitArmed = false; el("btn-quit").textContent = "Quit";
+  aiRunId++;
+  state = null; selectedId = null; pendingAttack = null; selectedFactory = null;
+  saveGame();
+  sfx("select");
+  showScreen("maps");
+}
+function saveGame(){
+  try{
+    var data = { version:1, music:musicOn, unlocked:campaign.unlocked, stars:campaign.stars, completed:campaign.completed,
+      battle: (state && !state.finished) ? serializeBattle() : null };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  }catch(e){}
+}
+function getSave(){
+  try{ var raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+}
+function loadSave(){
+  var data = getSave(); if (!data) return;
+  if (data.unlocked) campaign.unlocked = Math.min(10, Math.max(1, data.unlocked));
+  if (data.stars) campaign.stars = data.stars;
+  if (data.completed) campaign.completed = data.completed;
+  if (data.music === false) musicOn = false;
+  if (data.battle) restoreBattle(data.battle);
+}
+function restoreBattle(b){
+  nextId = b.nextId || 100;
+  state = { mapId:b.mapId, turn:b.turn, phase:b.phase || "player", finished:!!b.finished, result:b.result || null, aiBuiltLast:!!b.aiBuiltLast,
+    credits:{ player:b.credits.player, enemy:b.credits.enemy }, initialPlayerHp:b.initialPlayerHp || 10,
+    units:b.units, structures:b.structures };
+  selectedId = null; selectedFactory = null; pendingAttack = null; lastHex = null;
+}
+
+/* ============================== BATTLE SETUP ============================== */
+function makeUnit(side, type, c, r){
+  return { id:nextId++, side:side, type:type, c:c, r:r, hp:10, moved:false, attacked:false, spent:false, cap:false };
+}
+function startBattle(mapId){
+  aiRunId++;
+  quitArmed = false; el("btn-quit").textContent = "Quit";
+  var m = mapById(mapId); nextId = 1;
+  state = { mapId:m.id, turn:1, phase:"player", finished:false, result:null,
+    credits:{ player:m.credits[0], enemy:m.credits[1] }, initialPlayerHp:0,
+    units:[], structures:[] };
+  var i;
+  for (i = 0; i < m.structures.length; i++) state.structures.push({ type:m.structures[i][0], owner:m.structures[i][1], c:m.structures[i][2], r:m.structures[i][3] });
+  for (i = 0; i < m.player.length; i++) state.units.push(makeUnit("player", m.player[i][0], m.player[i][1], m.player[i][2]));
+  for (i = 0; i < m.enemy.length; i++) state.units.push(makeUnit("enemy", m.enemy[i][0], m.enemy[i][1], m.enemy[i][2]));
+  state.initialPlayerHp = aliveUnits("player").reduce(function(a, u){ return a + u.hp; }, 0);
+  selectedId = null; selectedFactory = null; pendingAttack = null; lastHex = null;
+  showScreen("battle"); render();
+  setBanner("Your Turn", false);
+  setReadout("<span class='big'>" + esc(m.name) + "</span><br><span class='sub'>" + esc(m.brief) + "</span>" +
+    (m.newUnit ? "<br><span class='big' style='font-size:16px;'>New unit: " + TYPES[m.newUnit].name + "</span><br><span class='sub'>" + esc(TYPES[m.newUnit].blurb) + "</span>" : "") +
+    "<br>Tap one of your units to select it.");
+  saveGame();
+}
+function restart(){ if (state) startBattle(state.mapId); }
+function incomeFor(side){
+  var sum = 0;
+  for (var i = 0; i < state.structures.length; i++) if (state.structures[i].owner === side) sum += STRUCT_INFO[state.structures[i].type].income;
+  return sum;
+}
+function resetFlags(side){
+  for (var i = 0; i < state.units.length; i++){ var u = state.units[i]; if (u.side === side && u.hp > 0){ u.moved = false; u.attacked = false; u.spent = false; } }
+}
+
+/* ============================== ACTIONS ============================== */
+function tryMove(c, r){
+  var u = unitById(selectedId);
+  if (!state || state.finished || state.phase !== "player" || !u || u.side !== "player" || u.spent || u.moved) return false;
+  var reach = reachableMap(u);
+  if (reach[key(c, r)] === undefined || reach[key(c, r)] === 0) return false;
+  if (unitAt(c, r)) return false;
+  u.c = c; u.r = r; u.moved = true; u.cap = false; pendingAttack = null;
+  sfx("move"); render(); saveGame(); describeSelection();
+  return true;
+}
+function tryAttack(a, b){
+  var att = unitById(selectedId), def = null;
+  if (typeof a === "number" && typeof b === "number") def = unitAt(a, b);
+  else def = unitById(a);
+  if (!att && def) { /* allow AI style call: tryAttack(attackerId, targetId) */
+    if (typeof a === "number" && typeof b === "number" && unitById(a) && unitById(b)){ att = unitById(a); def = unitById(b); }
+  }
+  if (!state || state.finished || !att || !def) return false;
+  if (!canUnitAttack(att, def)) return false;
+  resolveAttack(att, def);
+  return true;
+}
+function resolveAttack(att, def){
+  var calc = damageCalc(att, def);
+  sfx("fire");
+  def.hp -= calc.dmg;
+  if (def.hp <= 0){ def.hp = 0; sfx("hit"); }
+  else if (calc.counter > 0){ att.hp -= calc.counter; if (att.hp < 0) att.hp = 0; }
+  att.attacked = true; att.spent = true;
+  if (selectedId === att.id && att.hp <= 0) selectedId = null;
+  if (selectedId === att.id) selectedId = att.id;
+  if (att.side === "player"){ pendingAttack = null; }
+  var msg = typeName(att) + " hits " + typeName(def) + " for " + calc.dmg + (calc.kill ? ". Target destroyed." : ".");
+  if (!calc.kill && calc.counter > 0) msg += " Counterattack for " + calc.counter + ".";
+  checkEnd();
+  render(); saveGame();
+  if (!state.finished) setReadout("<span class='big'>Combat</span><br>" + esc(msg));
+  return calc;
+}
+function capturableBy(unit){
+  if (!unit || unit.hp <= 0 || unit.spent) return null;
+  if (TYPES[unit.type].air) return null;
+  var s = structAt(unit.c, unit.r);
+  if (s && s.owner !== unit.side) return s;
+  return null;
+}
+function capture(){
+  var u = unitById(selectedId);
+  if (!state || state.finished || !u) return false;
+  var s = capturableBy(u);
+  if (!s) return false;
+  u.cap = true; u.attacked = true; u.spent = true;
+  sfx("capture");
+  render(); saveGame();
+  if (!state.finished) setReadout("<span class='big'>Holding</span><br>Your unit is taking the " + STRUCT_INFO[s.type].name + ". Keep it alive there through the Array turn and it flips to you at the start of your next turn.");
+  return true;
+}
+function markHolds(side){
+  for (var i = 0; i < state.units.length; i++){
+    var u = state.units[i];
+    if (u.side === side && u.hp > 0 && !TYPES[u.type].air){ var s = structAt(u.c, u.r); if (s && s.owner !== side) u.cap = true; }
+  }
+}
+function resolveCaptures(side){
+  var flipped = [];
+  for (var i = 0; i < state.units.length; i++){
+    var u = state.units[i];
+    if (u.side !== side || u.hp <= 0 || !u.cap) continue;
+    var s = structAt(u.c, u.r);
+    if (s && s.owner !== side){ s.owner = side; flipped.push(STRUCT_INFO[s.type].name); }
+    u.cap = false;
+  }
+  if (flipped.length){ sfx("capture"); checkEnd(); }
+  return flipped;
+}
+function doWait(){
+  var u = unitById(selectedId);
+  if (!u) return false;
+  u.spent = true; selectedId = null; pendingAttack = null;
+  render(); saveGame(); describeNone();
+  return true;
+}
+function spawnHexFor(factory){
+  if (!unitAt(factory.c, factory.r)) return [factory.c, factory.r];
+  var ns = neighbors(factory.c, factory.r);
+  for (var i = 0; i < ns.length; i++) if (!unitAt(ns[i][0], ns[i][1])) return ns[i];
+  return null;
+}
+function buildUnit(type, side, fc, fr){
+  if (!state || state.finished || !TYPES[type]) return false;
+  if (state.mapId < (TYPES[type].unlock || 1)) return false;
+  side = side || "player";
+  var factory = null;
+  if (typeof fc === "number" && typeof fr === "number") factory = structAt(fc, fr);
+  else if (side === "player") factory = selectedFactory;
+  else { for (var i = 0; i < state.structures.length; i++) if (state.structures[i].type === "factory" && state.structures[i].owner === side){ factory = state.structures[i]; break; } }
+  if (!factory || factory.type !== "factory" || factory.owner !== side) return false;
+  var cost = TYPES[type].cost;
+  if (state.credits[side] < cost) { if (side === "player"){ sfx("error"); setReadout("<span class='big'>Not enough credits</span><br>A " + TYPES[type].name + " costs " + cost + ". You have " + state.credits.player + "."); } return false; }
+  var spot = spawnHexFor(factory);
+  if (!spot) { if (side === "player") sfx("error"); return false; }
+  state.credits[side] -= cost;
+  var u = makeUnit(side, type, spot[0], spot[1]);
+  u.moved = true; u.attacked = true; u.spent = true;
+  state.units.push(u);
+  if (side === "player"){ sfx("build"); selectedFactory = null; selectedId = null; }
+  render(); saveGame();
+  if (side === "player") setReadout("<span class='big'>" + TYPES[type].name + " built</span><br>It rests this turn and is ready next turn.");
+  return true;
+}
+function checkEnd(){
+  if (!state || state.finished) return state ? state.result : null;
+  var pHQ = null, eHQ = null;
+  /* HQ ownership is tracked on the structure objects themselves. Find each side's HQ
+     by its starting owner position: player HQ is the westernmost (smallest col),
+     enemy HQ is the easternmost (largest col). */
+  var hqs = state.structures.filter(function(s){ return s.type === "hq"; });
+  hqs.sort(function(a, b){ return a.c - b.c; });
+  pHQ = hqs[0]; eHQ = hqs[hqs.length - 1];
+  var win = false, lose = false;
+  if (aliveUnits("enemy").length === 0) win = true;
+  if (eHQ && eHQ.owner === "player") win = true;
+  if (aliveUnits("player").length === 0) lose = true;
+  if (pHQ && pHQ.owner === "enemy") lose = true;
+  if (lose) win = false;
+  if (win || lose){
+    state.finished = true; state.result = win ? "win" : "lose";
+    if (win){
+      var stars = 1;
+      var m = mapById(state.mapId);
+      var hpLeft = aliveUnits("player").reduce(function(a, u){ return a + u.hp; }, 0);
+      if (state.turn <= m.par) stars++;
+      if (state.initialPlayerHp > 0 && hpLeft >= state.initialPlayerHp * 0.5) stars++;
+      if (!campaign.stars[state.mapId] || campaign.stars[state.mapId] < stars) campaign.stars[state.mapId] = stars;
+      campaign.completed[state.mapId] = true;
+      if (state.mapId >= campaign.unlocked && campaign.unlocked < 10) campaign.unlocked = state.mapId + 1;
+      sfx("victory");
+    } else sfx("defeat");
+    try{ var d = getSave() || {}; d.unlocked = campaign.unlocked; d.stars = campaign.stars; d.completed = campaign.completed; d.battle = null; localStorage.setItem(SAVE_KEY, JSON.stringify(d)); }catch(e){}
+    showEnd(win);
+  }
+  return state.result;
+}
+
+/* ============================== ENEMY AI ============================== */
+function aiBuild(){
+  if (state.aiBuiltLast){ state.aiBuiltLast = false; return; }
+  if (aliveUnits("enemy").length >= 6) return;
+  var factories = state.structures.filter(function(s){ return s.type === "factory" && s.owner === "enemy"; });
+  for (var i = 0; i < factories.length; i++){
+    if (!spawnHexFor(factories[i])) continue;
+    var cr = state.credits.enemy, pick = null;
+    var pAir = aliveUnits("player").some(function(u){ return !!TYPES[u.type].air; });
+    var eFlak = aliveUnits("enemy").some(function(u){ return u.type === "flak"; });
+    var eShip = aliveUnits("enemy").some(function(u){ return u.type === "gunship"; });
+    if (state.mapId >= 6 && pAir && !eFlak && cr >= 250) pick = "flak";
+    else if (state.mapId >= 7 && !eShip && cr >= 400) pick = "gunship";
+    else if (cr >= 200) pick = "striker";
+    else if (state.mapId >= 4 && cr >= 150) pick = "dart";
+    else if (cr >= 100) pick = "drone";
+    else if (state.mapId >= 2 && cr >= 50) pick = "infantry";
+    if (pick){ var keep = selectedId; buildUnit(pick, "enemy", factories[i].c, factories[i].r); selectedId = keep; selectedFactory = null; state.aiBuiltLast = true; return; }
+  }
+}
+function aiObjectiveFor(u){
+  /* Priority: capturable structure, then nearest player unit, then player HQ.
+     Air units cannot capture, so they hunt units directly. */
+  var i, bestS = null, bestD = 1e9;
+  if (TYPES[u.type].air){
+    var pusA = aliveUnits("player"), bU = null, bD = 1e9;
+    for (i = 0; i < pusA.length; i++){ var dA = hexDist(u.c, u.r, pusA[i].c, pusA[i].r); if (dA < bD){ bD = dA; bU = pusA[i]; } }
+    if (bU) return [bU.c, bU.r];
+  }
+  for (i = 0; i < state.structures.length; i++){
+    var s = state.structures[i];
+    if (s.owner === "enemy") continue;
+    var d = hexDist(u.c, u.r, s.c, s.r);
+    if (d < bestD){ bestD = d; bestS = s; }
+  }
+  if (bestS && bestD <= 4) return [bestS.c, bestS.r];
+  var pus = aliveUnits("player"), bestU = null; bestD = 1e9;
+  for (i = 0; i < pus.length; i++){ var dd = hexDist(u.c, u.r, pus[i].c, pus[i].r); if (dd < bestD){ bestD = dd; bestU = pus[i]; } }
+  if (bestU) return [bestU.c, bestU.r];
+  var hqs = state.structures.filter(function(s){ return s.type === "hq"; }); hqs.sort(function(a, b){ return a.c - b.c; });
+  return hqs.length ? [hqs[0].c, hqs[0].r] : [0, 3];
+}
+function aiActUnit(u){
+  if (u.hp <= 0 || u.spent || state.finished) return;
+  var keepSel = selectedId; selectedId = u.id;
+  if (u.type === "cannon"){
+    /* Cannons never reposition: fire at the weakest unit in range, else hold. */
+    var cands = aliveUnits("player").filter(function(p){ return canUnitAttack(u, p); });
+    if (cands.length){
+      cands.sort(function(a, b){ return a.hp - b.hp; });
+      selectedId = u.id; resolveAttack(u, cands[0]); selectedId = keepSel; return;
+    }
+    u.spent = true; selectedId = keepSel; return;
+  }
+  /* Guard duty: if a player unit threatens the enemy HQ, the closest enemy unit heads home. */
+  var hqs = state.structures.filter(function(s){ return s.type === "hq"; }); hqs.sort(function(a, b){ return a.c - b.c; });
+  var eHQ = hqs[hqs.length - 1], objective = null;
+  if (eHQ){
+    var threat = aliveUnits("player").filter(function(p){ return hexDist(p.c, p.r, eHQ.c, eHQ.r) <= 3; });
+    if (threat.length){
+      var foes = aliveUnits("enemy");
+      foes.sort(function(a, b){ return hexDist(a.c, a.r, eHQ.c, eHQ.r) - hexDist(b.c, b.r, eHQ.c, eHQ.r); });
+      if (foes[0] === u) objective = [threat[0].c, threat[0].r];
+    }
+  }
+  if (!objective) objective = aiObjectiveFor(u);
+  var rm = reachableMap(u), bestKey = key(u.c, u.r), bestScore = null;
+  Object.keys(rm).forEach(function(k){
+    var p = k.split(","), c = parseInt(p[0], 10), r = parseInt(p[1], 10);
+    var score = hexDist(c, r, objective[0], objective[1]) * 10 + rm[k] * 0.1;
+    var st = structAt(c, r);
+    if (st && st.owner !== "enemy") score -= 5;
+    var terr = terrainAt(c, r); if (terr && terr.def > 0) score -= 3;
+    if (bestScore === null || score < bestScore){ bestScore = score; bestKey = k; }
+  });
+  var bp = bestKey.split(","), bc = parseInt(bp[0], 10), br = parseInt(bp[1], 10);
+  if (bc !== u.c || br !== u.r){ u.c = bc; u.r = br; u.moved = true; u.cap = false; }
+  selectedId = u.id;
+  var stHere = structAt(u.c, u.r);
+  if (stHere && stHere.owner !== "enemy" && !TYPES[u.type].air) u.cap = true;
+  /* Post-move attack: only from the hex the unit actually ended on. */
+  var bestT = null;
+  if (u.type !== "cannon"){
+    var pus2 = aliveUnits("player");
+    for (var k = 0; k < pus2.length; k++){
+      if (!canUnitAttack(u, pus2[k])) continue;
+      if (!bestT || pus2[k].hp < bestT.hp) bestT = pus2[k];
+    }
+  }
+  if (bestT) resolveAttack(u, bestT);
+  else u.spent = true;
+  selectedId = keepSel;
+}
+function runEnemyAI(){
+  if (!state || state.finished) return;
+  var foes = aliveUnits("enemy");
+  for (var i = 0; i < foes.length; i++){
+    if (state.finished) break;
+    if (foes[i].hp > 0) aiActUnit(foes[i]);
+  }
+}
+var aiRunId = 0;
+function finishEnemyPhase(){
+  markHolds("enemy");
+  state.turn++;
+  state.phase = "player";
+  state.credits.player += incomeFor("player");
+  resetFlags("player");
+  var flipped = resolveCaptures("player");
+  setBanner("Your Turn", false);
+  render(); saveGame();
+  setReadout("<span class='big'>Turn " + state.turn + "</span><br>" +
+    (flipped.length ? "Captured: " + flipped.join(", ") + ". Income received." : "Income received.") +
+    " Tap one of your units to select it.");
+}
+function endTurn(){
+  if (!state || state.finished || state.phase !== "player") return false;
+  selectedId = null; selectedFactory = null; pendingAttack = null;
+  markHolds("player");
+  state.phase = "enemy";
+  setBanner("Array Turn", true); render();
+  state.credits.enemy += incomeFor("enemy");
+  resetFlags("enemy");
+  resolveCaptures("enemy");
+  if (state.finished){ render(); saveGame(); return true; }
+  aiBuild(); render();
+  setReadout("<span class='big'>Array Turn</span><br>The Array is on the move.");
+  /* Enemy units act one at a time so the player can follow each move and shot. */
+  var myState = state, run = ++aiRunId;
+  var queue = aliveUnits("enemy").slice(), idx = 0;
+  function step(){
+    if (state !== myState || aiRunId !== run) return;
+    if (state.finished){ render(); saveGame(); return; }
+    while (idx < queue.length && (queue[idx].hp <= 0 || queue[idx].spent)) idx++;
+    if (idx >= queue.length){ finishEnemyPhase(); return; }
+    var u = queue[idx++];
+    aiActUnit(u);
+    if (!state.finished && u.hp > 0 && !u.attacked){
+      setReadout("<span class='big'>Array Turn</span><br>Array " + TYPES[u.type].name + (u.cap ? " is taking a structure. Stop it before your next turn to keep it." : " advances."));
+    }
+    render();
+    if (state.finished){ render(); saveGame(); return; }
+    setTimeout(step, 620);
+  }
+  setTimeout(step, 500);
+  return true;
+}
+
+/* ============================== UI ============================== */
+function esc(s){ return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function typeName(u){ return (u.side === "player" ? "" : "Array ") + TYPES[u.type].name; }
+function domainText(u){
+  var t = TYPES[u.type];
+  return (t.air ? "Air unit" : "Land unit") + ", " + ((t.air || t.aa) ? "attacks land and air" : "attacks land only") + ".";
+}
+function domainTag(t){
+  return (t.air ? "Air" : "Land") + (t.aa ? " · hits air" : (t.air ? " · hits land + air" : ""));
+}
+function el(id){ return document.getElementById(id); }
+function showScreen(name){
+  el("screen-title").classList.toggle("hidden", name !== "title");
+  el("screen-maps").classList.toggle("hidden", name !== "maps");
+  el("screen-battle").classList.toggle("hidden", name !== "battle");
+  if (name === "title") refreshTitle();
+  if (name === "maps") renderMapGrid();
+  window.scrollTo(0, 0);
+}
+function refreshTitle(){
+  var has = false;
+  try{ var s = getSave(); has = !!(s && s.battle); }catch(e){}
+  el("btn-continue").classList.toggle("hidden", !has);
+  el("tagline").textContent = "A drone squad against the rogue Array. Small maps, quick turns, clean fights.";
+}
+function renderMapGrid(){
+  var html = "";
+  for (var i = 0; i < MAPS.length; i++){
+    var m = MAPS[i], locked = m.id > campaign.unlocked, done = !!campaign.completed[m.id];
+    var stars = campaign.stars[m.id] || 0;
+    var starTxt = done ? ("★".repeat(stars) + "☆".repeat(3 - stars)) : "";
+    html += "<button class='mapbtn" + (locked ? " locked" : "") + "' data-map='" + m.id + "'" + (locked ? " disabled" : "") + ">" +
+      "<span class='mn'>" + m.id + ". " + esc(m.name) + "</span>" +
+      (starTxt ? "<span class='ms'>" + starTxt + "</span>" : "") +
+      "<span class='ml'>" + (locked ? "Locked. Clear the map before this one." : esc(m.brief)) + "</span></button>";
+  }
+  el("mapgrid").innerHTML = html;
+  var btns = el("mapgrid").querySelectorAll("[data-map]");
+  for (var j = 0; j < btns.length; j++) btns[j].addEventListener("click", function(){ sfx("select"); startBattle(parseInt(this.getAttribute("data-map"), 10)); });
+}
+function setBanner(txt, enemy){ var b = el("banner"); b.textContent = txt; b.classList.toggle("enemy", !!enemy); }
+function setReadout(html){ el("readout").innerHTML = html; }
+function hexPoints(cx, cy, s){
+  var pts = [];
+  for (var i = 0; i < 6; i++){ var a = Math.PI / 180 * (60 * i - 30); pts.push((cx + s * Math.cos(a)).toFixed(1) + "," + (cy + s * Math.sin(a)).toFixed(1)); }
+  return pts.join(" ");
+}
+
+/* ============================== ICON + TERRAIN ART ============================== */
+function colorsFor(side){
+  return side === "player"
+    ? { main:"#2dd4bf", sec:"#0e7490", dark:"#0d1b26", lite:"#e6fffb" }
+    : { main:"#fb7185", sec:"#be3455", dark:"#260d16", lite:"#fff1f2" };
+}
+/* Vehicle shapes in local coords, centred on 0,0, nose pointing east (+x). */
+function unitShapes(type, col){
+  var dk = "#08111d";
+  if (type === "drone"){
+    return "<g stroke-linecap='round'>" +
+      "<path d='M-6 -5 L-13 -10 M6 -5 L13 -10 M-6 5 L-13 10 M6 5 L13 10' stroke='" + dk + "' stroke-width='5' fill='none'/>" +
+      "<path d='M-6 -5 L-13 -10 M6 -5 L13 -10 M-6 5 L-13 10 M6 5 L13 10' stroke='" + col.sec + "' stroke-width='2.2' fill='none'/></g>" +
+      "<circle cx='-13' cy='-10' r='5.6' fill='rgba(235,255,255,.30)' stroke='" + col.main + "' stroke-width='2'/>" +
+      "<circle cx='13' cy='-10' r='5.6' fill='rgba(235,255,255,.30)' stroke='" + col.main + "' stroke-width='2'/>" +
+      "<circle cx='-13' cy='10' r='5.6' fill='rgba(235,255,255,.30)' stroke='" + col.main + "' stroke-width='2'/>" +
+      "<circle cx='13' cy='10' r='5.6' fill='rgba(235,255,255,.30)' stroke='" + col.main + "' stroke-width='2'/>" +
+      "<circle cx='-13' cy='-10' r='1.7' fill='" + dk + "'/><circle cx='13' cy='-10' r='1.7' fill='" + dk + "'/>" +
+      "<circle cx='-13' cy='10' r='1.7' fill='" + dk + "'/><circle cx='13' cy='10' r='1.7' fill='" + dk + "'/>" +
+      "<rect x='-8.5' y='-6.5' width='17' height='13' rx='5' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2'/>" +
+      "<rect x='-8.5' y='-6.5' width='17' height='5.5' rx='2.7' fill='" + col.lite + "' fill-opacity='.45'/>" +
+      "<circle cx='2.5' cy='0.5' r='3' fill='" + dk + "'/><circle cx='2.5' cy='0.5' r='1.5' fill='" + col.lite + "'/>";
+  }
+  if (type === "striker"){
+    return "<rect x='-15' y='-13.5' width='28' height='6.5' rx='3' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<rect x='-15' y='7' width='28' height='6.5' rx='3' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<circle cx='-9' cy='-10.2' r='1.7' fill='#5c6f8c'/><circle cx='-2' cy='-10.2' r='1.7' fill='#5c6f8c'/><circle cx='5' cy='-10.2' r='1.7' fill='#5c6f8c'/>" +
+      "<circle cx='-9' cy='10.2' r='1.7' fill='#5c6f8c'/><circle cx='-2' cy='10.2' r='1.7' fill='#5c6f8c'/><circle cx='5' cy='10.2' r='1.7' fill='#5c6f8c'/>" +
+      "<path d='M-14 -8.5 L9 -8.5 Q14 -8.5 14 0 Q14 8.5 9 8.5 L-14 8.5 Q-17 8.5 -17 0 Q-17 -8.5 -14 -8.5 Z' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2'/>" +
+      "<path d='M-14 -8.5 L9 -8.5 Q13 -8.5 13.6 -3 L-16.4 -3 Q-16.8 -8.5 -14 -8.5 Z' fill='" + col.lite + "' fill-opacity='.38'/>" +
+      "<rect x='4' y='-2' width='15' height='4' fill='" + dk + "'/>" +
+      "<rect x='16.5' y='-2.9' width='3.6' height='5.8' rx='1' fill='" + dk + "'/>" +
+      "<rect x='-6.5' y='-5.8' width='12' height='11.6' rx='3' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.8'/>" +
+      "<circle cx='-0.5' cy='0' r='2.3' fill='" + col.lite + "' stroke='" + dk + "' stroke-width='1'/>";
+  }
+  if (type === "cannon"){
+    return "<rect x='-14' y='-12.5' width='26' height='6' rx='3' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<rect x='-14' y='6.5' width='26' height='6' rx='3' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<circle cx='-8' cy='-9.5' r='1.6' fill='#5c6f8c'/><circle cx='-1' cy='-9.5' r='1.6' fill='#5c6f8c'/><circle cx='6' cy='-9.5' r='1.6' fill='#5c6f8c'/>" +
+      "<circle cx='-8' cy='9.5' r='1.6' fill='#5c6f8c'/><circle cx='-1' cy='9.5' r='1.6' fill='#5c6f8c'/><circle cx='6' cy='9.5' r='1.6' fill='#5c6f8c'/>" +
+      "<path d='M-13 -7.5 L7 -7.5 Q11 -7.5 11 0 Q11 7.5 7 7.5 L-13 7.5 Q-15.5 7.5 -15.5 0 Q-15.5 -7.5 -13 -7.5 Z' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2'/>" +
+      "<rect x='-12' y='-6' width='13' height='12' rx='2.4' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.8'/>" +
+      "<rect x='-12' y='-6' width='13' height='4.4' rx='2' fill='" + col.lite + "' fill-opacity='.35'/>" +
+      "<rect x='0' y='-2.6' width='21' height='5.2' fill='" + col.main + "' stroke='" + dk + "' stroke-width='1.5'/>" +
+      "<rect x='18' y='-3.9' width='5' height='7.8' rx='1.2' fill='" + dk + "'/>" +
+      "<polygon points='-13,7.5 -17,11 -13,11' fill='" + dk + "'/>" +
+      "<circle cx='-5.5' cy='0' r='2' fill='" + col.lite + "' stroke='" + dk + "' stroke-width='1'/>";
+  }
+  if (type === "infantry"){
+    return "<rect x='-18' y='-10' width='8' height='6.5' rx='2.4' fill='" + dk + "'/>" +
+      "<rect x='-18' y='3.5' width='8' height='6.5' rx='2.4' fill='" + dk + "'/>" +
+      "<ellipse cx='-2' cy='0' rx='13' ry='11.5' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2.2'/>" +
+      "<rect x='-13' y='-7' width='8' height='14' rx='2.6' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<rect x='4' y='-2.1' width='16' height='4.2' fill='" + dk + "'/>" +
+      "<circle cx='17.5' cy='0' r='2' fill='" + dk + "'/>" +
+      "<circle cx='2' cy='0' r='6.2' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='2'/>" +
+      "<path d='M-3 -4.6 A5.6 5.6 0 0 1 6.5 -2.6' fill='none' stroke='" + col.lite + "' stroke-width='2'/>";
+  }
+  if (type === "dart"){
+    return "<path d='M-15 -3.5 L-5 -3.5 M-15 3.5 L-5 3.5 M-15 0 L-7 0' stroke='" + col.sec + "' stroke-width='2' fill='none' stroke-linecap='round'/>" +
+      "<polygon points='-13,-7.5 8,-5.5 18,0 8,5.5 -13,7.5 -7,0' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2'/>" +
+      "<polygon points='-13,-7.5 8,-5.5 13,-2 -6,-2.6' fill='" + col.lite + "' fill-opacity='.35'/>" +
+      "<polygon points='-9,-7.5 -3,-12 -1,-5.8' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.4'/>" +
+      "<polygon points='-9,7.5 -3,12 -1,5.8' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.4'/>" +
+      "<circle cx='5' cy='0' r='3' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<circle cx='5.8' cy='-0.6' r='1.2' fill='" + col.lite + "'/>";
+  }
+  if (type === "flak"){
+    return "<rect x='-14' y='-12' width='24' height='5.6' rx='2.8' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.5'/>" +
+      "<rect x='-14' y='6.4' width='24' height='5.6' rx='2.8' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.5'/>" +
+      "<path d='M-13 -7 L7 -7 Q11 -7 11 0 Q11 7 7 7 L-13 7 Q-15.5 7 -15.5 0 Q-15.5 -7 -13 -7 Z' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2'/>" +
+      "<path d='M-13 -12.5 A5.5 5.5 0 0 1 -2 -12.5' fill='none' stroke='" + col.lite + "' stroke-width='1.8'/>" +
+      "<line x1='-7.5' y1='-9.5' x2='-7.5' y2='-6' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<rect x='-4' y='-6' width='11' height='12' rx='3' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.8'/>" +
+      "<rect x='5' y='-6.4' width='17' height='3.6' fill='" + dk + "' transform='rotate(-24 5 -4.7)'/>" +
+      "<rect x='5' y='3' width='17' height='3.6' fill='" + dk + "' transform='rotate(-24 5 4.7)'/>" +
+      "<circle cx='1' cy='0' r='1.9' fill='" + col.lite + "' stroke='" + dk + "' stroke-width='1'/>";
+  }
+  if (type === "gunship"){
+    return "<rect x='-21' y='-2.3' width='42' height='4.6' rx='2.3' fill='#5c6f8c'/>" +
+      "<rect x='-2.3' y='-19' width='4.6' height='38' rx='2.3' fill='#5c6f8c' opacity='.45'/>" +
+      "<rect x='-11' y='-6' width='15' height='3.6' fill='" + dk + "'/>" +
+      "<rect x='-11' y='2.4' width='15' height='3.6' fill='" + dk + "'/>" +
+      "<rect x='-19' y='-3.2' width='13' height='6.4' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.6'/>" +
+      "<rect x='-21.5' y='-6' width='3.4' height='12' fill='" + dk + "'/>" +
+      "<ellipse cx='4' cy='0' rx='14' ry='10' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2.2'/>" +
+      "<path d='M7 -9.5 Q17 -5 17.5 0 Q17 5 7 9.5 Z' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.7'/>" +
+      "<circle cx='12' cy='0' r='2.6' fill='" + col.lite + "'/>" +
+      "<rect x='9' y='-1.7' width='12' height='3.4' fill='" + dk + "'/>" +
+      "<circle cx='-1' cy='0' r='3.2' fill='" + dk + "'/><circle cx='-1' cy='0' r='1.5' fill='" + col.lite + "'/>";
+  }
+  /* bulwark */
+  return "<rect x='-16' y='-14.5' width='30' height='7' rx='3.4' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.7'/>" +
+    "<rect x='-16' y='7.5' width='30' height='7' rx='3.4' fill='" + col.dark + "' stroke='" + dk + "' stroke-width='1.7'/>" +
+    "<circle cx='-10' cy='-11' r='1.8' fill='#5c6f8c'/><circle cx='-3' cy='-11' r='1.8' fill='#5c6f8c'/><circle cx='4' cy='-11' r='1.8' fill='#5c6f8c'/>" +
+    "<circle cx='-10' cy='11' r='1.8' fill='#5c6f8c'/><circle cx='-3' cy='11' r='1.8' fill='#5c6f8c'/><circle cx='4' cy='11' r='1.8' fill='#5c6f8c'/>" +
+    "<path d='M-13 -9.5 L8 -9.5 L13 -5 L13 5 L8 9.5 L-13 9.5 Q-16 9.5 -16 0 Q-16 -9.5 -13 -9.5 Z' fill='" + col.main + "' stroke='" + dk + "' stroke-width='2.2'/>" +
+    "<path d='M-13 -9.5 L8 -9.5 L11 -6.8 L-15.4 -4 Q-15.9 -9.5 -13 -9.5 Z' fill='" + col.lite + "' fill-opacity='.35'/>" +
+    "<rect x='-11' y='-4.6' width='10.5' height='9.2' rx='2.2' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='1.7'/>" +
+    "<rect x='-1' y='-1.5' width='8' height='3' fill='" + dk + "'/>" +
+    "<polygon points='10.5,-11 17,-7.5 17,7.5 10.5,11' fill='" + col.sec + "' stroke='" + dk + "' stroke-width='2'/>" +
+    "<path d='M12.8 -4.5 L15.6 0 L12.8 4.5' fill='none' stroke='" + col.lite + "' stroke-width='1.8'/>" +
+    "<circle cx='13.4' cy='-7.6' r='1.1' fill='" + dk + "'/><circle cx='13.4' cy='7.6' r='1.1' fill='" + dk + "'/>";
+}
+function unitIconSVG(type, side, w){
+  var width = w || 40;
+  return "<svg viewBox='-27 -21 54 42' width='" + width + "' height='" + Math.round(width * 40 / 52) + "' aria-hidden='true'>" + unitShapes(type, colorsFor(side || "player")) + "</svg>";
+}
+/* Deterministic per-hex variation, seeded from col, row and a salt. */
+function detRand(c, r, salt){
+  var x = ((c + 31) * 374761393 + (r + 17) * 668265263 + salt * 2246822519) >>> 0;
+  x = ((x ^ (x >> 13)) * 1274126177) >>> 0;
+  return ((x ^ (x >> 16)) >>> 0) / 4294967296;
+}
+function terrainDetailSVG(c, r, ch, cx, cy, size){
+  var out = "<g pointer-events='none'>";
+  if (ch === "c"){
+    var pos = [[-9, 5], [8, 7], [1, -8]];
+    var n = 2 + Math.floor(detRand(c, r, 5) * 2);
+    for (var i = 0; i < n; i++){
+      var x = cx + pos[i][0], y = cy + pos[i][1], sc = 0.8 + detRand(c, r, 10 + i) * 0.5;
+      var bx = 4.4 * sc, by = 7 * sc, bb = 5 * sc;
+      out += "<polygon points='" + (x - bx) + "," + (y + bb) + " " + x + "," + (y - by) + " " + (x + bx) + "," + (y + bb) + " " + x + "," + (y + 1.5) + "' fill='#67e8f9' fill-opacity='.85' stroke='#cffafe' stroke-width='.8'/>";
+      out += "<line x1='" + x + "' y1='" + (y - by) + "' x2='" + x + "' y2='" + (y + 1.5) + "' stroke='#ffffff' stroke-width='1'/>";
+    }
+  } else if (ch === "h"){
+    out += "<polygon points='" + hexPoints(cx, cy + 3.5, size * 0.60) + "' fill='rgba(0,0,0,.38)'/>";
+    out += "<polygon points='" + hexPoints(cx, cy - 1, size * 0.60) + "' fill='#9a8d72' stroke='#6f6450' stroke-width='1.3'/>";
+    out += "<path d='M" + (cx - 9) + " " + (cy - 2) + " L" + (cx - 2) + " " + (cy - 6.5) + " L" + (cx + 5) + " " + (cy - 2) + "' fill='none' stroke='rgba(62,52,36,.65)' stroke-width='1.4'/>";
+    out += "<path d='M" + (cx - 4) + " " + (cy + 4.5) + " L" + (cx + 2) + " " + (cy + 1) + " L" + (cx + 8) + " " + (cy + 4.5) + "' fill='none' stroke='rgba(62,52,36,.45)' stroke-width='1.2'/>";
+  } else {
+    var n2 = 2 + Math.floor(detRand(c, r, 21) * 3);
+    for (var j = 0; j < n2; j++){
+      var ox = (detRand(c, r, 30 + j * 3) - 0.5) * 30, oy = (detRand(c, r, 31 + j * 3) - 0.5) * 24;
+      var rad = 1.6 + detRand(c, r, 32 + j * 3) * 2.6;
+      out += "<circle cx='" + (cx + ox).toFixed(1) + "' cy='" + (cy + oy).toFixed(1) + "' r='" + rad.toFixed(1) + "' fill='rgba(5,8,18,.30)'/>";
+      out += "<circle cx='" + (cx + ox - 0.8).toFixed(1) + "' cy='" + (cy + oy - 0.8).toFixed(1) + "' r='" + (rad * 0.5).toFixed(1) + "' fill='rgba(255,255,255,.10)'/>";
+    }
+  }
+  return out + "</g>";
+}
+function structureSVG(st, cx, cy, size){
+  var ownerCol = st.owner === "player" ? "#2dd4bf" : (st.owner === "enemy" ? "#fb7185" : "#9fb0d8");
+  var out = "<g pointer-events='none'>";
+  out += "<polygon points='" + hexPoints(cx, cy + 2, size * 0.80) + "' fill='#0d1730' fill-opacity='.88' stroke='" + ownerCol + "' stroke-width='2'/>";
+  out += "<g transform='translate(" + cx + "," + (cy - 1) + ")'>";
+  if (st.type === "hq"){
+    out += "<line x1='7' y1='-7' x2='7' y2='-19' stroke='#dbe7ff' stroke-width='1.6'/>";
+    out += "<circle cx='7' cy='-20.5' r='2.3' fill='" + ownerCol + "'/>";
+    out += "<path d='M-6.5 -7 A6.5 6.5 0 0 1 6.5 -7 Z' fill='#5b6b8c' stroke='#0b1020' stroke-width='1.2'/>";
+    out += "<rect x='-12' y='-7' width='24' height='15' rx='2' fill='#aebdd6' stroke='#0b1020' stroke-width='1.4'/>";
+    out += "<rect x='-12' y='-7' width='24' height='3.6' fill='" + ownerCol + "'/>";
+    out += "<rect x='-8.5' y='-1' width='4.4' height='4.4' fill='#22314f'/>";
+    out += "<rect x='-2.4' y='1' width='4.8' height='7' fill='#22314f'/>";
+  } else if (st.type === "factory"){
+    out += "<rect x='5' y='-19' width='5.5' height='12' fill='#8fa2c0' stroke='#0b1020' stroke-width='1.2'/>";
+    out += "<rect x='4' y='-21' width='7.5' height='3' fill='#37455f'/>";
+    out += "<rect x='-11' y='-13' width='8' height='5' fill='#5b6b8c' stroke='#0b1020' stroke-width='1'/>";
+    out += "<rect x='-13' y='-8' width='26' height='16' rx='2' fill='#aebdd6' stroke='#0b1020' stroke-width='1.4'/>";
+    out += "<rect x='-13' y='-8' width='26' height='3.4' fill='" + ownerCol + "'/>";
+    out += "<rect x='-8' y='-1' width='5' height='5' fill='#22314f'/>";
+    out += "<rect x='3' y='-1' width='5' height='5' fill='#22314f'/>";
+  } else {
+    out += "<line x1='0' y1='-4' x2='0' y2='-14' stroke='#dbe7ff' stroke-width='1.5'/>";
+    out += "<path d='M-6.5 -19 A7.5 7.5 0 0 0 6.5 -19' fill='none' stroke='" + ownerCol + "' stroke-width='2'/>";
+    out += "<circle cx='0' cy='-14' r='1.7' fill='" + ownerCol + "'/>";
+    out += "<rect x='-3.5' y='-4' width='7' height='10' fill='#aebdd6' stroke='#0b1020' stroke-width='1.2'/>";
+    out += "<rect x='-10' y='5' width='20' height='7.5' rx='2' fill='#8fa2c0' stroke='#0b1020' stroke-width='1.2'/>";
+    out += "<rect x='-10' y='5' width='20' height='2.6' fill='" + ownerCol + "'/>";
+  }
+  out += "</g>";
+  return out + "</g>";
+}
+function render(){
+  if (!state) return;
+  var m = mapById(state.mapId);
+  el("st-map").textContent = m.name;
+  el("st-turn").textContent = state.turn;
+  el("st-credits").textContent = state.credits.player;
+  if (state.phase === "enemy") setBanner("Array Turn", true);
+  else if (!state.finished) setBanner("Your Turn", false);
+  var size = 31, w = Math.sqrt(3) * size, h = 2 * size;
+  var svgW = w * COLS + w / 2 + 4, svgH = size * 1.5 * (ROWS - 1) + h + 4;
+  var sel = unitById(selectedId);
+  var reach = (sel && sel.side === "player" && !sel.spent && !sel.moved && state.phase === "player") ? reachableMap(sel) : {};
+  var out = "";
+  var c, r;
+  for (r = 0; r < ROWS; r++) for (c = 0; c < COLS; c++){
+    var cx = w * c + (r % 2 ? w / 2 : 0) + w / 2 + 2, cy = size * 1.5 * r + size + 2;
+    var ch = terrainChar(c, r);
+    var cls = ch === "c" ? "hex-crystal" : (ch === "h" ? "hex-high" : ((c + r) % 2 ? "hex-open" : "hex-open2"));
+    var extra = "";
+    if (sel && sel.c === c && sel.r === r) extra += " hex-sel";
+    if (pendingAttack){ var tu = unitById(pendingAttack.targetId); if (tu && tu.c === c && tu.r === r) extra += " hex-target"; }
+    out += "<polygon class='hex " + cls + extra + "' data-c='" + c + "' data-r='" + r + "' points='" + hexPoints(cx, cy, size - 1.5) + "'/>";
+    out += terrainDetailSVG(c, r, ch, cx, cy, size);
+    if (reach[key(c, r)] !== undefined && reach[key(c, r)] > 0)
+      out += "<polygon points='" + hexPoints(cx, cy, size - 1.5) + "' fill='rgba(125,211,252,.30)' stroke='#7dd3fc' stroke-width='1.6' pointer-events='none'/>";
+    var st = structAt(c, r);
+    if (st) out += structureSVG(st, cx, cy, size);
+  }
+  for (var i = 0; i < state.units.length; i++){
+    var u = state.units[i]; if (u.hp <= 0) continue;
+    var ux = w * u.c + (u.r % 2 ? w / 2 : 0) + w / 2 + 2, uy = size * 1.5 * u.r + size + 2;
+    var op = u.spent && state.phase === (u.side === "player" ? "player" : "enemy") ? 0.42 : 1;
+    if (u.side === "player" && u.spent) op = 0.42;
+    if (u.side === "enemy") op = 1;
+    out += "<g opacity='" + op + "' pointer-events='none'>";
+    out += "<ellipse cx='" + ux + "' cy='" + (uy + 13.5) + "' rx='16' ry='4.2' fill='rgba(2,6,14,.45)'/>";
+    if (u.cap) out += "<circle cx='" + ux + "' cy='" + uy + "' r='25' fill='none' stroke='#f0bd55' stroke-width='2' stroke-dasharray='5 4'/>";
+    if (sel && u.side === "enemy" && state.phase === "player" && canUnitAttack(sel, u))
+      out += "<circle class='targetring' cx='" + ux + "' cy='" + uy + "' r='24' fill='none' stroke='#fb4d6d' stroke-width='2.6'/><circle cx='" + ux + "' cy='" + uy + "' r='24' fill='none' stroke='rgba(251,77,109,.25)' stroke-width='7'/>";
+    out += "<g transform='translate(" + ux + "," + (uy - 3) + ") scale(" + (u.side === "enemy" ? -1.02 : 1.02) + ",1.02)'>" + unitShapes(u.type, colorsFor(u.side)) + "</g>";
+    out += "<rect x='" + (ux - 13) + "' y='" + (uy + 17) + "' width='26' height='8.5' rx='2' fill='#0b1020'/>";
+    out += "<rect x='" + (ux - 12) + "' y='" + (uy + 18) + "' width='" + (24 * u.hp / 10) + "' height='6.5' rx='2' fill='" + (u.hp > 5 ? "#34d399" : (u.hp > 2 ? "#f0bd55" : "#fb7185")) + "'/>";
+    out += "<text class='unithp' x='" + ux + "' y='" + (uy - 20) + "'>" + u.hp + "</text>";
+    out += "</g>";
+  }
+  var svg = el("board");
+  svg.setAttribute("viewBox", "0 0 " + svgW.toFixed(0) + " " + svgH.toFixed(0));
+  svg.innerHTML = out;
+  var polys = svg.querySelectorAll("polygon[data-c]");
+  for (var p = 0; p < polys.length; p++) polys[p].addEventListener("click", function(){ onHex(parseInt(this.getAttribute("data-c"), 10), parseInt(this.getAttribute("data-r"), 10)); });
+  renderControls();
+}
+function renderControls(){
+  var sel = unitById(selectedId);
+  var myTurn = state && state.phase === "player" && !state.finished;
+  el("btn-attack").classList.toggle("hidden", !(pendingAttack && myTurn));
+  var cap = (sel && myTurn) ? capturableBy(sel) : null;
+  el("btn-capture").classList.toggle("hidden", !cap);
+  el("btn-wait").classList.toggle("hidden", !(sel && myTurn && !sel.spent));
+  el("btn-cancel").classList.toggle("hidden", !(pendingAttack || selectedFactory));
+  el("btn-endturn").disabled = !myTurn;
+  /* Build menu */
+  var bb = el("buildbox");
+  if (selectedFactory && myTurn){
+    var html = "<div class='panel'><span class='big' style='font-size:17px;font-weight:700;'>Factory: build a unit</span>" +
+      "<div class='sub' style='color:var(--dim);font-size:14px;'>Credits: " + state.credits.player + ". New units rest until next turn.</div><div class='buildmenu'>";
+    var keys = Object.keys(TYPES);
+    for (var i = 0; i < keys.length; i++){
+      var t = TYPES[keys[i]];
+      if ((t.unlock || 1) > state.mapId) continue;
+      html += "<button data-build='" + t.key + "'" + (state.credits.player < t.cost ? " disabled" : "") + ">" + unitIconSVG(t.key, "player", 42) + "<br>" + t.name + "<br><small style='color:var(--gold);'>" + t.cost + " credits</small><br><small style='color:var(--dim);'>" + domainTag(t) + "</small></button>";
+    }
+    html += "</div></div>";
+    bb.innerHTML = html; bb.classList.remove("hidden");
+    var bs = bb.querySelectorAll("[data-build]");
+    for (var j = 0; j < bs.length; j++) bs[j].addEventListener("click", function(){ buildUnit(this.getAttribute("data-build")); });
+  } else { bb.innerHTML = ""; bb.classList.add("hidden"); }
+}
+function describeNone(){
+  setReadout("Tap one of your units to select it. Tap your Factory to build.");
+}
+function describeSelection(){
+  var u = unitById(selectedId);
+  if (!u){ describeNone(); return; }
+  var t = TYPES[u.type], terr = terrainAt(u.c, u.r), st = structAt(u.c, u.r);
+  var html = "<span class='big'>" + typeName(u) + " · Strength " + u.hp + "</span><br>" +
+    "<span class='sub'>Move " + t.move + " · Range " + (t.minR === t.maxR ? t.maxR : t.minR + " to " + t.maxR) + " · Attack " + (t.atkAir ? (t.atk + " (" + t.atkAir + " vs air)") : t.atk) + ". " + esc(t.blurb) + "</span><br>" +
+    "<span class='sub'>" + domainText(u) + "</span><br>" +
+    "<span class='sub'>On " + terr.name + (terr.def ? " (defense " + Math.round(terr.def * 100) + "%)" : "") + (st ? " · " + STRUCT_INFO[st.type].name + " (" + st.owner + ")" : "") + ".</span>";
+  if (u.spent) html += "<br><span class='sub'>This unit is done for the turn.</span>";
+  else if (u.type === "cannon" && u.moved) html += "<br><span class='sub'>It moved, so it cannot fire this turn.</span>";
+  else if (capturableBy(u)) html += "<br>Tap <b>Capture</b> to hold this structure. It flips at the start of your next turn if your unit survives.";
+  else {
+    var anyT = false;
+    for (var ti = 0; ti < state.units.length; ti++){ var eu = state.units[ti]; if (eu.side !== u.side && eu.hp > 0 && canUnitAttack(u, eu)){ anyT = true; break; } }
+    if (anyT) html += "<br><span class='sub'>Enemies in range are ringed in red. Tap one to preview the attack, tap it again to fire.</span>";
+    else html += "<br><span class='sub'>Tap a lit hex to move" + (u.moved ? "." : ", or an enemy in range to attack.") + "</span>";
+  }
+  setReadout(html);
+}
+function describeHex(c, r){
+  var terr = terrainAt(c, r), st = structAt(c, r);
+  var html = "<span class='big'>" + terr.name + "</span><br><span class='sub'>" +
+    (terr.def ? "Units here take " + Math.round(terr.def * 100) + "% less damage." : "No defense bonus here.") +
+    (st ? " " + STRUCT_INFO[st.type].name + ", held by " + (st.owner === "neutral" ? "nobody" : (st.owner === "player" ? "you" : "the Array")) + ". Pays " + STRUCT_INFO[st.type].income + " a turn." : "") +
+    (st && st.type === "hq" ? "<br>Fortress hex: a unit holding this HQ takes 40% less damage." : "") + "</span>";
+  setReadout(html);
+}
+function showForecast(){
+  if (!pendingAttack) return;
+  var att = unitById(pendingAttack.attackerId), def = unitById(pendingAttack.targetId), cal = pendingAttack.calc;
+  if (!att || !def) return;
+  setReadout("<span class='big'>Attack forecast</span>" +
+    "<div class='forecast'>" +
+    "<div>" + typeName(att) + " deals <b>" + cal.dmg + "</b> damage</div>" +
+    "<div>Surround bonus: <b>+" + (cal.support * 10) + "%</b> (" + cal.support + " allies)</div>" +
+    "<div>Target cover: <b>" + Math.round(cal.terrain * 100) + "%</b></div>" +
+    "<div>" + (cal.kill ? "<b>Target destroyed</b>, no counterattack" : "Counterattack: <b>" + cal.counter + "</b> damage") + "</div>" +
+    "</div><span class='sub'>Tap the target again, or Attack, to fire. Cancel backs out.</span>");
+}
+function onHex(c, r){
+  ensureAudio();
+  if (!state || state.finished || state.phase !== "player") return;
+  lastHex = [c, r];
+  var tapped = unitAt(c, r);
+  var sel = unitById(selectedId);
+  /* Enemy tapped while a unit is selected: set up the forecast. */
+  if (sel && tapped && tapped.side === "enemy" && canUnitAttack(sel, tapped)){
+    if (pendingAttack && pendingAttack.attackerId === sel.id && pendingAttack.targetId === tapped.id){
+      var fireId = tapped.id; pendingAttack = null; tryAttack(fireId); return;
+    }
+    pendingAttack = { attackerId:sel.id, targetId:tapped.id, calc:damageCalc(sel, tapped) };
+    selectedFactory = null; sfx("select"); render(); showForecast(); return;
+  }
+  /* Own unit tapped: select it. */
+  if (tapped && tapped.side === "player"){
+    selectedId = tapped.id; selectedFactory = null; pendingAttack = null;
+    sfx("select"); render(); describeSelection(); return;
+  }
+  /* Reachable empty hex: move. */
+  if (sel && !sel.moved && !sel.spent && !tapped){
+    var reach = reachableMap(sel);
+    if (reach[key(c, r)] !== undefined && reach[key(c, r)] > 0){ tryMove(c, r); return; }
+  }
+  /* Own factory tapped with nothing standing on it: build menu. */
+  var st = structAt(c, r);
+  if (st && st.type === "factory" && st.owner === "player" && !tapped){
+    selectedFactory = st; selectedId = null; pendingAttack = null;
+    sfx("select"); render();
+    setReadout("<span class='big'>Your Factory</span><br><span class='sub'>Pick a unit to build. It appears here and rests until next turn.</span>");
+    return;
+  }
+  /* Anything else: clear selection and describe the hex. */
+  selectedId = null; selectedFactory = null; pendingAttack = null;
+  render(); describeHex(c, r);
+}
+function selectAt(c, r){ onHex(c, r); }
+function showEnd(win){
+  var m = mapById(state.mapId);
+  el("end-title").textContent = win ? "Victory" : "Defeat";
+  el("end-title").style.color = win ? "#2dd4bf" : "#fb7185";
+  el("end-stars").textContent = win ? ("★".repeat(campaign.stars[state.mapId] || 1) + "☆".repeat(3 - (campaign.stars[state.mapId] || 1))) : "";
+  el("end-text").textContent = win
+    ? m.name + " is clear in " + state.turn + " turns. The Array pulls back, for now."
+    : "The squad is down. Restart the map and try a different line.";
+  el("btn-next").classList.toggle("hidden", !(win && state.mapId < 10));
+  var shStars = campaign.stars[state.mapId] || 1;
+  lastShareText = win
+    ? "I cleared " + m.name + " in Xenofront with " + shStars + (shStars === 1 ? " star." : " stars.")
+    : "The Array held " + m.name + " against me in Xenofront.";
+  el("overlay-end").classList.remove("hidden");
+}
+/* ============================== WIRING ============================== */
+function wire(){
+  el("btn-campaign").addEventListener("click", function(){ sfx("select"); showScreen("maps"); });
+  el("btn-how").addEventListener("click", function(){ sfx("select"); el("overlay-help").classList.remove("hidden"); });
+  el("btn-help-close").addEventListener("click", function(){ el("overlay-help").classList.add("hidden"); });
+  el("btn-continue").addEventListener("click", function(){
+    var s = getSave();
+    if (s && s.battle){
+      restoreBattle(s.battle); showScreen("battle");
+      if (state.phase === "enemy" && !state.finished){ runEnemyAI(); if (!state.finished) finishEnemyPhase(); else render(); }
+      else { render(); setBanner("Your Turn", false); describeNone(); }
+    }
+  });
+  el("btn-maps-back").addEventListener("click", function(){ showScreen("title"); });
+  el("btn-menu").addEventListener("click", function(){ saveGame(); showScreen("maps"); });
+  el("btn-quit").addEventListener("click", function(){ quitLevel(); });
+  el("btn-share-result").addEventListener("click", function(){ shareGame(lastShareText, this); });
+  el("btn-share-title").addEventListener("click", function(){ shareGame("I am playing Xenofront, a hex tactics campaign of small maps and quick turns.", this); });
+  el("btn-restart").addEventListener("click", function(){ if (state) startBattle(state.mapId); });
+  el("btn-endturn").addEventListener("click", function(){ sfx("select"); endTurn(); });
+  el("btn-attack").addEventListener("click", function(){
+    if (pendingAttack){ var tid = pendingAttack.targetId; tryAttack(tid); }
+  });
+  el("btn-capture").addEventListener("click", function(){ capture(); });
+  el("btn-wait").addEventListener("click", function(){ sfx("select"); doWait(); });
+  el("btn-cancel").addEventListener("click", function(){ pendingAttack = null; selectedFactory = null; render(); if (selectedId) describeSelection(); else describeNone(); });
+  el("btn-replay").addEventListener("click", function(){ el("overlay-end").classList.add("hidden"); startBattle(state.mapId); });
+  el("btn-tomaps").addEventListener("click", function(){ el("overlay-end").classList.add("hidden"); showScreen("maps"); });
+  el("btn-next").addEventListener("click", function(){ el("overlay-end").classList.add("hidden"); startBattle(Math.min(10, state.mapId + 1)); });
+  el("btn-music").addEventListener("click", function(){ setMusic(!musicOn); });
+  el("btn-music2").addEventListener("click", function(){ setMusic(!musicOn); });
+  var heroIcon = el("hero-icon");
+  if (heroIcon) heroIcon.innerHTML = "<svg viewBox='0 0 1024 1024' width='112' height='112' aria-hidden='true'><polygon points='512,167 811,340 811,684 512,857 213,684 213,340' fill='none' stroke='#3fe0c5' stroke-width='30' stroke-linejoin='round'/><path fill='#3fe0c5' fill-rule='evenodd' d='M495 255 h34 v90 h73 a36 36 0 0 1 36 36 v273 a36 36 0 0 1 -36 36 h-180 a36 36 0 0 1 -36 -36 v-273 a36 36 0 0 1 36 -36 h73 z M512 419 a61.5 61.5 0 1 0 0 123 a61.5 61.5 0 1 0 0 -123 z'/></svg>";
+  var legendIcons = document.querySelectorAll(".legendicon");
+  for (var li = 0; li < legendIcons.length; li++) legendIcons[li].innerHTML = unitIconSVG(legendIcons[li].getAttribute("data-icon"), "player", 30);
+}
+/* ============================== TEST HOOKS ============================== */
+window.__XM = {
+  get state(){ return state; },
+  getState:function(){ return state; },
+  startBattle:startBattle, endTurn:endTurn, runEnemyAI:runEnemyAI,
+  selectAt:selectAt, onHex:onHex, tryMove:tryMove, tryAttack:tryAttack,
+  capture:capture, buildUnit:buildUnit, restart:restart, checkEnd:checkEnd,
+  damageCalc:damageCalc, reachableMap:reachableMap, canUnitAttack:canUnitAttack,
+  getSave:getSave, saveGame:saveGame, MAPS:MAPS, TYPES:TYPES, setMusic:setMusic,
+  musicState:function(){ return { on:musicOn, running:!!musicTimer }; },
+  get campaign(){ return campaign; }
+};
+/* ============================== INIT ============================== */
+loadSave();
+wire();
+refreshMusicBtns();
+showScreen("title");
+if (state){ /* a battle was restored from the save; stay on title so Continue can resume it */ }
+render();
+</script>
+</body>
+</html>
