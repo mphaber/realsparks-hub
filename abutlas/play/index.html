@@ -19,6 +19,7 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
+  html{overscroll-behavior:none;}
   body{background:var(--paper); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; min-height:100vh; display:flex; flex-direction:column;}
   body::before{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' viewBox='0 0 520 520'%3E%3Cg fill='none' stroke='%231f3d2b' stroke-opacity='0.055'%3E%3Cpath d='M260 60c90 0 160 70 160 160s-70 160-160 160S100 310 100 220 170 60 260 60Z'/%3E%3Cpath d='M260 110c60 0 110 50 110 110s-50 110-110 110-110-50-110-110 50-110 110-110Z'/%3E%3Cpath d='M260 160c33 0 60 27 60 60s-27 60-60 60-60-27-60-60 27-60 60-60Z'/%3E%3C/g%3E%3C/svg%3E"),
@@ -95,13 +96,13 @@
   .switch input:checked + .track{background:var(--green);}
   .switch input:checked + .track:after{left:25px;}
   /* game view */
-  #viewGame{display:none;}
+  #viewGame{display:none; touch-action:none;}
   .gametop{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
   .gametop .lbl{font-weight:800; font-size:16.5px; color:var(--green);}
   .gametop .meta{font-size:13px; color:var(--muted);}
   .gametop .sp{flex:1;}
   .pill{background:#fff; border:1px solid var(--line); border-radius:16px; padding:4px 11px; font-size:13.5px; font-weight:700; color:var(--navy);}
-  #boardWrap{position:relative; background:#dcebf3; border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(31,61,43,.08);}
+  #boardWrap{position:relative; background:#dcebf3; border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(31,61,43,.08); touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
   #board{display:block; width:100%; height:auto; touch-action:none;}
   #compass{position:absolute; top:10px; right:10px; width:46px; height:46px; border-radius:50%; background:rgba(255,253,246,.92); border:1.5px solid var(--green); color:var(--green); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; line-height:1; z-index:3;}
   #compass .arr{font-size:12px; transform:translateY(1px);}
@@ -122,7 +123,7 @@
      solve sequence (names revealed, cluster centered) settles */
   #solveScrim{position:fixed; inset:0; z-index:80; background:rgba(24,42,32,.48); display:none; align-items:center; justify-content:center; padding:16px;}
   #solveScrim.open{display:flex;}
-  #solvePanel{width:100%; max-width:420px; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto; margin:0; background:#fdfcf8; box-shadow:0 14px 44px rgba(10,25,16,.35); opacity:0; transform:translateY(16px); transition:opacity .28s ease, transform .28s ease;}
+  #solvePanel{width:100%; max-width:420px; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto; touch-action:pan-y; margin:0; background:#fdfcf8; box-shadow:0 14px 44px rgba(10,25,16,.35); opacity:0; transform:translateY(16px); transition:opacity .28s ease, transform .28s ease;}
   #solveScrim.show #solvePanel{opacity:1; transform:translateY(0);}
   #solvePanel h2{color:#2e7d46; text-align:center; font-size:21px;}
   #scoreBig{text-align:center; font-size:44px; font-weight:800; color:var(--navy); line-height:1.1; margin-top:8px;}
@@ -1878,6 +1879,15 @@ function detach(pid){
    camera (pinch zoom around the gesture midpoint, two-finger pan). */
 const ptrs = new Map();
 let pinch = null;
+/* pointers that landed while a real piece drag was already underway:
+   they are ignored entirely (no drag cancel, no camera) until they
+   lift, so a resting finger or palm edge cannot hijack a drag */
+const ignoredPtrs = new Set();
+function dragDisp(){
+  if (!drag) return 0;
+  const c = drag.lastClient || drag.startClient;
+  return Math.hypot(c.x - drag.startClient.x, c.y - drag.startClient.y);
+}
 function applyLift(){
   if (!drag) return;
   for (const id of drag.ids){
@@ -1909,6 +1919,16 @@ function clearLiftEl(id){
 }
 svg.addEventListener("pointerdown", e => {
   if (!G || G.solved) return;
+  if (ignoredPtrs.has(e.pointerId)) return;
+  if (drag && dragDisp() > 12){
+    /* a piece drag is meaningfully underway (the grabbed piece has
+       travelled more than 12px on screen): a late second touch is an
+       accident, not a camera gesture. Ignore it completely: the drag
+       keeps the board, no cancel, no pinch. The camera is still
+       available the designed way, two fingers down from rest. */
+    ignoredPtrs.add(e.pointerId);
+    return;
+  }
   ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
   try{ svg.setPointerCapture(e.pointerId); }catch(err){}
   if (ptrs.size === 2){
@@ -1936,7 +1956,8 @@ svg.addEventListener("pointerdown", e => {
   const grp = G.groups[G.pieces[pid].g].slice();
   const base = {};
   for (const id of grp) base[id] = {dx: G.pieces[id].dx, dy: G.pieces[id].dy};
-  drag = {pid, ids: grp, base, start, startTime: Date.now(), last: start, lastTime: Date.now(), moved: false, torn: false, pointerId: e.pointerId};
+  drag = {pid, ids: grp, base, start, startTime: Date.now(), last: start, lastTime: Date.now(), moved: false, torn: false, pointerId: e.pointerId,
+    startClient: {x: e.clientX, y: e.clientY}, lastClient: {x: e.clientX, y: e.clientY}};
   pickupSound();
   G.selected = pid;
   render();
@@ -1964,6 +1985,7 @@ svg.addEventListener("pointermove", e => {
     return;
   }
   if (!drag || !G || e.pointerId !== drag.pointerId) return;
+  drag.lastClient = {x: e.clientX, y: e.clientY};
   const now = toPlane(e);
   let dx = now.x - drag.start.x, dy = now.y - drag.start.y;
   const dist = Math.hypot(dx, dy);
@@ -2069,6 +2091,7 @@ function endDrag(){
   checkWin();
 }
 function onPointerEnd(e){
+  if (ignoredPtrs.has(e.pointerId)){ ignoredPtrs.delete(e.pointerId); return; }
   const wasPinch = !!pinch;
   ptrs.delete(e.pointerId);
   if (pinch && ptrs.size < 2) pinch = null;
@@ -2097,6 +2120,26 @@ svg.addEventListener("wheel", e => {
   zoomAt(e, CAM.k * Math.exp(-e.deltaY * 0.0016));
 }, {passive: false});
 $("btnFit").addEventListener("click", () => animateCamToFit());
+
+/* ---------- touch containment during play ----------
+   The piece drag is pointer-driven and #board carries
+   touch-action:none, but that CSS was the ONLY thing between a drag
+   and the browser claiming the gesture for scrolling or
+   pull-to-refresh, and not every browser or in-app webview honors
+   it (when it is ignored, the browser fires pointercancel and takes
+   the gesture: the page drags and bounces like it wants to reload).
+   These non-passive touchmove guards are the second line, and they
+   hold regardless of touch-action support: while a puzzle is on
+   screen, no touch gesture scrolls or rubber-bands the page. The
+   solve panel is the one element that keeps its own scrolling.
+   Outside the game view nothing changes: menus and lists scroll
+   exactly as before. */
+svg.addEventListener("touchmove", e => { if (G && e.cancelable) e.preventDefault(); }, {passive: false});
+document.addEventListener("touchmove", e => {
+  if ($("viewGame").style.display !== "block") return;
+  if (e.target && e.target.closest && e.target.closest("#solvePanel")) return;
+  if (e.cancelable) e.preventDefault();
+}, {passive: false});
 
 /* ---------- hints, rotation, solving ---------- */
 function updateClueUI(){
