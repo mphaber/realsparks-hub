@@ -238,6 +238,34 @@
     #boardWrap{max-height:calc(100vh - 96px);}
     #board{max-height:calc(100vh - 98px); width:auto; margin:0 auto;}
   }
+  /* short phone viewports (one-window audit, Nov 2, 2026): the
+     approved entrance stack is 815px of content, which fits the
+     390x844 phone exactly but scrolls about 155px at 360x640 and
+     drops Practice below the fold. Under 820px of height (and phone
+     widths only, so the iPad layouts are outside) the same
+     composition is tightened: vertical gaps and paddings first, the
+     hero plate scaled down, the title a step smaller. No element is
+     removed and no text goes below a legible size. At 844px and
+     taller, and at every tablet size, the entrance renders exactly
+     as approved. */
+  @media (max-width:767px) and (max-height:820px){
+    header.top{padding:4px 16px;}
+    main{padding:8px 14px;}
+    .titleblock{margin:0 0 5px;}
+    h1.game{font-size:30px;}
+    #viewHome figure.plate{margin-bottom:2px !important;}
+    .plate{padding:8px 14px 6px;}
+    .plate svg.hero{height:54px;}
+    .platecap{margin-top:4px;}
+    .tagline{margin:3px 0 6px;}
+    #rankCard{padding:9px 12px; margin-bottom:8px;}
+    .rankname{font-size:20px;}
+    .bar{margin-top:6px;}
+    .bartext{margin-top:3px;}
+    .entries{gap:6px; margin-bottom:6px;}
+    .btn.entry{min-height:45px; padding:8px 16px;}
+    footer{padding:6px 16px 8px;}
+  }
 </style>
 </head>
 <body>
@@ -366,7 +394,7 @@
       <span class="lbl" id="gameLabel">Level 1</span>
       <span class="modechip" id="gameMode">Casual</span>
       <span class="sp"></span>
-      <span class="stats"><span id="timerPill" style="display:none">0:00</span><span class="sep" id="statSep" style="display:none">&middot;</span><span id="movesPill">Moves 0</span></span>
+      <span class="stats"><span id="scorePill">Score 0</span><span class="sep" id="scoreSep">&middot;</span><span id="timerPill" style="display:none">0:00</span><span class="sep" id="statSep" style="display:none">&middot;</span><span id="movesPill">Moves 0</span></span>
     </div>
     <div class="gamegrid">
       <div class="boardcol">
@@ -1845,6 +1873,34 @@ function hintCostTotal(){
   for (const k in G.hints.clues) t += G.hints.clues[k];
   return t;
 }
+/* ---------- live score HUD ----------
+   Matthew's rule (Nov 2, 2026, via the Game Manager): "If score is
+   important, say for buying a hint, we should show the score all
+   along, as it goes up or down." The header readout is the projected
+   bankable score: the game's one scoring function (computeScore)
+   evaluated on the current run state, so it moves exactly with play.
+   A clue or outline purchase subtracts its price the moment it lands
+   (render() runs inside both purchase handlers), extra moves erode
+   the move bonus at the drop that spends them, and in Pro and
+   Diabolical the 500ms tick below walks the figure down as the time
+   bonus decays. The floor and the Diabolical doubling are inside
+   computeScore, so the HUD figure is exactly what the completion
+   pop-up will headline if the run ended at this moment. Practice is
+   unscored: no readout there. Once solved, the readout is the banked
+   scoreInfo itself and stays frozen under the pop-up. */
+function projectedScore(){
+  if (!G || G.kind === "practice") return null;
+  if (G.solved && G.scoreInfo) return G.scoreInfo.total;
+  return computeScore({n: G.def.pieces.length, moves: G.moves, elapsedSec: elapsedSec(), mode: G.mode, hintCosts: hintCostTotal()}).total;
+}
+function updateScoreHUD(){
+  if (!G) return;
+  const v = projectedScore();
+  const show = v !== null;
+  $("scorePill").style.display = show ? "" : "none";
+  $("scoreSep").style.display = show ? "" : "none";
+  if (show) $("scorePill").textContent = "Score " + fmtPts(v);
+}
 function saveProgress(){
   if (!G || G.solved){ return; }
   G.elapsedBase = G.elapsedBase + (Date.now() - G.startStamp);
@@ -1999,6 +2055,7 @@ function render(){
   const timed = G.mode !== "Casual";
   $("timerPill").style.display = timed ? "" : "none";
   $("statSep").style.display = timed ? "" : "none";
+  updateScoreHUD();
   updateClueUI();
 }
 function fmtTime(s){
@@ -2006,7 +2063,7 @@ function fmtTime(s){
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 setInterval(() => {
-  if (G && !G.solved && G.mode !== "Casual") $("timerPill").textContent = fmtTime(elapsedSec());
+  if (G && !G.solved && G.mode !== "Casual"){ $("timerPill").textContent = fmtTime(elapsedSec()); updateScoreHUD(); }
 }, 500);
 
 /* ---------- drag and snap ---------- */
@@ -2430,6 +2487,8 @@ function onSolved(){
   if (G.kind !== "practice"){
     info = computeScore({n: G.def.pieces.length, moves: G.moves, elapsedSec: G.elapsedBase / 1000, mode: G.mode, hintCosts: hintCostTotal()});
     G.scoreInfo = info;
+    /* the header freezes on the banked figure while the pop-up is up */
+    updateScoreHUD();
     if (G.kind === "level"){
       SAVE.bests[G.id] = SAVE.bests[G.id] || {};
       if (!SAVE.bests[G.id][G.mode] || info.total > SAVE.bests[G.id][G.mode]) SAVE.bests[G.id][G.mode] = info.total;
@@ -2802,6 +2861,7 @@ window.ABUTLAS = {
       elapsed: elapsedSec(), hintCosts: hintCostTotal(), clues: Object.keys(G.hints.clues), solved:G.solved,
       dailyUnscored:G.dailyUnscored, dailyType:G.def.dailyType || null, dailyDate:G.def.date || null,
       selected:G.selected, promotion:G.promotion || null, pieces,
+      hudScore: projectedScore(),
       score: G.scoreInfo, total: lifetimeTotal(), save: JSON.parse(JSON.stringify(SAVE))};
   },
   anchor(id){
