@@ -119,6 +119,14 @@
   #clueBox{display:none; margin-top:12px; background:#fdf6dd; border:1px solid #e4d48f; border-radius:10px; padding:10px 12px; font-size:15px;}
   #clueBox b{color:var(--navy);}
   .help{font-size:12.5px; color:var(--muted); margin-top:10px; line-height:1.45;}
+  .ctrls #btnHelp{flex:0 0 auto; min-width:0; width:46px; padding-left:0; padding-right:0; font-size:16.5px;}
+  /* how-to-play card: floats over the board inside the wrap, so
+     opening it never shifts the board; like the solve panel it
+     keeps its own internal scrolling if the text runs long */
+  #helpCard{position:absolute; left:10px; right:10px; bottom:10px; z-index:5; display:none; background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 26px rgba(10,25,16,.28); padding:12px 36px 12px 14px; max-height:62%; overflow-y:auto; touch-action:pan-y; overscroll-behavior:contain;}
+  #helpCard.open{display:block;}
+  #helpCard .help{margin:0;}
+  #btnHelpClose{position:absolute; top:5px; right:5px; width:28px; height:28px; border-radius:50%; border:1px solid var(--line); background:#fff; color:var(--navy); font-size:14px; font-weight:700; line-height:1; padding:0; cursor:pointer;}
   /* completion pop-up: a modal card over a soft scrim, shown after the
      solve sequence (names revealed, cluster centered) settles */
   #solveScrim{position:fixed; inset:0; z-index:80; background:rgba(24,42,32,.48); display:none; align-items:center; justify-content:center; padding:16px;}
@@ -348,6 +356,10 @@
           <svg id="board" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" aria-label="Puzzle board"></svg>
           <div id="compass"><div class="arr">&#9650;</div><div class="nn">N</div></div>
           <button id="btnFit" style="display:none" aria-label="Fit the whole board">Fit</button>
+          <div id="helpCard" role="dialog" aria-label="How to play">
+            <button id="btnHelpClose" aria-label="Close help">&#215;</button>
+            <p class="help">Drag pieces together. Neighbors snap when they line up in the right arrangement, and joined pieces move as one. To free a joined piece, yank it quickly or double tap it. Pinch with two fingers to zoom in on the board, and double tap the water to see the whole board again. In Diabolical, select a piece and use the rotate buttons; steps are 45 degrees, so north is always reachable.</p>
+          </div>
         </div>
       </div>
       <div class="sidecol">
@@ -356,9 +368,9 @@
           <button class="btn alt" id="btnOutline">Outline</button>
           <button class="btn alt" id="btnRotL" style="display:none">&#8634; Rotate left</button>
           <button class="btn alt" id="btnRotR" style="display:none">Rotate right &#8635;</button>
+          <button class="btn alt" id="btnHelp" aria-label="How to play" aria-expanded="false" aria-controls="helpCard">?</button>
         </div>
         <div id="clueBox"></div>
-        <p class="help">Drag pieces together. Neighbors snap when they line up in the right arrangement, and joined pieces move as one. To free a joined piece, yank it quickly or double tap it. Pinch with two fingers to zoom in on the board, and double tap the water to see the whole board again. In Diabolical, select a piece and use the rotate buttons; steps are 45 degrees, so north is always reachable.</p>
       </div>
     </div>
     <div id="solveScrim">
@@ -2130,16 +2142,39 @@ $("btnFit").addEventListener("click", () => animateCamToFit());
    the gesture: the page drags and bounces like it wants to reload).
    These non-passive touchmove guards are the second line, and they
    hold regardless of touch-action support: while a puzzle is on
-   screen, no touch gesture scrolls or rubber-bands the page. The
-   solve panel is the one element that keeps its own scrolling.
+   screen, no touch gesture scrolls or rubber-bands the page. Two
+   elements keep their own scrolling and are exempt: the solve
+   panel and the how-to-play card.
    Outside the game view nothing changes: menus and lists scroll
    exactly as before. */
 svg.addEventListener("touchmove", e => { if (G && e.cancelable) e.preventDefault(); }, {passive: false});
 document.addEventListener("touchmove", e => {
   if ($("viewGame").style.display !== "block") return;
-  if (e.target && e.target.closest && e.target.closest("#solvePanel")) return;
+  if (e.target && e.target.closest && (e.target.closest("#solvePanel") || e.target.closest("#helpCard"))) return;
   if (e.cancelable) e.preventDefault();
 }, {passive: false});
+
+/* ---------- how-to-play card ----------
+   The help paragraph used to sit permanently under the hint
+   buttons; Matthew (Nov 2, 2026) asked for it behind a "?" toggle
+   so the game view stays compact. The card floats over the board
+   (inside #boardWrap, so opening it never shifts the board), and
+   any tap outside it, a second tap on "?", or its close button
+   dismisses it. Opening or closing it never touches the run:
+   the clock, the moves and the pieces are exactly as they were. */
+let helpOpen = false;
+function setHelp(open){
+  helpOpen = !!open;
+  $("helpCard").classList.toggle("open", helpOpen);
+  $("btnHelp").setAttribute("aria-expanded", helpOpen ? "true" : "false");
+}
+$("btnHelp").addEventListener("click", () => { setAmbient(); setHelp(!helpOpen); });
+$("btnHelpClose").addEventListener("click", () => setHelp(false));
+document.addEventListener("pointerdown", e => {
+  if (!helpOpen) return;
+  if (e.target && e.target.closest && (e.target.closest("#helpCard") || e.target.closest("#btnHelp"))) return;
+  setHelp(false);
+});
 
 /* ---------- hints, rotation, solving ---------- */
 function updateClueUI(){
@@ -2410,6 +2445,7 @@ function startGame(kind, id, mode, resume){
   $("gameMode").textContent = mode + (G.dailyUnscored ? " · unscored replay" : "");
   $("timerPill").textContent = "0:00";
   hideSolvePopup();
+  setHelp(false);
   $("clueBox").style.display = "none";
   render();
   saveProgress();
