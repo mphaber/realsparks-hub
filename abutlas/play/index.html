@@ -96,7 +96,7 @@
   .switch input:checked + .track{background:var(--green);}
   .switch input:checked + .track:after{left:25px;}
   /* game view */
-  #viewGame{display:none;}
+  #viewGame{display:none; touch-action:none;}
   .gametop{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
   .gametop .lbl{font-weight:800; font-size:16.5px; color:var(--green);}
   .gametop .meta{font-size:13px; color:var(--muted);}
@@ -123,7 +123,7 @@
      solve sequence (names revealed, cluster centered) settles */
   #solveScrim{position:fixed; inset:0; z-index:80; background:rgba(24,42,32,.48); display:none; align-items:center; justify-content:center; padding:16px;}
   #solveScrim.open{display:flex;}
-  #solvePanel{width:100%; max-width:420px; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto; margin:0; background:#fdfcf8; box-shadow:0 14px 44px rgba(10,25,16,.35); opacity:0; transform:translateY(16px); transition:opacity .28s ease, transform .28s ease;}
+  #solvePanel{width:100%; max-width:420px; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto; touch-action:pan-y; margin:0; background:#fdfcf8; box-shadow:0 14px 44px rgba(10,25,16,.35); opacity:0; transform:translateY(16px); transition:opacity .28s ease, transform .28s ease;}
   #solveScrim.show #solvePanel{opacity:1; transform:translateY(0);}
   #solvePanel h2{color:#2e7d46; text-align:center; font-size:21px;}
   #scoreBig{text-align:center; font-size:44px; font-weight:800; color:var(--navy); line-height:1.1; margin-top:8px;}
@@ -2134,11 +2134,11 @@ $("btnFit").addEventListener("click", () => animateCamToFit());
    solve panel is the one element that keeps its own scrolling.
    Outside the game view nothing changes: menus and lists scroll
    exactly as before. */
-svg.addEventListener("touchmove", e => { if (G) e.preventDefault(); }, {passive: false});
+svg.addEventListener("touchmove", e => { if (G && e.cancelable) e.preventDefault(); }, {passive: false});
 document.addEventListener("touchmove", e => {
   if ($("viewGame").style.display !== "block") return;
   if (e.target && e.target.closest && e.target.closest("#solvePanel")) return;
-  e.preventDefault();
+  if (e.cancelable) e.preventDefault();
 }, {passive: false});
 
 /* ---------- hints, rotation, solving ---------- */
