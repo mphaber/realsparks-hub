@@ -97,10 +97,18 @@
   .switch input:checked + .track:after{left:25px;}
   /* game view */
   #viewGame{display:none; touch-action:none;}
-  .gametop{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
-  .gametop .lbl{font-weight:800; font-size:16.5px; color:var(--green);}
+  /* slim game header: a single row (compact Home, title, mode chip,
+     inline stats) and no brand bar while a puzzle is on screen; the
+     bar is pure overhead in-game and stays on every other view */
+  body.ingame header.top{display:none;}
+  .gametop{display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-bottom:8px;}
+  .gametop .lbl{font-weight:700; font-size:14px; color:var(--green); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .gametop .meta{font-size:13px; color:var(--muted);}
   .gametop .sp{flex:1;}
+  #btnHome{flex:none; padding:6px 9px; font-size:13.5px; border-radius:9px;}
+  .modechip{flex:none; background:#fff; border:1px solid var(--line); border-radius:12px; padding:2px 8px; font-size:12px; font-weight:700; color:var(--navy); white-space:nowrap;}
+  .gametop .stats{flex:none; display:flex; align-items:baseline; gap:5px; font-size:12.5px; font-weight:700; color:var(--navy); white-space:nowrap; font-variant-numeric:tabular-nums;}
+  .gametop .stats .sep{color:var(--muted); font-weight:400;}
   .pill{background:#fff; border:1px solid var(--line); border-radius:16px; padding:4px 11px; font-size:13.5px; font-weight:700; color:var(--navy);}
   #boardWrap{position:relative; background:#dcebf3; border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(31,61,43,.08); touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
   #board{display:block; width:100%; height:auto; touch-action:none;}
@@ -149,8 +157,17 @@
     .gamegrid{display:flex; gap:14px; align-items:flex-start;}
     .gamegrid .boardcol{flex:1.5;}
     .gamegrid .sidecol{flex:1;}
-    #boardWrap{max-height:calc(100vh - 120px);}
-    #board{max-height:calc(100vh - 122px); width:auto; margin:0 auto;}
+    /* the brand bar no longer sits above the game, so the board may
+       grow into most of that reclaimed height */
+    #boardWrap{max-height:calc(100vh - 66px);}
+    #board{max-height:calc(100vh - 68px); width:auto; margin:0 auto;}
+  }
+  @media (orientation:portrait) and (max-width:767px){
+    /* short viewports (Safari with its toolbars showing): cap the
+       board's height so the slim header, the whole board and the
+       control row share one screen; the board centers in its wrap,
+       the same trick the landscape rules use */
+    #board{max-height:calc(100vh - 128px); max-height:calc(100dvh - 128px); width:auto; max-width:100%; margin:0 auto;}
   }
   /* iPad and larger tablets: shared scale-up. Portrait at 768px+, landscape only at 1000px+ wide and taller than a phone, so phone layouts (including 844x390 landscape) are untouched. */
   @media (min-width:768px) and (orientation:portrait), (min-width:1000px) and (min-height:521px) and (orientation:landscape){
@@ -182,8 +199,10 @@
     .lvlrow{padding:12px 10px; gap:14px;}
     .best{font-size:14.5px;}
     .viewtop h2{font-size:24px;}
-    .gametop .lbl{font-size:19px;}
-    .pill{font-size:14.5px; padding:5px 13px;}
+    .gametop .lbl{font-size:17px;}
+    .modechip{font-size:13.5px; padding:3px 11px;}
+    .gametop .stats{font-size:14px;}
+    #btnHome{padding:8px 13px; font-size:14.5px;}
     #compass{width:58px; height:58px;}
     #compass .nn{font-size:17px;}
     .ctrls{gap:10px; margin-top:14px;}
@@ -216,8 +235,8 @@
     .gamegrid{display:flex; gap:18px; align-items:flex-start;}
     .gamegrid .boardcol{flex:1.5;}
     .gamegrid .sidecol{flex:1;}
-    #boardWrap{max-height:calc(100vh - 140px);}
-    #board{max-height:calc(100vh - 142px); width:auto; margin:0 auto;}
+    #boardWrap{max-height:calc(100vh - 96px);}
+    #board{max-height:calc(100vh - 98px); width:auto; margin:0 auto;}
   }
 </style>
 </head>
@@ -343,12 +362,11 @@
   <!-- GAME -->
   <section id="viewGame">
     <div class="gametop">
-      <button class="btn alt" id="btnHome" style="padding:8px 12px;">Home</button>
+      <button class="btn alt" id="btnHome">Home</button>
       <span class="lbl" id="gameLabel">Level 1</span>
-      <span class="pill" id="gameMode">Casual</span>
+      <span class="modechip" id="gameMode">Casual</span>
       <span class="sp"></span>
-      <span class="pill" id="timerPill" style="display:none">0:00</span>
-      <span class="pill" id="movesPill">Moves 0</span>
+      <span class="stats"><span id="timerPill" style="display:none">0:00</span><span class="sep" id="statSep" style="display:none">&middot;</span><span id="movesPill">Moves 0</span></span>
     </div>
     <div class="gamegrid">
       <div class="boardcol">
@@ -1606,6 +1624,100 @@ function labelSizes(){
   return out;
 }
 
+/* ---------- clue labels: a revealed clue drawn on its piece ----------
+   The clue ladder rung for a piece in the run's mode: the name in
+   Casual, the capital in Pro, the vague geographic clue in
+   Diabolical. */
+function rungText(mode, pid){
+  const P = PIECES[pid];
+  return mode === "Casual" ? P.name : mode === "Pro" ? P.capital : P.clue;
+}
+/* Balanced word wrap of a text into n contiguous lines: the partition
+   minimizing the widest line, widths measured with the label fitter's
+   own text model. */
+function wrapLines(text, n){
+  const words = text.split(" ");
+  if (n <= 1 || words.length <= 1) return [text];
+  n = Math.min(n, words.length);
+  const N = words.length;
+  const w = words.map(x => textWidthAt(x, 100) / 100);
+  const gap = textWidthAt(" ", 100) / 100;
+  const cost = [], cut = [];
+  for (let i = 0; i <= N; i++){ cost.push(new Array(n + 1).fill(Infinity)); cut.push(new Array(n + 1).fill(-1)); }
+  cost[0][0] = 0;
+  for (let j = 1; j <= n; j++){
+    for (let i = j; i <= N - (n - j); i++){
+      let lw = 0;
+      for (let k = i - 1; k >= j - 1; k--){
+        lw += w[k] + (k < i - 1 ? gap : 0);
+        const c = Math.max(cost[k][j - 1], lw);
+        if (c < cost[i][j]){ cost[i][j] = c; cut[i][j] = k; }
+      }
+    }
+  }
+  const lines = [];
+  let i = N;
+  for (let j = n; j >= 1; j--){ const k = cut[i][j]; lines.unshift(words.slice(k, i).join(" ")); i = k; }
+  return lines;
+}
+/* Fit an arbitrary text on a piece at the reveal label's anchor: one
+   line first, then balanced wraps into more lines; the layout with
+   the largest fitted size wins, the label system's own rule. */
+function fitTextOnPiece(pr, text, maxLines){
+  const lab = labelLayout(pr);
+  const anch = {x: lab.cx, y: lab.y, d: lab.d};
+  const maxN = Math.min(maxLines, Math.max(1, text.split(" ").length));
+  let best = null;
+  for (let n = 1; n <= maxN; n++){
+    const lines = n === 1 ? [text] : wrapLines(text, n);
+    const fs = fitLinesFs(lab.ring, anch, lab.cx, lines);
+    if (!best || fs > best.fsFit) best = {lines, fsFit: fs};
+  }
+  return {lab, lines: best.lines, fsFit: best.fsFit};
+}
+/* The on-piece rendering for a revealed clue, per rung. Casual shows
+   the name exactly as the solve reveal will (same lines, same size).
+   Pro fits the capital, rendered at its fitted size when the 9px
+   floor is out of reach (the reveal system's own rule for a tight
+   piece: contained at the fitted size, never forced up to bleed).
+   Diabolical fits the vague sentence in up to four stacked lines;
+   only when the fit falls below half the legibility floor (a sliver
+   of a piece, where even the zoom cannot rescue it) does the piece
+   show its key text (the capital) instead; the full sentence always
+   stays in the clue record under the board either way. Cached per
+   run: the layout depends
+   only on the projected piece and the board's rendered scale, which
+   the floor value tracks. */
+function clueLabelFor(pid){
+  if (!G._clueLab) G._clueLab = {};
+  const fk = labelFloorPlane().toFixed(4);
+  const hit = G._clueLab[pid];
+  if (hit && hit.fk === fk) return hit.v;
+  const pr = G.proj.pieces[pid];
+  const floor = labelFloorPlane(), cap = G.proj.plane.w * 0.034;
+  let v;
+  if (G.mode === "Casual"){
+    const sz = labelSizes()[pid];
+    v = {lines: sz.lines, fs: sz.fs, key: false};
+  } else if (G.mode === "Pro"){
+    const f = fitTextOnPiece(pr, PIECES[pid].capital, 3);
+    v = {lines: f.lines, fs: Math.min(f.fsFit, cap), key: false};
+  } else {
+    const f = fitTextOnPiece(pr, PIECES[pid].clue, 4);
+    if (f.fsFit >= floor * 0.5){
+      v = {lines: f.lines, fs: Math.min(f.fsFit, cap), key: false};
+    } else {
+      const k = fitTextOnPiece(pr, PIECES[pid].capital, 3);
+      v = {lines: k.lines, fs: Math.min(k.fsFit, cap), key: true};
+    }
+  }
+  G._clueLab[pid] = {fk, v};
+  return v;
+}
+function escText(s){
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function assembledSVG(def, cls){
   const proj = projectCluster(def);
   let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
@@ -1650,7 +1762,7 @@ function newGame(kind, id, mode, resume){
     pieces: {}, groups: {}, groupSeq: 1,
     moves: 0, elapsedBase: 0, startStamp: Date.now(),
     hints: {clues:{}, outline:false, outlineCost:0},
-    outlineOn: false, solved: false, selected: null,
+    outlineOn: false, solved: false, selected: null, clueText: null,
     dailyUnscored: false, scoreInfo: null, solveShift: null, _animFrom: null
   };
   if (kind === "daily"){
@@ -1671,6 +1783,11 @@ function newGame(kind, id, mode, resume){
     st.moves = resume.moves || 0;
     st.elapsedBase = resume.elapsedBase || 0;
     st.hints = resume.hints || st.hints;
+    /* the clue record under the board shows the most recent clue;
+       rebuild it from the saved clue set (insertion order is the
+       purchase order) so a resumed run keeps its record */
+    const ck = Object.keys(st.hints.clues || {});
+    if (ck.length) st.clueText = rungText(st.mode, ck[ck.length - 1]);
     st.outlineOn = !!resume.outlineOn;
     st.dailyUnscored = !!resume.dailyUnscored;
   } else {
@@ -1833,6 +1950,29 @@ function render(){
     }
     html += "</g></g>";
   }
+  if (!G.solved){
+    /* Clue labels: a revealed clue is drawn on its own piece, on the
+       same top layer the reveal labels use, so no neighbor can cover
+       it and it rides along while other pieces are dragged. On solve
+       this layer steps aside and the name reveal takes over. */
+    const clued = G.def.pieces.filter(pid => G.hints.clues[pid] !== undefined);
+    if (clued.length){
+      html += '<g class="clabels" pointer-events="none">';
+      for (const pid of clued){
+        const pr = G.proj.pieces[pid], p = G.pieces[pid];
+        const lab = labelLayout(pr), cl = clueLabelFor(pid);
+        const fs = cl.fs, n = cl.lines.length, lh = 1.12 * fs;
+        html += '<g class="clabel" data-id="' + pid + '" transform="' + pieceTransform(p) + '">';
+        html += '<text text-anchor="middle" font-size="' + fs.toFixed(3) + '" font-weight="700" fill="#12291e">';
+        for (let i = 0; i < n; i++){
+          const y = lab.y + (i - (n - 1) / 2) * lh + fs * 0.33;
+          html += '<tspan x="' + lab.cx.toFixed(3) + '" y="' + y.toFixed(3) + '">' + escText(cl.lines[i]) + "</tspan>";
+        }
+        html += "</text></g>";
+      }
+      html += "</g>";
+    }
+  }
   if (G.solved){
     /* Reveal labels live on their own layer above every piece, so a
        neighbor can never cover part of a name. Each label is anchored
@@ -1856,7 +1996,9 @@ function render(){
   }
   svg.innerHTML = html;
   $("movesPill").textContent = "Moves " + G.moves;
-  $("timerPill").style.display = G.mode === "Casual" ? "none" : "";
+  const timed = G.mode !== "Casual";
+  $("timerPill").style.display = timed ? "" : "none";
+  $("statSep").style.display = timed ? "" : "none";
   updateClueUI();
 }
 function fmtTime(s){
@@ -2183,9 +2325,17 @@ function updateClueUI(){
   const practice = G.kind === "practice";
   const cc = clueCost(G.mode, base, practice);
   const oc = outlineCost(G.mode, base, practice);
-  if (!G.selected) $("btnClue").textContent = "Clue (select a piece)";
-  else if (G.hints.clues[G.selected] !== undefined) $("btnClue").textContent = "Clue: shown";
-  else $("btnClue").textContent = "Clue: " + (cc === 0 ? "free" : cc + " pts");
+  /* no selection step: each purchase reveals one random un-clued
+     piece; at exhaustion the button says so and disables rather
+     than charging for nothing */
+  const left = G.def.pieces.filter(pid => G.hints.clues[pid] === undefined).length;
+  if (left === 0){
+    $("btnClue").textContent = "Clue: all shown";
+    $("btnClue").disabled = true;
+  } else {
+    $("btnClue").textContent = "Clue: " + (cc === 0 ? "free" : cc + " pts");
+    $("btnClue").disabled = false;
+  }
   if (!G.hints.outline) $("btnOutline").textContent = "Outline: " + (oc === 0 ? "free" : oc + " pts");
   else $("btnOutline").textContent = G.outlineOn ? "Outline: on" : "Outline: off";
   const diab = G.mode === "Diabolical" && !G.solved;
@@ -2199,21 +2349,18 @@ function updateClueUI(){
 $("btnClue").addEventListener("click", () => {
   if (!G || G.solved) return;
   setAmbient();
-  if (!G.selected){
-    $("clueBox").style.display = "block";
-    $("clueBox").innerHTML = "Select a piece first, then ask for its clue.";
-    return;
-  }
-  const pid = G.selected;
+  /* one purchase, one random piece that has no clue yet; the clue
+     is drawn on the piece itself (render below), and the full rung
+     text also lands in the clue record under the board */
+  const remaining = G.def.pieces.filter(pid => G.hints.clues[pid] === undefined);
+  if (!remaining.length) return;
+  const pid = remaining[Math.floor(Math.random() * remaining.length)];
   const base = 100 * G.def.pieces.length;
-  if (G.hints.clues[pid] === undefined){
-    G.hints.clues[pid] = clueCost(G.mode, base, G.kind === "practice");
-    clueSound();
-    saveProgress();
-  }
-  const P = PIECES[pid];
-  G.clueText = G.mode === "Casual" ? P.name : G.mode === "Pro" ? P.capital : P.clue;
-  updateClueUI();
+  G.hints.clues[pid] = clueCost(G.mode, base, G.kind === "practice");
+  clueSound();
+  G.clueText = rungText(G.mode, pid);
+  render();
+  saveProgress();
 });
 $("btnOutline").addEventListener("click", () => {
   if (!G || G.solved) return;
@@ -2419,6 +2566,7 @@ const SUBVIEWS = ["viewLevels", "viewDaily", "viewPractice", "viewMenu"];
 function showHome(){
   hideSolvePopup();
   G = null;
+  document.body.classList.remove("ingame");
   $("btnMenu").style.display = "";
   $("viewGame").style.display = "none";
   for (const v of SUBVIEWS) $(v).style.display = "none";
@@ -2426,6 +2574,7 @@ function showHome(){
   renderHome();
 }
 function openView(id){
+  document.body.classList.remove("ingame");
   $("viewGame").style.display = "none";
   $("viewHome").style.display = "none";
   for (const v of SUBVIEWS) $(v).style.display = v === id ? "block" : "none";
@@ -2438,10 +2587,15 @@ function startGame(kind, id, mode, resume){
   for (const v of SUBVIEWS) $(v).style.display = "none";
   $("btnMenu").style.display = "none";
   $("viewGame").style.display = "block";
+  /* the brand bar hides while a puzzle is on screen (CSS body.ingame) */
+  document.body.classList.add("ingame");
   G = newGame(kind, id, mode, resume);
   /* the camera is never persisted: every load or resume starts at fit */
   resetCam();
   $("gameLabel").textContent = kind === "daily" ? G.def.label + " · " + fmtDay(G.def.date) : G.def.label + (G.def.group ? " · " + G.def.group : "");
+  /* the slim header ellipsizes a long title; the full text stays
+     available as the span's title */
+  $("gameLabel").title = $("gameLabel").textContent;
   $("gameMode").textContent = mode + (G.dailyUnscored ? " · unscored replay" : "");
   $("timerPill").textContent = "0:00";
   hideSolvePopup();
@@ -2645,7 +2799,7 @@ window.ABUTLAS = {
       pieces[pid] = {dx:p.dx, dy:p.dy, rot:p.rot, groupSize:(G.groups[p.g] || []).length};
     }
     return {screen:"game", kind:G.kind, id:G.id, mode:G.mode, moves:G.moves,
-      elapsed: elapsedSec(), hintCosts: hintCostTotal(), solved:G.solved,
+      elapsed: elapsedSec(), hintCosts: hintCostTotal(), clues: Object.keys(G.hints.clues), solved:G.solved,
       dailyUnscored:G.dailyUnscored, dailyType:G.def.dailyType || null, dailyDate:G.def.date || null,
       selected:G.selected, promotion:G.promotion || null, pieces,
       score: G.scoreInfo, total: lifetimeTotal(), save: JSON.parse(JSON.stringify(SAVE))};
@@ -2698,6 +2852,14 @@ window.ABUTLAS = {
     return {lines: sz.lines.slice(), fsPx: rect.width ? sz.fs * rect.width / pl.w : 0,
       cx: pr.anchor.x + p.dx + lab.cx, cy: pr.anchor.y + p.dy + lab.y,
       cenx: pr.anchor.x + p.dx + lab.cen.x, ceny: pr.anchor.y + p.dy + lab.cen.y};
+  },
+  clueLabel(id){
+    if (!G || G.solved || G.hints.clues[id] === undefined) return null;
+    const pr = G.proj.pieces[id], p = G.pieces[id], lab = labelLayout(pr), cl = clueLabelFor(id);
+    const rect = svg.getBoundingClientRect(), pl = G.proj.plane;
+    return {lines: cl.lines.slice(), fsPx: rect.width ? cl.fs * rect.width / pl.w : 0,
+      rung: rungText(G.mode, id), key: cl.key,
+      cx: pr.anchor.x + p.dx + lab.cx, cy: pr.anchor.y + p.dy + lab.y};
   },
   pointInPiece(id, x, y){
     if (!G) return false;
