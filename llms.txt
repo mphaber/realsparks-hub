@@ -1,0 +1,20 @@
+# Real Sparks Games
+
+> Real Sparks makes small, calm games. Fun, simple, no pressure. Just games that respect your evening. Every game is free and plays in a web browser: no downloads, no accounts, no ads.
+
+## Games
+
+- [Popeka!](https://games.realsparks.net/popeka/): A relaxing bubble-pop game with 500 levels: tap matching bubbles, clear the board, and unlock new worlds. Play free: https://mphaber.github.io/popeka/ Also on itch.io: https://realsparks.itch.io/popeka
+- [Thrink](https://games.realsparks.net/thrink/): A quick, brain-teasing tile puzzle for grown-ups: place tiles, link matching groups of three, and chase chain reactions. Play free: https://games.realsparks.net/thrink/play/ Also on itch.io: https://realsparks.itch.io/thrink
+- [Xenofront](https://games.realsparks.net/xenofront/): A turn-based strategy game of hex warfare: command miniature armies, capture territory, and outsmart the enemy across alien worlds. Play free: https://games.realsparks.net/xenofront/play/
+- [Scribble Siege](https://games.realsparks.net/scribble-siege/): A hand-drawn paper flick game: flick fighters across the page in Space, Knights, and Tanks battles, and destroy the enemy base in 3 hits. Play free: https://games.realsparks.net/scribble-siege/play/
+- [Breadcrumb](https://games.realsparks.net/breadcrumb/): A calm daily link game: start from one article, follow the breadcrumb trail of links to reach the target in as few hops as you can. No timer, ever. Play free: https://games.realsparks.net/breadcrumb/play/
+- [Abutlas](https://games.realsparks.net/abutlas/): A geography puzzle: neighboring states and countries are shuffled like puzzle pieces, and you rebuild the map. Play free: https://games.realsparks.net/abutlas/play/
+- [Creature Park](https://games.realsparks.net/creature-park/): A learning adventure game for kids: answer questions, earn coins, and collect one-of-a-kind creatures in your own park. Play free: https://games.realsparks.net/creature-park/play/
+
+## More
+
+- [About Real Sparks](https://realsparks.net/about.html)
+- [Real Sparks on itch.io](https://realsparks.itch.io)
+- [Real Sparks on YouTube](https://www.youtube.com/@Realsparksgames)
+- [Real Sparks on Bluesky](https://bsky.app/profile/realsparksgames.bsky.social)
