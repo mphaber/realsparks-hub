@@ -11,6 +11,7 @@
 - [Breadcrumb](https://games.realsparks.net/breadcrumb/): A calm daily link game: start from one article, follow the breadcrumb trail of links to reach the target in as few hops as you can. No timer, ever. Play free: https://games.realsparks.net/breadcrumb/play/
 - [Abutlas](https://games.realsparks.net/abutlas/): A geography puzzle: neighboring states and countries are shuffled like puzzle pieces, and you rebuild the map. Play free: https://games.realsparks.net/abutlas/play/
 - [Creature Park](https://games.realsparks.net/creature-park/): A learning adventure game for kids: answer questions, earn coins, and collect one-of-a-kind creatures in your own park. Play free: https://games.realsparks.net/creature-park/play/
+- [Twinnow](https://games.realsparks.net/twinnow/): The word game where duplicates die. Build words from a source word's letters against the clock: any word another player also found cancels, only unique words score, and long words pay extra. Play with 2 to 4 players passing one device, or go solo against the computer. Play free: https://games.realsparks.net/twinnow/play/
 
 ## More
 
