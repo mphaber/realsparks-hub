@@ -5145,8 +5145,15 @@ var NARRATION_CLIPS = [
           plan.push("fire-safety");
           /* This week's fourth-grade schoolwork, folded in the same way:
              one "school" slot in every round, drawn from the five senses,
-             OREO opinion writing, adjectives, animal structures and maps. */
-          plan.push(pickOf(["senses", "opinion", "adjectives", "structures", "maps"]));
+             OREO opinion writing, adjectives, animal structures and maps.
+             The Nov 6, 2026 school topics join this same school slot:
+             figurative language (also in the language flex below),
+             animal tails (the science rotation, alongside animal
+             structures), and citizenship, rules and communities (the
+             shared school bank, in the same style as story parts).
+             Demo grades 2-5 use this same plan; Hudson and demo
+             Kindergarten/1st use hudsonPlan and never see these kinds. */
+          plan.push(pickOf(["senses", "opinion", "adjectives", "structures", "maps", "figurative", "tails", "citizenship"]));
           /* Core maths anchor: one of compare / place-value / addition /
              standard form in every round. (The two older anchors now share
              this one slot, so all four still turn up regularly alongside
@@ -5155,12 +5162,12 @@ var NARRATION_CLIPS = [
           /* Fifth slot: with wonder, fire safety, school and the core
              maths anchor taking the first four slots, the last slot
              flexes - about a third of rounds get a language question
-             (vocab, spelling, grammar, reading or story parts), the
-             rest get a maths variety question (new types plus core
-             types). */
+             (vocab, spelling, grammar, reading, story parts or
+             figurative language), the rest get a maths variety
+             question (new types plus core types). */
           var flexRoll = Math.random();
           if (flexRoll < 0.34) {
-            plan.push(pickOf(["vocab", "spelling", "grammar", "reading", "story"]));
+            plan.push(pickOf(["vocab", "spelling", "grammar", "reading", "story", "figurative"]));
           } else if (L <= 3) {
             plan.push(pickOf(["division", "estimation", "addition", "compare", "place-value", "standard-form", "mult", "word", "money", "missing"]));
           } else if (L <= 5) {
@@ -5498,6 +5505,96 @@ var NARRATION_CLIPS = [
           { p: "Mia lost her favourite mitten on the way to school. She looked in her bag and under her desk. At the end of the story, her friend Sam found it on the playground and gave it back.", q: "What happens at the end of this story?", a: "Sam finds the mitten and gives it back", d: ["Mia loses her mitten", "Mia looks under her desk"] },
           { p: "Three little goats lived by a grassy hill. One day they decided to cross the bridge to find sweeter grass on the other side.", q: "What is the setting of this story?", a: "By a grassy hill with a bridge", d: ["Inside a busy airport", "Deep under the sea"] }
         ];
+        /* Figurative language and tone, from Aubrey Glidden's Friday
+           Email, Nov 6, 2026 ("discussed figurative language and
+           tone"), at a fourth-grade level: similes, metaphors, common
+           idioms, personification, simple hyperbole, and what tone
+           means (the feeling an author creates). The LOW set carries
+           the simpler examples served to the youngest grades this
+           reaches (demo 2nd/3rd, and Hazel at her lowest effective
+           levels); at L >= 4 the full bank, LOW + HIGH, is served.
+           Wired into Hazel's school slot and language flex slot in
+           hazelPlan, so the demo grades 2-5 meet it the same way.
+           Hudson's rounds and demo Kindergarten/1st never include it. */
+        var FIGURATIVE_LOW = [
+          { q: "What is a simile?", a: "A comparison using the words like or as", d: ["A word that rhymes with another word", "A very loud sound in a story"] },
+          { q: "Which sentence is a simile?", a: "She is as fast as a cheetah.", d: ["She is a cheetah on the track team.", "She runs at the park every day."] },
+          { q: "What does the simile \u201Cas quiet as a mouse\u201D mean?", a: "Very quiet", d: ["Very loud", "Very hungry"] },
+          { q: "Finish this simile: He is as busy as a ___", a: "bee", d: ["rock", "snowflake"] },
+          { q: "Which sentence is a metaphor?", a: "Her smile is sunshine.", d: ["Her smile is like sunshine.", "Her smile is bright today."] },
+          { q: "A metaphor compares two things. How is it different from a simile?", a: "It does not use the words like or as", d: ["It always uses the words like or as", "It only appears in poems"] },
+          { q: "What does the idiom \u201Ca piece of cake\u201D mean?", a: "Something that is very easy", d: ["A slice of birthday cake", "Something that takes all day"] },
+          { q: "What does the idiom \u201Craining cats and dogs\u201D mean?", a: "Raining very hard", d: ["Animals are falling from the sky", "Raining just a little bit"] },
+          { q: "What does the idiom \u201Cunder the weather\u201D mean?", a: "Feeling a bit sick", d: ["Standing outside in the rain", "Feeling ready to play"] },
+          { q: "Which sentence uses personification, giving something non-human a human action?", a: "The wind whispered through the trees.", d: ["The wind blew through the trees.", "The wind was cold last night."] },
+          { q: "Which sentence uses hyperbole, a big exaggeration?", a: "I have a million things to do today!", d: ["I have three things to do today.", "I wrote my jobs on a list today."] },
+          { q: "What is the tone of a story or poem?", a: "The feeling an author creates for the reader", d: ["The place where the story happens", "The names of the characters"] },
+          { p: "Sunlight danced on the lake, the picnic basket was full, and everyone was laughing.", q: "What is the tone (feeling) of this passage?", a: "Happy and cheerful", d: ["Dark and scary", "Sad and lonely"] }
+        ];
+        var FIGURATIVE_HIGH = [
+          { q: "What does the metaphor \u201CHis mind is a computer\u201D mean?", a: "He thinks quickly and remembers a lot", d: ["He is made of metal and wires", "He only plays computer games"] },
+          { q: "What does the simile \u201Cas cold as ice\u201D most likely mean about someone's hands?", a: "They feel extremely cold", d: ["They are made of frozen water", "They are holding a snowball"] },
+          { q: "What does the idiom \u201Cspill the beans\u201D mean?", a: "Tell a secret", d: ["Drop a pot of beans on the floor", "Cook dinner for everyone"] },
+          { q: "What does the idiom \u201Chit the sack\u201D mean?", a: "Go to bed", d: ["Punch a pillow in a game", "Carry a heavy bag"] },
+          { q: "What does the idiom \u201Conce in a blue moon\u201D mean?", a: "Very rarely", d: ["Every single night", "Only when the moon is blue"] },
+          { q: "What does the idiom \u201Ccost an arm and a leg\u201D mean?", a: "Cost a lot of money", d: ["Hurt your arm and your leg", "Cost just a few coins"] },
+          { q: "Which sentence uses personification?", a: "The flowers danced in the breeze.", d: ["The flowers grew in the breeze.", "The flowers are red and yellow."] },
+          { q: "In the sentence \u201CThe alarm clock screamed at me this morning\u201D, why is that personification?", a: "An alarm clock cannot really scream - screaming is a human action", d: ["Alarm clocks are always very loud", "The sentence has no describing words"] },
+          { q: "What does the hyperbole \u201CI'm so hungry I could eat a horse\u201D really mean?", a: "I am very, very hungry - it is an exaggeration", d: ["I really plan to eat a horse", "I am not hungry at all"] },
+          { p: "The old house groaned in the storm. Shadows crept along the walls, and no one had smiled there for years.", q: "What is the tone (feeling) of this passage?", a: "Gloomy and spooky", d: ["Joyful and silly", "Calm and cosy"] },
+          { q: "An author wants to create a silly, playful tone. Which words would help most?", a: "Giggled, wobbled and bounced", d: ["Whispered, trembled and crept", "Measured, recorded and counted"] },
+          { q: "Which sentence is a simile, not a metaphor?", a: "Her voice was like music.", d: ["Her voice was music.", "Her voice filled the hall."] }
+        ];
+        var FIGURATIVE_BANK = FIGURATIVE_LOW.concat(FIGURATIVE_HIGH);
+        /* Animal tails, from Glidden's Friday Email, Nov 6, 2026
+           ("learned about animal tails"), deepening the animal
+           structures science unit: what different animals use their
+           tails for - balance, grasping and holding, communication,
+           defense, keeping warm, and swimming and steering. Wired
+           into Hazel's school (science) slot in hazelPlan alongside
+           Animal Structures, so the demo grades 2-5 meet it the
+           same way. No new activity type is added for Hudson. */
+        var TAILS_BANK = [
+          { q: "What does a monkey use its long, curling tail for?", a: "Grasping and holding onto branches as it climbs", d: ["Digging holes in the ground", "Seeing in the dark"] },
+          { q: "How does a kangaroo use its strong, thick tail?", a: "For balance when it hops, and to lean on when it rests", d: ["To swim across rivers", "To fan itself cool"] },
+          { q: "A beaver has a wide, flat tail. What is it mainly used for?", a: "Steering and pushing itself along as it swims", d: ["Catching fish to eat", "Hanging from tree branches"] },
+          { q: "A beaver slaps its flat tail hard on the water. What is it doing?", a: "Warning other beavers that danger is near", d: ["Calling fish to the surface", "Washing its tail clean"] },
+          { q: "What does a fish use its tail fin for?", a: "Pushing itself through the water and steering", d: ["Breathing underwater", "Digging in the sand"] },
+          { q: "How does a cat's tail help it?", a: "It helps the cat balance - and shows how the cat is feeling", d: ["It helps the cat hear quiet sounds", "It stores food for later"] },
+          { q: "A dog wags its tail from side to side. What is its tail doing?", a: "Communicating - showing feelings to people and other dogs", d: ["Keeping the dog warm", "Helping the dog swim"] },
+          { q: "How does a fox use its thick, bushy tail in winter?", a: "It wraps it around itself like a blanket to keep warm", d: ["It stands on it to see further", "It uses it to sweep snow away"] },
+          { q: "A squirrel flicks and curls its fluffy tail as it leaps between branches. What is the tail for?", a: "Balance - and it can also work like a cosy blanket", d: ["Cracking nuts open", "Digging burrows"] },
+          { q: "Some lizards can drop their tail when a predator grabs it. Why does that help?", a: "The predator is left with the tail while the lizard escapes", d: ["The tail scares the predator away forever", "The lizard can fly away afterwards"] },
+          { q: "How does a horse use its tail on a summer day?", a: "It swishes it to brush away biting flies", d: ["It fans the other horses to cool them", "It uses it to dig for water"] },
+          { q: "What does a seahorse use its curling tail for?", a: "Holding onto coral and seaweed so it is not swept away", d: ["Swimming very fast", "Catching its dinner"] },
+          { q: "A rattlesnake shakes the rattle on its tail. What is that for?", a: "A warning sound that tells others to stay away", d: ["A song to call its friends", "Shaking off loose skin"] },
+          { q: "An opossum can hang by its tail for a short time. What kind of tail is that?", a: "A grasping tail that can hold on like a hand", d: ["A swimming tail that works like a paddle", "A warning tail that makes a loud sound"] }
+        ];
+        /* Citizenship, rules and communities, from Megan Viard's
+           K News, Nov 6, 2026 (Social Studies: being a good citizen,
+           rules and why we have them, and communities - school,
+           class and family communities). Written in the same style
+           as the Story Parts bank and wired into the shared school
+           slot in hazelPlan, so Hazel and the demo grades 2-5 meet
+           it the same way they meet the other school banks.
+           Hudson's rounds never include it, and it is not a new
+           activity type for him. */
+        var CITIZENSHIP_BANK = [
+          { q: "What is a community?", a: "A group of people who live, work or learn together in the same place", d: ["One person living all alone", "A building with no people in it"] },
+          { q: "Which of these is a community?", a: "Your school community - students, teachers and families together", d: ["A single desk in an empty room", "One book on a shelf"] },
+          { q: "Your class is a community too. Who belongs to a class community?", a: "The students and the teacher who learn together every day", d: ["Only the teacher", "Only the students who sit at the front"] },
+          { q: "Which community do you belong to at home?", a: "Your family community", d: ["A sports team in another town", "The crew of a spaceship"] },
+          { q: "What does a good citizen do?", a: "Follows the rules, helps others and treats people with respect", d: ["Only looks after themselves", "Breaks rules when no one is watching"] },
+          { q: "Why do communities have rules?", a: "To keep everyone safe and help people get along fairly", d: ["To make things harder for everyone", "So one person can always win"] },
+          { q: "At school we walk, not run, in the hallway. Why is that a good rule?", a: "It keeps everyone safe so no one crashes or gets hurt", d: ["It makes the school day longer", "It is only for the youngest classes"] },
+          { q: "A good citizen finds paper litter on the playground. What should they do?", a: "Pick it up and put it in the bin, to care for a shared place", d: ["Leave it - it is not theirs", "Kick it onto the grass"] },
+          { q: "How can you be a good citizen in your family community?", a: "Help with jobs at home and listen to each other", d: ["Leave every job for someone else", "Only help when you get a prize"] },
+          { q: "A new student joins your class community. What would a good citizen do?", a: "Welcome them, include them and show them how things work", d: ["Ignore them until next year", "Keep all the class jobs for yourself"] },
+          { q: "Why do we take turns and share in a community?", a: "So things are fair and everyone gets a chance", d: ["So the same person always goes first", "So nobody else ever gets a turn"] },
+          { q: "Crossing the road only at the crosswalk is a community rule. Why do we have it?", a: "To keep people safe near traffic", d: ["To make the walk take longer", "So cars can drive faster"] },
+          { p: "During clean-up time, Sam wipes the table he shares, puts the shared crayons back, and thanks his table partner for helping.", q: "What is Sam showing?", a: "Good citizenship - caring for shared things and respecting others", d: ["That he wants to finish first", "That the crayons belong to him"] },
+          { q: "What should you do if you think a rule is unfair?", a: "Talk respectfully to a teacher or grown-up about it", d: ["Break it whenever you like", "Tell everyone to stop following all the rules"] }
+        ];
         var SCHOOL_BANKS = {
           story: { bank: STORY_PARTS_BANK, cat: "Story Parts" },
           senses: { bank: SENSES_BANK, cat: "Our Five Senses" },
@@ -5505,7 +5602,10 @@ var NARRATION_CLIPS = [
           adjectives: { bank: ADJECTIVE_BANK, cat: "Adjectives" },
           structures: { bank: STRUCTURE_BANK, cat: "Animal Structures" },
           maps: { bank: MAP_BANK, cat: "Maps" },
-          "fire-safety": { bank: FIRE_SAFETY_BANK, cat: "Fire Safety" }
+          "fire-safety": { bank: FIRE_SAFETY_BANK, cat: "Fire Safety" },
+          figurative: { bank: FIGURATIVE_BANK, cat: "Figurative Language" },
+          tails: { bank: TAILS_BANK, cat: "Animal Tails" },
+          citizenship: { bank: CITIZENSHIP_BANK, cat: "Citizenship" }
         };
         function makeHazelQuestion(kind, L) {
           L = L || 1;
@@ -5670,7 +5770,11 @@ var NARRATION_CLIPS = [
           }
           if (SCHOOL_BANKS[kind]) {
             var sbk = SCHOOL_BANKS[kind];
-            var sq2 = pickOf(sbk.bank);
+            /* Figurative language serves its simpler LOW examples to
+               the youngest grades it reaches (demo 2nd/3rd and low
+               effective levels); the full bank opens up at L >= 4. */
+            var bankForKind = (kind === "figurative" && L < 4) ? FIGURATIVE_LOW : sbk.bank;
+            var sq2 = pickOf(bankForKind);
             return { kind: kind, category: sbk.cat, answer: sq2.a, text: sq2.q, spoken: sq2.q, visual: sq2.p ? '<div class="q-passage">' + sq2.p + "</div>" : "", options: strOpts(sq2.a, sq2.d) };
           }
           if (kind === "money") {
@@ -5868,10 +5972,11 @@ var NARRATION_CLIPS = [
           "vocab": "Word Power", "spelling": "Spelling", "grammar": "Grammar",
           "reading": "Reading", "science": "Science", "space": "Space", "nature": "Nature & Animals",
           "senses": "Our Five Senses", "opinion": "Opinion Writing", "adjectives": "Adjectives",
-          "structures": "Animal Structures", "maps": "Maps", "fire-safety": "Fire Safety", "story": "Story Parts"
+          "structures": "Animal Structures", "maps": "Maps", "fire-safety": "Fire Safety", "story": "Story Parts",
+          "figurative": "Figurative Language", "tails": "Animal Tails", "citizenship": "Citizenship"
         };
         window.__hhWonder = { space: SPACE_BANK, science: SCIENCE_BANK, nature: NATURE_BANK, plan: hazelPlan, make: makeHazelQuestion };
-        window.__hhSchool = { senses: SENSES_BANK, opinion: OPINION_BANK, adjectives: ADJECTIVE_BANK, structures: STRUCTURE_BANK, maps: MAP_BANK, fireSafety: FIRE_SAFETY_BANK, story: STORY_PARTS_BANK };
+        window.__hhSchool = { senses: SENSES_BANK, opinion: OPINION_BANK, adjectives: ADJECTIVE_BANK, structures: STRUCTURE_BANK, maps: MAP_BANK, fireSafety: FIRE_SAFETY_BANK, story: STORY_PARTS_BANK, figurative: FIGURATIVE_BANK, figurativeLow: FIGURATIVE_LOW, figurativeHigh: FIGURATIVE_HIGH, tails: TAILS_BANK, citizenship: CITIZENSHIP_BANK };
         /* ---------- No-repeat question memory ----------
            Every served question gets a stable signature (its type plus its
            exact content: numbers, word, passage). Signatures are saved per
