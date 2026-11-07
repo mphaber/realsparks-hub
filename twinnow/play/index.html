@@ -274,8 +274,8 @@
         <p class="hint" style="margin-bottom:2px">Build words from the source letters. If anyone else has your word, it is a twin, and twins cancel each other out. Only unique words score, and long words pay extra.</p>
         <div class="lbl">Players</div>
         <div class="seg" id="modeSeg">
-          <button type="button" data-v="pass">Pass and Play</button>
           <button type="button" data-v="solo">Solo vs Computer</button>
+          <button type="button" data-v="pass">Pass and Play</button>
         </div>
         <div id="passNames">
           <div class="lbl">How many players</div>
@@ -415,6 +415,7 @@
    the save key/format are unchanged from v1.
 */
 var SAVE_KEY = "twinnow-v1";
+var PLAY_URL = "https://games.realsparks.net/twinnow/play/";
 var SOURCES = [
   "CELEBRATION","MASTERPIECE","CONVERSATION","IMAGINATION","GENERATION",
   "EXTRAORDINARY","CONSTELLATION","REFRIGERATOR","NEIGHBORHOOD","UNDERSTANDING",
@@ -1018,9 +1019,9 @@ $("shareBtn").addEventListener("click", function(){
           " points. Longest unique word: " + lu.len + " letters.";
   }
   if (navigator.share){
-    navigator.share({title:"Twinnow", text:txt}).catch(function(){});
+    navigator.share({title:"Twinnow", text:txt, url:PLAY_URL}).catch(function(){});
   } else if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(function(){ $("shareMsg").textContent = "Result copied."; },
+    navigator.clipboard.writeText(txt + "\n" + PLAY_URL).then(function(){ $("shareMsg").textContent = "Result copied."; },
       function(){ $("shareMsg").textContent = txt; });
   } else {
     $("shareMsg").textContent = txt;
