@@ -271,7 +271,7 @@
     <!-- SETUP -->
     <section class="screen on" id="screen-setup">
       <div class="scrollcol" id="setupScroll">
-        <p class="hint" style="margin-bottom:2px">Build words from the source letters. If anyone else has your word, it cancels. Only unique words score, and long words pay extra.</p>
+        <p class="hint" style="margin-bottom:2px">Build words from the source letters. If anyone else has your word, it is a twin, and twins cancel each other out. Only unique words score, and long words pay extra.</p>
         <div class="lbl">Players</div>
         <div class="seg" id="modeSeg">
           <button type="button" data-v="pass">Pass and Play</button>
@@ -490,7 +490,7 @@ var ICON_SND_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 
 /* ---------- settings / setup ---------- */
 var S = {
-  mode:"pass", playerCount:2, names:["Alex","Blair","",""], soloName:"You",
+  mode:"solo", playerCount:2, names:["Player 1","Player 2","Player 3","Player 4"], soloName:"You",
   cpu:"standard", rounds:1, minutes:2, letters:"strict", dict:"scrabble",
   sourceMode:"curated", sound:true
 };
@@ -929,7 +929,7 @@ function renderReveal(){
         row.appendChild(pts);
       } else {
         var tag = document.createElement("span"); tag.className = "tag";
-        tag.textContent = (e.status === "dup") ? "cancelled" : "not a word";
+        tag.textContent = (e.status === "dup") ? "Twin!" : "not a word";
         if (e.status === "dup") w.style.animationDelay = (ei*0.05) + "s";
         row.appendChild(tag);
       }
@@ -1039,6 +1039,21 @@ $("quitBtn").addEventListener("click", function(){
 });
 
 /* ---------- resume / init ---------- */
+// v4 migration: v1-v3 pass-and-play saves may store the old invented preset
+// names in their original preset positions (index 0 "Alex", index 1 "Blair").
+// On load of a pass-and-play save, those exact preset defaults become the
+// neutral "Player N" labels, in both the setup names and the saved match's
+// player list. Any other stored name (something the user actually typed that
+// is not a preset default in its preset position) is preserved untouched.
+var OLD_PRESET_NAMES = ["Alex", "Blair"];
+function migratePresetNames(){
+  if (S.mode !== "pass") return;
+  for (var i=0;i<OLD_PRESET_NAMES.length;i++){
+    if (S.names && S.names[i] === OLD_PRESET_NAMES[i]) S.names[i] = "Player " + (i+1);
+    if (M && M.players && M.players[i] && !M.players[i].cpu &&
+        M.players[i].name === OLD_PRESET_NAMES[i]) M.players[i].name = "Player " + (i+1);
+  }
+}
 function restore(){
   var raw = null;
   try { raw = localStorage.getItem(SAVE_KEY); } catch(e){}
@@ -1048,6 +1063,7 @@ function restore(){
     if (!data || !data.M || data.M.phase === "final") { clearSave(); return false; }
     S = Object.assign(S, data.S || {});
     M = data.M;
+    migratePresetNames();
     if (M.phase === "pass"){
       var order = humanTurnOrder();
       paintPass(order[M.turnIdx]);
