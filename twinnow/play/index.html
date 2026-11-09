@@ -200,7 +200,52 @@
     font-size:12px; font-weight:800; line-height:1; padding:0;
   }
   .emptylist{color:var(--ink-soft); font-size:14px; padding:6px; font-weight:600;}
-  .turnfoot{margin-top:9px;}
+  .turnfoot{margin-top:9px; display:flex; gap:8px;}
+  .turnfoot .ghostbtn{flex:1 1 0; width:auto;}
+  .tilerow{display:flex; gap:8px; align-items:flex-start;}
+  .tilerow .stiles{flex:1 1 auto; min-width:0;}
+  .shufflebtn{
+    flex:0 0 auto; margin-top:9px;
+    background:linear-gradient(180deg,#8a6bff,#6a45f0); color:#fff; border:none; border-radius:12px;
+    font-size:13.5px; font-weight:800; padding:9px 12px; box-shadow:0 3px 0 #4528b8;
+  }
+  .shufflebtn:active{transform:translateY(2px); box-shadow:0 1px 0 #4528b8;}
+
+  /* words overlay (view only) */
+  .overlay{
+    position:fixed; inset:0; z-index:60; display:none;
+    align-items:center; justify-content:center; padding:18px;
+    background:rgba(24,10,54,.55);
+  }
+  .overlay.on{display:flex;}
+  .sheet{
+    background:var(--paper2); border:2px solid var(--line); border-radius:16px;
+    width:100%; max-width:420px; max-height:78dvh; display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 14px 40px rgba(10,0,40,.4);
+  }
+  .sheethead{
+    flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:11px 14px; color:#fff; font-weight:800; font-size:16px;
+    background:linear-gradient(120deg,var(--plum) 0%,var(--plum2) 70%,#5c2ea6 100%);
+  }
+  .sheethead button{
+    background:rgba(255,255,255,.16); color:#fff; border:2px solid rgba(255,255,255,.5);
+    border-radius:999px; padding:5px 13px; font-size:13px; font-weight:800;
+  }
+  .sheetlist{overflow-y:auto; -webkit-overflow-scrolling:touch; padding:11px 14px 14px; min-height:0;}
+  .sheetlist .rlabel{font-size:11.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--violet); margin:10px 0 5px;}
+  .sheetlist .rlabel:first-child{margin-top:0;}
+  .sheetlist .wwords{display:flex; flex-wrap:wrap; gap:6px;}
+  .sheetlist .wchip{background:#f4ecff; border:1.5px solid #d9ccff; border-radius:999px; padding:4px 11px; font-size:15px; font-weight:700; color:var(--plum);}
+  .sheetlist .wempty{color:var(--ink-soft); font-size:14px; font-weight:600;}
+  .colfoot{flex:0 0 auto; padding:7px 9px; border-top:1px solid var(--line);}
+  .wbtn{
+    background:#fff; border:2px solid #cdbcf5; color:var(--plum); border-radius:10px;
+    font-size:13px; font-weight:800; padding:7px 10px; box-shadow:0 2px 0 #cdbcf5;
+  }
+  .wbtn:active{transform:translateY(2px); box-shadow:none;}
+  .colfoot .wbtn{width:100%;}
+  .totals .trow .wbtn{padding:5px 10px; font-size:12.5px;}
 
   /* reveal */
   .cols{flex:1 1 auto; min-height:0; display:flex; gap:8px;}
@@ -338,6 +383,13 @@
               <button type="button" data-v="generous">Generous</button>
             </div>
           </div>
+          <div>
+            <div class="lbl">Letters</div>
+            <div class="seg" id="arrangeSeg">
+              <button type="button" data-v="inorder">In order</button>
+              <button type="button" data-v="scrambled">Scrambled</button>
+            </div>
+          </div>
         </div>
         <div class="lbl">Source word</div>
         <div class="seg" id="sourceSeg">
@@ -373,7 +425,10 @@
           <div class="pill" id="countPill">0 words</div>
         </div>
       </div>
-      <div class="stiles" id="turnSource" aria-label="Source letters"></div>
+      <div class="tilerow">
+        <div class="stiles" id="turnSource" aria-label="Source letters"></div>
+        <button class="shufflebtn" id="shuffleBtn" type="button" aria-label="Shuffle the source letters">Shuffle</button>
+      </div>
       <form class="entryrow" id="entryForm">
         <input type="text" id="wordInput" placeholder="Type a word, 3+ letters" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="24">
         <button type="submit" id="addBtn">Add</button>
@@ -381,6 +436,7 @@
       <div class="msg" id="turnMsg"></div>
       <div class="listpanel"><div class="chips" id="chipList"></div></div>
       <div class="turnfoot">
+        <button class="ghostbtn" id="myWordsBtn" type="button">My words</button>
         <button class="ghostbtn" id="doneBtn" type="button">I am done</button>
       </div>
     </section>
@@ -410,6 +466,14 @@
       </div>
     </section>
   </main>
+
+  <!-- WORDS OVERLAY (view only, scrolls internally) -->
+  <div class="overlay" id="wordsOverlay" role="dialog" aria-modal="true" aria-labelledby="wordsTitle">
+    <div class="sheet">
+      <div class="sheethead"><span id="wordsTitle">My words</span><button id="wordsClose" type="button">Close</button></div>
+      <div class="sheetlist" id="wordsList"></div>
+    </div>
+  </div>
 
   <footer id="siteFooter">Twinnow / Created by Matthew Haber / © 2026 Real Sparks. All rights reserved. · <a href="https://games.realsparks.net/sitemap.html" style="color:inherit;">Sitemap</a></footer>
 </div>
@@ -502,7 +566,7 @@ var ICON_SND_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 /* ---------- settings / setup ---------- */
 var S = {
   mode:"solo", playerCount:2, names:["Player 1","Player 2","Player 3","Player 4"], soloName:"You",
-  cpu:"standard", rounds:1, minutes:2, letters:"strict", dict:"scrabble",
+  cpu:"standard", rounds:1, minutes:2, letters:"strict", dict:"scrabble", arrange:"inorder",
   sourceMode:"curated", sound:true
 };
 var $ = function(id){ return document.getElementById(id); };
@@ -525,6 +589,7 @@ function setupBind(){
   paints.push(segBind("timerSeg", function(){return S.minutes;}, function(v){ S.minutes=parseInt(v,10); }));
   paints.push(segBind("lettersSeg", function(){return S.letters;}, function(v){ S.letters=v; }));
   paints.push(segBind("dictSeg", function(){return S.dict;}, function(v){ S.dict=v; }));
+  paints.push(segBind("arrangeSeg", function(){return S.arrange;}, function(v){ S.arrange=v; }));
   paints.push(segBind("sourceSeg", function(){return S.sourceMode;}, function(v){ S.sourceMode=v; }));
   $("soundBtn").addEventListener("click", function(){
     S.sound = !S.sound; paintSound(); if (S.sound) sfx("add");
@@ -699,7 +764,8 @@ function startMatch(){
   }
   M = {
     players: players, round: 1, usedSources: [], source: "", phase: "pass",
-    turnIdx: 0, lists: {}, cur: [], timeLeft: S.minutes*60, results: null
+    turnIdx: 0, lists: {}, cur: [], timeLeft: S.minutes*60, results: null,
+    history: players.map(function(){ return []; })
   };
   M.source = pickSource();
   M.usedSources.push(lettersOf(M.source));
@@ -735,6 +801,15 @@ function beginTurnFlow(){
   save();
 }
 $("readyBtn").addEventListener("click", function(){ startTurn(); });
+function focusWordInput(){
+  // Keep the entry field focused so a player can type word after word without
+  // tapping first (playtest feedback, Nov 9, 2026). Called from inside user
+  // gestures wherever possible; mobile Safari may still decline to raise the
+  // keyboard for a focus call that lands outside a gesture.
+  var inp = $("wordInput");
+  try { inp.focus({preventScroll:true}); }
+  catch(e){ try { inp.focus(); } catch(e2){} }
+}
 function startTurn(){
   M.phase = "turn";
   M.cur = [];
@@ -743,7 +818,7 @@ function startTurn(){
   renderTurn();
   startTimer();
   save();
-  setTimeout(function(){ try{ $("wordInput").focus(); }catch(e){} }, 60);
+  setTimeout(focusWordInput, 60);
 }
 function startTimer(){
   stopTimer();
@@ -790,7 +865,38 @@ function buildSourceTiles(){
     wrap.appendChild(sp); tileEls.push(sp);
   }
   paintTileUse("");
+  if (S.arrange === "scrambled") shuffleTileOrder();
 }
+function isLetterTile(n){
+  return n.nodeType === 1 && n.classList.contains("stile") && !n.classList.contains("space");
+}
+function shuffleTileOrder(){
+  // Rearranges the letter tiles in place. Letters, counts, colors and the
+  // tiles-light-as-you-type behavior are untouched: the same elements move,
+  // and paintTileUse works off the elements, not their positions. Space
+  // tiles in phrase sources stay where they are; the letters move among
+  // the letter slots. Re-rolls while the visible sequence is unchanged.
+  var wrap = $("turnSource");
+  var kids = Array.prototype.slice.call(wrap.childNodes);
+  var letters = kids.filter(isLetterTile);
+  if (letters.length < 2) return;
+  function seqOf(arr){ return arr.map(function(n){ return n.getAttribute("data-l"); }).join(""); }
+  var cur = seqOf(letters), perm = letters.slice(), tries = 0;
+  do {
+    for (var i=perm.length-1;i>0;i--){ var j = rnd(i+1); var t = perm[i]; perm[i]=perm[j]; perm[j]=t; }
+    tries++;
+  } while (tries < 8 && seqOf(perm) === cur);
+  var li = 0;
+  var seq = kids.map(function(n){ return isLetterTile(n) ? perm[li++] : n; });
+  wrap.innerHTML = "";
+  seq.forEach(function(n){ wrap.appendChild(n); });
+  paintTileUse($("wordInput").value);
+}
+$("shuffleBtn").addEventListener("click", function(){
+  shuffleTileOrder();
+  sfx("tick");
+  focusWordInput();
+});
 function paintTileUse(word){
   var need = {}, i, ch;
   word = (word || "").toLowerCase();
@@ -836,7 +942,7 @@ function paintChips(){
     var chip = document.createElement("span"); chip.className = "chip";
     var b = document.createElement("b"); b.textContent = w;
     var x = document.createElement("button"); x.type="button"; x.textContent = "×"; x.setAttribute("aria-label","Remove " + w);
-    x.addEventListener("click", function(){ M.cur.splice(idx,1); sfx("del"); paintChips(); save(); });
+    x.addEventListener("click", function(){ M.cur.splice(idx,1); sfx("del"); paintChips(); save(); focusWordInput(); });
     chip.appendChild(b); chip.appendChild(x); wrap.appendChild(chip);
   });
   $("countPill").textContent = M.cur.length + (M.cur.length === 1 ? " word" : " words");
@@ -849,15 +955,16 @@ $("entryForm").addEventListener("submit", function(e){
   e.preventDefault();
   var inp = $("wordInput");
   var raw = (inp.value || "").trim().toLowerCase();
-  if (!raw) return;
-  if (/[^a-z]/.test(raw)){ turnMsg("Letters only, please."); sfx("buzz"); shakeTiles(null); return; }
-  if (raw.length < 3){ turnMsg("Too short. Words need 3 or more letters."); sfx("buzz"); shakeTiles(null); return; }
-  if (M.cur.indexOf(raw) !== -1){ turnMsg("Already on your list."); sfx("buzz"); shakeTiles(null); return; }
+  if (!raw){ focusWordInput(); return; }
+  if (/[^a-z]/.test(raw)){ turnMsg("Letters only, please."); sfx("buzz"); shakeTiles(null); focusWordInput(); return; }
+  if (raw.length < 3){ turnMsg("Too short. Words need 3 or more letters."); sfx("buzz"); shakeTiles(null); focusWordInput(); return; }
+  if (M.cur.indexOf(raw) !== -1){ turnMsg("Already on your list."); sfx("buzz"); shakeTiles(null); focusWordInput(); return; }
   var prob = letterProblem(raw, M.source);
   if (prob){
     turnMsg(prob + "."); sfx("buzz");
     var mm = prob.match(/extra ([A-Z])/) || prob.match(/^([A-Z]) is not/);
     shakeTiles(mm ? mm[1] : null);
+    focusWordInput();
     return;
   }
   M.cur.push(raw);
@@ -867,6 +974,7 @@ $("entryForm").addEventListener("submit", function(e){
   sfx("add");
   paintChips();
   save();
+  focusWordInput();
 });
 $("doneBtn").addEventListener("click", function(){ finishTurn(); });
 function finishTurn(){
@@ -904,11 +1012,63 @@ function computeReveal(){
     return {entries: entries, roundScore: roundScore};
   });
   M.results = results;
+  // Record the round's raw lists so each player can view their complete
+  // list across all rounds (reveal and finish screens). Padded so round
+  // numbers line up even for saves made before history existed.
+  if (!M.history) M.history = M.players.map(function(){ return []; });
+  M.players.forEach(function(p, i){
+    if (!M.history[i]) M.history[i] = [];
+    while (M.history[i].length < M.round - 1) M.history[i].push([]);
+    M.history[i].push((M.lists[i] || []).slice());
+  });
   M.phase = "reveal";
   save();
   renderReveal();
   sfx("reveal");
 }
+/* ---------- words overlay (view only; no scoring effect) ---------- */
+function playerGroups(i){
+  var hist = (M.history && M.history[i] && M.history[i].length)
+    ? M.history[i]
+    : [ (M.lists && M.lists[i]) || [] ];
+  if (hist.length === 1) return [{label:"", words: hist[0]}];
+  return hist.map(function(words, r){ return {label:"Round " + (r+1), words: words}; });
+}
+function openWords(title, groups){
+  $("wordsTitle").textContent = title;
+  var box = $("wordsList"); box.innerHTML = "";
+  groups.forEach(function(g){
+    if (g.label){
+      var l = document.createElement("div"); l.className = "rlabel"; l.textContent = g.label;
+      box.appendChild(l);
+    }
+    if (!g.words.length){
+      var e = document.createElement("div"); e.className = "wempty"; e.textContent = "No words yet.";
+      box.appendChild(e);
+      return;
+    }
+    var w = document.createElement("div"); w.className = "wwords";
+    g.words.forEach(function(word){
+      var c = document.createElement("span"); c.className = "wchip"; c.textContent = word;
+      w.appendChild(c);
+    });
+    box.appendChild(w);
+  });
+  $("wordsOverlay").classList.add("on");
+}
+function closeWords(){
+  $("wordsOverlay").classList.remove("on");
+  if (M && M.phase === "turn") focusWordInput();
+}
+$("wordsClose").addEventListener("click", function(){ closeWords(); });
+$("wordsOverlay").addEventListener("click", function(e){ if (e.target === $("wordsOverlay")) closeWords(); });
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape" && $("wordsOverlay").classList.contains("on")) closeWords();
+});
+$("myWordsBtn").addEventListener("click", function(){
+  openWords("My words (" + M.cur.length + ")", [{label:"", words: M.cur.slice()}]);
+});
+
 function renderReveal(){
   show("screen-reveal");
   $("revealTitle").textContent = "Round " + M.round + " reveal: " + M.source;
@@ -947,6 +1107,11 @@ function renderReveal(){
       body.appendChild(row);
     });
     col.appendChild(body);
+    var foot = document.createElement("div"); foot.className = "colfoot";
+    var wb = document.createElement("button"); wb.type = "button"; wb.className = "wbtn";
+    wb.textContent = "See all words";
+    wb.addEventListener("click", function(){ openWords(p.name + ": all words", playerGroups(i)); });
+    foot.appendChild(wb); col.appendChild(foot);
     cols.appendChild(col);
   });
   $("nextBtn").textContent = (M.round < S.rounds) ? "Next round" : "Final result";
@@ -1004,7 +1169,11 @@ function showFinal(){
     var dot = document.createElement("span"); dot.className = "dot"; dot.style.background = pColor(x.p, x.i);
     a.appendChild(dot); a.appendChild(document.createTextNode(x.p.name));
     var b = document.createElement("b"); b.textContent = x.p.total;
-    r.appendChild(a); r.appendChild(b); tt.appendChild(r);
+    var wb = document.createElement("button"); wb.type = "button"; wb.className = "wbtn";
+    wb.textContent = "Words";
+    wb.setAttribute("aria-label", "See all of " + x.p.name + "'s words");
+    wb.addEventListener("click", function(){ openWords(x.p.name + ": all words", playerGroups(x.i)); });
+    r.appendChild(a); r.appendChild(b); r.appendChild(wb); tt.appendChild(r);
   });
   var lu = longestUnique();
   var stat = "Longest unique word this round: " + (lu.len ? (lu.len + " letters, by " + lu.who) : "none");
@@ -1028,6 +1197,7 @@ $("shareBtn").addEventListener("click", function(){
     txt = "Twinnow: " + sorted[0].name + " won our " + M.players.length + " player game with " + sorted[0].total +
           " points. Longest unique word: " + lu.len + " letters.";
   }
+  txt += "\nScores: " + sorted.map(function(p){ return p.name + " " + p.total; }).join(", ") + ".";
   if (navigator.share){
     navigator.share({title:"Twinnow", text:txt, url:PLAY_URL}).catch(function(){});
   } else if (navigator.clipboard && navigator.clipboard.writeText){
@@ -1073,6 +1243,7 @@ function restore(){
     var data = JSON.parse(raw);
     if (!data || !data.M || data.M.phase === "final") { clearSave(); return false; }
     S = Object.assign(S, data.S || {});
+    if (S.arrange !== "scrambled") S.arrange = "inorder"; // saves predating the Letters option default to In order
     M = data.M;
     migratePresetNames();
     if (M.phase === "pass"){
