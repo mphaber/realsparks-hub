@@ -499,6 +499,8 @@ body.onEntrance footer{display:none;}
   #viewSetup .entCard>#nameFields{grid-row:3;}
   #viewSetup .entCard>h2:nth-of-type(4){grid-row:4;}
   #viewSetup .entCard>#fighterSel{grid-row:5;}
+  #viewSetup .entCard>#motherLbl{grid-column:3;grid-row:6;}
+  #viewSetup .entCard>#motherSel{grid-column:3;grid-row:7;}
 }
 @media (orientation: landscape) and (max-height: 520px){
   #viewSetup{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:calc(6px + env(safe-area-inset-bottom));}
@@ -721,6 +723,16 @@ html.ss-inmatch .rs-subnav{display:none;}
 html.ss-inmatch .wrap>footer, html.ss-inmatch .wrap>.socialRow{display:none;}
 html.ss-inmatch, html.ss-inmatch body{overflow:hidden;}
 
+/* FULL SCREEN, MATCHES ONLY (Nov 13, 2026 — Matthew's option in the
+   game menu): with the option on, a live match also takes the hub's
+   brand band back — the last in-flow block above the game — so the
+   measured offset falls to zero and fitBoard fits the sheet into
+   the full stage height. The entrance never carries ss-fsmatch:
+   the class is applied only while the game view is showing (see
+   applyFsChrome), and the browser's own fullscreen is requested
+   alongside it wherever the platform allows. */
+html.ss-fsmatch .rs-nav{display:none;}
+
 /* ================================================================
    HUB HEADER TIERS (Nov 12, 2026 fix pass): when something sits
    above the game in flow (the hub's transplanted header), the
@@ -852,6 +864,8 @@ html.ss-avshort #viewGame #turnBar .seg button{min-height:40px;font-size:15px;pa
       <div id="paperExtra"></div>
       <h2>Ships</h2>
       <select id="fighterSel" aria-label="Fighter style"></select>
+      <label class="lbl" id="motherLbl" for="motherSel">Mothership</label>
+      <select id="motherSel" aria-label="Mothership style"></select>
     </div>
     <div class="row" id="resumeRow" style="display:none;margin-top:8px;">
       <button class="btn gold big" id="btnResume">▶ Resume</button>
@@ -883,6 +897,7 @@ html.ss-avshort #viewGame #turnBar .seg button{min-height:40px;font-size:15px;pa
             <button data-menu="practice">🎯 Practice Sheet</button>
             <button data-menu="settings">🔊 Sound &amp; Settings</button>
             <button data-menu="dev">🛠 Dev Log</button>
+            <button id="btnFsGame">🖥 Full screen: Off</button>
           </span>
         </span>
         <button class="btn small" id="btnQuit">✕ Quit to Setup</button>
@@ -1246,7 +1261,7 @@ function doShare(text, btn, after){
 }
 
 /* ---------- Settings persistence (best effort) ---------- */
-var SETTINGS = { master:0.8, music:0.4, sfx:0.85, amb:0.55, ambience:true, musicOn:false, tutorialSeen:false, fighterStyle:"rotate", fighterRot:0, turretHintDone:false, name1:"", name2:"" };
+var SETTINGS = { master:0.8, music:0.4, sfx:0.85, amb:0.55, ambience:true, musicOn:false, tutorialSeen:false, fighterStyle:"rotate", fighterRot:0, turretHintDone:false, mothershipStyle:"rotate", fullScreen:false, name1:"", name2:"" };
 try{
   var saved = localStorage.getItem("scribbleSiegeSettings");
   if(saved){ var sp = JSON.parse(saved); for(var k in sp) SETTINGS[k]=sp[k]; }
@@ -1361,7 +1376,7 @@ function buildMatchSave(){
       mirror:!!G.mirror,
       editor:G.editor ? {mode:G.editor.mode, stampType:G.editor.stampType, stampSize:G.editor.stampSize} : null
     },
-    match: MATCH ? { rounds:(MATCH.rounds||[0,0]).slice(), round:MATCH.round||1, cpuEsc:MATCH.cpuEsc||0, starter:MATCH.starter||0, fieldObs:(MATCH.fieldObs===undefined?null:MATCH.fieldObs) } : null,
+    match: MATCH ? { rounds:(MATCH.rounds||[0,0]).slice(), round:MATCH.round||1, cpuEsc:MATCH.cpuEsc||0, starter:MATCH.starter||0, fieldObs:(MATCH.fieldObs===undefined?null:MATCH.fieldObs), hulls:(MATCH.hulls||["classic","classic"]).slice() } : null, // MOTHERSHIP VARIETIES: each side's hull is match identity — it rides the save and comes back exactly
     log:logLines
   };
 }
@@ -1414,7 +1429,8 @@ function resumeMatch(){
     if(d.names){ SETTINGS.name1=d.names.name1||""; SETTINGS.name2=d.names.name2||""; } // in memory only — the settings key itself is never written by a resume, so saved names speak on the results screen exactly as they did when the match was saved
     MATCH_STYLE=d.matchStyle||"triangles";
     FW=d.fw||760; FH=d.fh||960; MIRROR_THIS_MATCH=!!d.mirror;
-    MATCH={ rounds:(d.match.rounds||[0,0]).slice(), round:d.match.round||1, cpuEsc:d.match.cpuEsc||0, starter:(d.match.starter==null?0:d.match.starter), mirror:!!d.mirror, fieldObs:(d.match.fieldObs===undefined?null:d.match.fieldObs) }; // TIER 2: the match frame comes back before anything reads it (badge, tallies, next round)
+    MATCH={ rounds:(d.match.rounds||[0,0]).slice(), round:d.match.round||1, cpuEsc:d.match.cpuEsc||0, starter:(d.match.starter==null?0:d.match.starter), mirror:!!d.mirror, fieldObs:(d.match.fieldObs===undefined?null:d.match.fieldObs), hulls:(d.match.hulls||["classic","classic"]).slice() }; // TIER 2: the match frame comes back before anything reads it (badge, tallies, next round)
+    MATCH_HULLS=(MATCH.hulls&&MATCH.hulls.length===2)?MATCH.hulls.slice():["classic","classic"]; // MOTHERSHIP VARIETIES: the hulls return with the match (lenient: a save without them flies Classics)
     var sg=d.g;
     G={
       turn:sg.turn, phase:sg.phase||"select", action:sg.action||"move",
@@ -1437,6 +1453,7 @@ function resumeMatch(){
     PRES_ROT=computePresRot(); applyCanvasSize();
     viewingFinalBoard=false; setViewBoardBar(false);
     showView("viewGame");
+    requestFs(); // FULL SCREEN (matches only): resuming from the entrance is a tap, so the request rides this gesture
     var lb=document.getElementById("logBox");
     if(lb){
       lb.innerHTML="";
@@ -1474,6 +1491,12 @@ function resumeMatch(){
   }
 }
 document.getElementById("btnResume").addEventListener("click", function(){ resumeMatch(); });
+document.getElementById("btnFsGame").addEventListener("click", function(){
+  SETTINGS.fullScreen=!SETTINGS.fullScreen; saveSettings(); syncFsUI(); applyFsChrome();
+  if(SETTINGS.fullScreen) requestFs(); // flipping the toggle is itself a gesture — the request may ride it
+  else exitFsIfOurs();
+});
+syncFsUI(); // the label reflects the persisted setting from the first frame
 window.addEventListener("pagehide", function(){ saveMatch(); });
 document.addEventListener("visibilitychange", function(){ if(document.hidden) saveMatch(); });
 /* STAGE 2 haptics (Android only): guarded navigator.vibrate, gated by
@@ -2039,6 +2062,15 @@ function renderHome(){
   });
   fsH.value=SETTINGS.fighterStyle||"rotate";
   fsH.onchange=function(){ SETTINGS.fighterStyle=fsH.value; saveSettings(); refreshUI(); };
+  // MOTHERSHIP STYLE — the same persisted setting the Variants drawer
+  // edits (SETTINGS.mothershipStyle); the two dropdowns mirror each
+  // other exactly the way the fighter pair does.
+  var msH=document.getElementById("motherSel"); msH.innerHTML="";
+  [["classic","🛸 Classic Saucer"],["needle","🚀 Needle Carrier"],["ring","🪐 Ring Carrier"],["twin","🔮 Twin-Dome"],["dread","⚔️ Dreadnought"],["moon","🌙 Moon Base"],["rotate","🔀 Rotate"]].forEach(function(o){
+    var op3=document.createElement("option"); op3.value=o[0]; op3.textContent=o[1]; msH.appendChild(op3);
+  });
+  msH.value=SETTINGS.mothershipStyle||"rotate";
+  msH.onchange=function(){ SETTINGS.mothershipStyle=msH.value; saveSettings(); refreshUI(); };
   var ex=document.getElementById("paperExtra"); ex.innerHTML="";
   if(CFG.paper==="construction"){
     var l=document.createElement("label"); l.className="lbl"; l.textContent="Construction paper color"; ex.appendChild(l);
@@ -2147,6 +2179,18 @@ function renderVariants(){
     fsSel.value=SETTINGS.fighterStyle||"rotate";
     fsSel.addEventListener("change", function(){ SETTINGS.fighterStyle=fsSel.value; saveSettings(); refreshUI(); });
     fsWrap.appendChild(fsSel); c2.appendChild(fsWrap);
+    // Mothership style: the same choice as the entrance dropdown —
+    // a named hull for both sides, or Rotate (default): each side's
+    // hull is rolled on its own at match start (see resolveMatchHulls).
+    var msWrap=document.createElement("div");
+    var msLbl=document.createElement("label"); msLbl.className="lbl"; msLbl.textContent="Mothership style"; msWrap.appendChild(msLbl);
+    var msSel=document.createElement("select");
+    [["classic","Classic Saucer"],["needle","Needle Carrier"],["ring","Ring Carrier"],["twin","Twin-Dome"],["dread","Dreadnought"],["moon","Moon Base"],["rotate","Rotate (default)"]].forEach(function(o){
+      var mop=document.createElement("option"); mop.value=o[0]; mop.textContent=o[1]; msSel.appendChild(mop);
+    });
+    msSel.value=SETTINGS.mothershipStyle||"rotate";
+    msSel.addEventListener("change", function(){ SETTINGS.mothershipStyle=msSel.value; saveSettings(); refreshUI(); });
+    msWrap.appendChild(msSel); c2.appendChild(msWrap);
   }
   g.appendChild(c1); g.appendChild(c2); body.appendChild(g);
 
@@ -3040,7 +3084,7 @@ function prodBtnPos(p){
 function prodPulseOn(){ return !!(G && !G.over && CFG.deployment!=="none"); }
 function drawProdButton(c, p){
   if(!G || CFG.deployment==="none" || G.bases[p].hp<=0) return;
-  var pos=prodBtnPos(p), col=PLAYER_COLORS[playerCfg(p).color].hex;
+  var pos=prodBtnPos(p), col=ownerHex(playerCfg(p).color);
   var ready=canProduce(p), cd=(G.prodCd && G.prodCd[p])||0;
   var mine=!G.over && G.turn===p && (CFG.mode==="2p" || p===0);
   c.save(); c.translate(pos.x, pos.y);
@@ -3326,6 +3370,7 @@ function updateHUD(){
     "Turn: "+CFG.turnStructure+" · FF: "+CFG.friendly+" · Edge: "+CFG.edge+"<br>"+
     "Shared tools: "+CFG.p1.flicker+" flicker · "+CFG.p1.medium+" traces — both sides, only the colors differ"+
     (CFG.theme==="space" ? "<br>🚀 Fighter style: <b>"+FIGHTER_STYLE_NAMES[MATCH_STYLE]+"</b>"+((SETTINGS.fighterStyle||"rotate")==="rotate"?" (rotating — change it in Variants)":"") : "")+
+    (CFG.theme==="space" && MATCH_HULLS ? "<br>🛸 Motherships: <b>"+HULL_NAMES[MATCH_HULLS[0]]+"</b> vs <b>"+HULL_NAMES[MATCH_HULLS[1]]+"</b>"+((SETTINGS.mothershipStyle||"rotate")==="rotate"?" (rolled per side for this match)":"") : "")+
     (MATCH && !G.editor ? "<br>Rounds: "+MATCH.rounds[0]+" – "+MATCH.rounds[1]+" (first to 3)"+(CFG.mode==="1p" ? " · 🏆 "+RECORD.wins+" wins, streak "+RECORD.streak : "") : "");
   var sel=G.selected?findThing(G.selected):null;
   document.getElementById("selInfo").textContent = sel ? thingLabel(sel) : ""; // MINIMAL WORDING: selection speaks through its drawn cue, not a sentence;
@@ -3596,6 +3641,11 @@ var PRIZE_TINT_SPOT={
 };
 var prizeTintCache={};
 function prizeSprite(key, colorIdx){
+  var raw=prizeSpriteRaw(key, colorIdx);
+  if(raw && key!=="star" && lightInk()) return toLightSprite(raw, "prize|"+key+"|"+colorIdx+"|L");
+  return raw;
+}
+function prizeSpriteRaw(key, colorIdx){
   var base=PRIZE_ART[key];
   if(!base || !base.complete || !base.naturalWidth) return null;
   if(key==="star" || colorIdx===1) return base; // the star has no owner detail; the sheets' blue IS the blue player's blue
@@ -3665,8 +3715,219 @@ function pxTintCanvas(cv2, colorIdx, baseHue){
     g.putImageData(id,0,0);
   }catch(e){}
 }
+/* ================================================================
+   DARK-PAPER LIGHT INK (Nov 13, 2026 — Matthew's ruling: change
+   the ink on dark papers; drop no paper). On a light sheet the
+   game draws in the standard ink set. On a paper dark enough to
+   swallow that set, the drawing switches to the light-ink set
+   instead: white, silver and pale gel colors — the choice kids
+   actually make on dark construction paper — expressed through
+   the match's medium like everything else (pale gel strokes for
+   pen, light waxy crayon for crayon, pale pencil for pencil,
+   because the sprite treatments below ride the same medium
+   pipeline as the normal set). Owner identity survives: each
+   owner's hue is kept and only its value is lifted toward white
+   (blue reads pale ice blue, purple lavender-white, red pale
+   rose), so a side is still itself at a glance.
+   WHICH PAPERS QUALIFY is measured, not listed: a paper whose
+   relative luminance sits at or under 0.62 (the mid band where
+   standard inks start to sink) AND on which at least one owner's
+   ink either falls under 3:1 contrast or collides with the
+   paper's own hue (under 40 degrees apart) at under 4.5:1. Of
+   the six construction colors that flags pink, green, blue,
+   peach and lavender; yellow stays standard (bright enough that
+   its inks still read, and pale ink would sink there instead).
+   Every cream paper (looseleaf, graph, plain, ripped, both
+   newspapers) measures far above the band and never qualifies.
+   The treatment is derived from CFG on the fly — paper plus
+   construction color are already in the match save — so a
+   resumed match recomputes it exactly, and nothing about the
+   chrome or DOM UI changes: only what is drawn ON the paper. */
+function _hexRGB(hex){ var n=parseInt(String(hex).slice(1),16); return [(n>>16)&255, (n>>8)&255, n&255]; }
+function _relLum(hex){ var c=_hexRGB(hex).map(function(v){ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); }); return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]; }
+function _hueOf(hex){ var c=_hexRGB(hex), r=c[0]/255, g=c[1]/255, b=c[2]/255, mx=Math.max(r,g,b), mn=Math.min(r,g,b), df=mx-mn; if(df<0.001) return 0; var h; if(mx===r) h=((g-b)/df)%6; else if(mx===g) h=(b-r)/df+2; else h=(r-g)/df+4; h*=60; if(h<0) h+=360; return h; }
+function _contrastHex(a, b){ var l1=_relLum(a), l2=_relLum(b); if(l1<l2){ var t=l1; l1=l2; l2=t; } return (l1+0.05)/(l2+0.05); }
+function paperFillHex(){
+  if(!window.CFG) return "#f8f1da";
+  if(CFG.paper==="construction") return CFG.constructionColor||"#a9c7ec";
+  if(CFG.paper==="newspaper"||CFG.paper==="comic") return "#f1ead9";
+  if(CFG.paper==="plain") return "#faf6ea";
+  return "#f8f1da";
+}
+function paperQualifiesLightInk(fill){
+  if(_relLum(fill)>0.62) return false;
+  var ph=_hueOf(fill);
+  for(var i=0;i<PLAYER_COLORS.length;i++){
+    var ink=PLAYER_COLORS[i].hex, ct=_contrastHex(ink, fill);
+    if(ct<3.0) return true;
+    var hd=Math.abs(_hueOf(ink)-ph); if(hd>180) hd=360-hd;
+    if(hd<40 && ct<4.5) return true;
+  }
+  return false;
+}
+function lightInk(){ return paperQualifiesLightInk(paperFillHex()); }
+function inkOnPaper(dark, light){ return lightInk() ? light : dark; }
+/* an owner's color, lifted for dark paper: same hue, pale value.
+   Black (index 7) has no hue to keep — it becomes gel silver. */
+var _ownerHexCache={};
+function ownerHex(ci){
+  var base=PLAYER_COLORS[ci].hex;
+  if(!lightInk()) return base;
+  var k=ci+"|L|"+paperFillHex(); if(_ownerHexCache[k]) return _ownerHexCache[k]; // the paper rides the key: the colliding-hue raise below is paper-specific, so one paper's lift must never serve another paper's match
+  var c=_hexRGB(base), r=c[0]/255, g=c[1]/255, b=c[2]/255;
+  var mx=Math.max(r,g,b), mn=Math.min(r,g,b), df=mx-mn, l=(mx+mn)/2;
+  var s=df<0.001?0:(l>0.5?df/(2-mx-mn):df/(mx+mn)), h=0;
+  if(df>=0.001){ if(mx===r) h=((g-b)/df)%6; else if(mx===g) h=(b-r)/df+2; else h=(r-g)/df+4; h*=60; if(h<0) h+=360; }
+  var nl=0.79, ns=Math.min(s,0.6);
+  /* guarantee a lightness step off the paper itself for the inks
+     that separate from it by VALUE alone (hue within ~50 degrees
+     of the paper's, or near-neutral): on the lightest qualifying
+     papers a plain lift can land such an ink almost exactly ON
+     the paper tone (lifted blue on blue paper). Inks far in hue
+     separate chromatically and keep their lifted color. */
+  var pc=_hexRGB(paperFillHex());
+  var pl=(Math.max(pc[0],pc[1],pc[2])+Math.min(pc[0],pc[1],pc[2]))/2/255;
+  var ph=_hueOf(paperFillHex()), hd=Math.abs(h-ph); if(hd>180) hd=360-hd;
+  if(hd<50 && pl-nl<0.13) nl=Math.min(0.95, pl+0.13);
+  var cc=(1-Math.abs(2*nl-1))*ns, xx=cc*(1-Math.abs(((h/60)%2)-1)), m=nl-cc/2, rr=0, g2=0, bb=0;
+  if(h<60){ rr=cc; g2=xx; } else if(h<120){ rr=xx; g2=cc; } else if(h<180){ g2=cc; bb=xx; } else if(h<240){ g2=xx; bb=cc; } else if(h<300){ rr=xx; bb=cc; } else { rr=cc; bb=xx; }
+  function h2(v){ var s2=Math.round((v+m)*255).toString(16); return s2.length<2?"0"+s2:s2; }
+  var hex="#"+h2(rr)+h2(g2)+h2(bb);
+  _ownerHexCache[k]=hex; return hex;
+}
+/* A drawn sprite (image art or a tinted canvas) re-expressed in
+   the light-ink set: colors are lifted pale with their hue kept,
+   graphite and shading become silver, and the drawing's own
+   paper (its near-white ground) is keyed out to transparency —
+   the same ink-darkness knockout the entrance logo uses — so the
+   sprite stamps onto the dark sheet with source-over instead of
+   multiply (gel and crayon sit ON construction paper; the draw
+   paths check the _ssKeyed flag). Cached per caller key. */
+var lightSpriteCache={};
+function toLightSprite(src, key){
+  if(lightSpriteCache[key]) return lightSpriteCache[key];
+  var w=src.naturalWidth||src.width, h=src.naturalHeight||src.height;
+  if(!w||!h) return src;
+  var cv2=document.createElement("canvas"); cv2.width=w; cv2.height=h;
+  var g=cv2.getContext("2d"); g.drawImage(src,0,0);
+  try{
+    var id=g.getImageData(0,0,w,h), d=id.data;
+    /* Two kinds of sprite arrive here. CANVAS art (the code-drawn
+       hulls, the tinted canvases) carries its coverage in its own
+       alpha over transparency: keep that alpha, boosted — gel and
+       crayon are pressed harder on dark paper. IMAGE art has its
+       paper baked in opaque: measure the paper tone from the
+       sprite's own border (per-channel median) and key alpha by
+       color DISTANCE from that tone, so sepia or tinted paper
+       backdrops fade with the paper while every ink far from the
+       paper tone survives — a plain luminance key erased bright
+       saturated fills, and a saturation key kept textured paper
+       backdrops as visible cards; distance from the measured tone
+       is the key that fits doodle art. */
+    /* Which kind is decided by the PAPER, not by any stray
+       transparency: if the sprite's paper-toned pixels are mostly
+       OPAQUE it is image art with baked paper (the castle sheet has
+       transparent corners but an opaque backdrop — a naive
+       transparency sniff sends it down the wrong path and its
+       backdrop lifts wholesale into a halo). If its paper is
+       mostly transparency, its alpha already carries the drawing. */
+    var pr=0.93, pg=0.89, pb=0.80, blurD=null, hasTrans=false;
+    {
+      var trs=[], tgs=[], tbs=[];
+      for(var tx=0;tx<w;tx+=2){ if(d[tx*4+3]>200){ trs.push(d[tx*4]); tgs.push(d[tx*4+1]); tbs.push(d[tx*4+2]); } var tbi=((h-1)*w+tx)*4; if(d[tbi+3]>200){ trs.push(d[tbi]); tgs.push(d[tbi+1]); tbs.push(d[tbi+2]); } }
+      var tmed=function(arr){ if(!arr.length) return 0.9; arr.sort(function(a,b2){ return a-b2; }); return arr[Math.floor(arr.length/2)]/255; };
+      var tpr=tmed(trs), tpg=tmed(tgs), tpb=tmed(tbs), opq=0, trn=0;
+      for(var gi=0;gi<d.length;gi+=64){
+        var gd=Math.max(Math.abs(d[gi]/255-tpr), Math.abs(d[gi+1]/255-tpg), Math.abs(d[gi+2]/255-tpb));
+        if(gd<0.06){ if(d[gi+3]>200) opq++; else trn++; }
+      }
+      hasTrans = trn>=opq;
+      if(!hasTrans){ pr=tpr; pg=tpg; pb=tpb; }
+    }
+    if(!hasTrans){
+      /* Broad smooth shading baked around sheet art (a radial
+         backdrop, the castle's vignette) sits at ink-like distance
+         from the paper tone, so distance alone cannot keep it from
+         lifting into a halo. Frequency can: ink is detailed, a
+         backdrop is smooth. Blur the sprite; where a pixel matches
+         its blurred neighborhood it is backdrop, not drawing.
+         Guarded: if the platform's blur is a no-op the check finds
+         no difference anywhere and the factor stays off. */
+      try{
+        var bcv=document.createElement("canvas"); bcv.width=w; bcv.height=h;
+        var bg2=bcv.getContext("2d");
+        bg2.filter="blur("+Math.max(2, Math.round(w/70))+"px)"; bg2.drawImage(cv2,0,0); bg2.filter="none";
+        var bd=bg2.getImageData(0,0,w,h).data, mxdf=0;
+        for(var si=0;si<d.length;si+=Math.floor(d.length/800)*4+4){ var dd2=Math.abs(d[si]-bd[si]); if(dd2>mxdf) mxdf=dd2; }
+        if(mxdf>3) blurD=bd;
+      }catch(e2){ blurD=null; }
+    }
+    for(var i=0;i<d.length;i+=4){
+      var sa=d[i+3]/255;
+      var r=d[i]/255, gg=d[i+1]/255, b=d[i+2]/255;
+      var mx=Math.max(r,gg,b), mn=Math.min(r,gg,b), df=mx-mn, l=(mx+mn)/2;
+      var s=df<0.001?0:(l>0.5?df/(2-mx-mn):df/(mx+mn)), hh=0;
+      if(df>=0.001){ if(mx===r) hh=((gg-b)/df)%6; else if(mx===gg) hh=(b-r)/df+2; else hh=(r-gg)/df+4; hh*=60; if(hh<0) hh+=360; }
+      var a;
+      if(hasTrans){
+        a=Math.min(1, sa*1.7);
+        if(s<0.12){
+          /* bright NEUTRAL pixels in canvas art are not ink — they
+             are baked drop shadow (the castle sheet's soft grey
+             aura, stored at low alpha): boosting and whitening them
+             painted a halo. Ink is dark or saturated; shadow is
+             bright and neutral, so it fades by its own brightness. */
+          var yk=0.2126*r+0.7152*gg+0.0722*b;
+          var kf=(0.88-yk)/0.25; if(kf>1) kf=1; if(kf<0) kf=0;
+          a*=kf;
+        }
+      }
+      else {
+        var dist=Math.max(Math.abs(r-pr), Math.abs(gg-pg), Math.abs(b-pb));
+        a=(dist-0.14)/0.13; if(a>1) a=1; if(a<0) a=0; a=a*a*(3-2*a); // floor at 0.14: broad soft shading baked around sheet art (the castle's vignette) never gets more than ~0.16 from the paper tone, while real ink stands 0.25+ away — the floor is what keeps the shading from lifting into a halo
+        if(s<0.18){
+          /* near-neutral pixels are the graphite / shadow / paper
+             family: fade them by how far they actually drop below
+             the paper, so soft shading goes and true ink stays. */
+          var drop=(0.2126*pr+0.7152*pg+0.0722*pb) - (0.2126*r+0.7152*gg+0.0722*b);
+          var nf=(drop-0.03)/0.13; if(nf>1) nf=1; if(nf<0) nf=0;
+          a*=nf;
+        }
+        if(blurD){
+          var det=Math.max(Math.abs(r-blurD[i]/255), Math.abs(gg-blurD[i+1]/255), Math.abs(b-blurD[i+2]/255));
+          var dfac=(det-0.025)/0.075; if(dfac>1) dfac=1; if(dfac<0) dfac=0;
+          a*= (0.22 + 0.78*dfac); // smooth backdrop keeps only a whisper; detailed ink keeps its key
+        }
+      }
+      var nl=0.78+0.20*l;
+      if(s<0.12){ var nlN=nl*0.92; d[i]=nlN*255; d[i+1]=nlN*255; d[i+2]=Math.min(1,nlN*1.03)*255; }
+      else {
+        var ns=Math.min(1, Math.max(s*1.2, 0.32));
+        var cc=(1-Math.abs(2*nl-1))*ns, xx=cc*(1-Math.abs(((hh/60)%2)-1)), m=nl-cc/2, rr=0, g2=0, bb=0;
+        if(hh<60){ rr=cc; g2=xx; } else if(hh<120){ rr=xx; g2=cc; } else if(hh<180){ g2=cc; bb=xx; } else if(hh<240){ g2=xx; bb=cc; } else if(hh<300){ rr=xx; bb=cc; } else { rr=cc; bb=xx; }
+        d[i]=(rr+m)*255; d[i+1]=(g2+m)*255; d[i+2]=(bb+m)*255;
+      }
+      d[i+3]=Math.round(255*a);
+    }
+    g.putImageData(id,0,0);
+    // pressed harder: fatten the keyed ink by a pixel, the way a
+    // crayon or gel stroke widens on construction paper — thin pale
+    // lines need the width to read on the lightest dark papers
+    var fat=document.createElement("canvas"); fat.width=w; fat.height=h;
+    var fg=fat.getContext("2d");
+    [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(function(o){ fg.globalAlpha = o[0]===0&&o[1]===0 ? 1 : 0.55; fg.drawImage(cv2, o[0], o[1]); });
+    cv2=fat;
+  }catch(e){}
+  cv2._ssKeyed=true;
+  lightSpriteCache[key]=cv2; return cv2;
+}
 var sheetTintCache={};
 function sheetSprite(store, colorIdx, storeKey){
+  var raw=sheetSpriteRaw(store, colorIdx, storeKey);
+  if(raw && lightInk()) return toLightSprite(raw, "sheet|"+storeKey+"|"+colorIdx+"|L");
+  return raw;
+}
+function sheetSpriteRaw(store, colorIdx, storeKey){
   var direct=FIGHTER_DIRECT[colorIdx];
   if(direct){ var im=store[direct]; return (im && im.complete && im.naturalWidth>0) ? im : null; }
   var base=store.red; if(!base || !base.complete || !base.naturalWidth) return null;
@@ -3681,6 +3942,11 @@ function sheetSprite(store, colorIdx, storeKey){
 var MATCH_STYLE="triangles"; // the active match's style, resolved at match start
 var fighterTintCache={};
 function fighterSprite(colorIdx){
+  var raw=fighterSpriteRaw(colorIdx);
+  if(raw && lightInk()) return toLightSprite(raw, "fig|"+MATCH_STYLE+"|"+colorIdx+"|L");
+  return raw;
+}
+function fighterSpriteRaw(colorIdx){
   var set=FIGHTERS[MATCH_STYLE]; if(!set) return null;
   var direct=FIGHTER_DIRECT[colorIdx];
   if(direct){ var im=set[direct]; return (im && im.complete && im.naturalWidth>0) ? im : null; }
@@ -3710,6 +3976,11 @@ function artReady(n){ var im=ART[n]; return !!(im && im.complete && im.naturalWi
 var HUES=[5,208,145,268,33,330,180,0]; // target hue per PLAYER_COLORS index (7 = black)
 var tintCache={};
 function artTinted(name, colorIdx, baseHue){
+  var raw=artTintedRaw(name, colorIdx, baseHue);
+  if(raw && colorIdx!=null && lightInk()) return toLightSprite(raw, "art|"+name+"|"+colorIdx+"|L");
+  return raw;
+}
+function artTintedRaw(name, colorIdx, baseHue){
   var im=ART[name]; if(!im||!im.naturalWidth) return null;
   if(colorIdx==null) return im;
   var key=name+"|"+colorIdx;
@@ -3728,7 +3999,7 @@ function pieceFor(name, colorIdx, baseHue){
 function drawArt(c, img, x, y, w, h, rot, alpha){
   if(!img) return false;
   c.save(); c.translate(x,y); if(rot) c.rotate(rot);
-  c.globalCompositeOperation="multiply";
+  c.globalCompositeOperation = img._ssKeyed ? "source-over" : "multiply"; // DARK-PAPER LIGHT INK: keyed light-ink sprites stamp ON the sheet; everything else multiplies in as always
   if(alpha!=null) c.globalAlpha=alpha;
   c.drawImage(img, -w/2, -h/2, w, h);
   c.restore(); return true;
@@ -3832,14 +4103,14 @@ function drawPaper(c){
 function drawBaseZones(c){
   for(var p=0;p<2;p++){
     var z=baseZoneRect(p);
-    c.save(); c.globalAlpha=0.10; c.fillStyle=PLAYER_COLORS[playerCfg(p).color].hex;
+    c.save(); c.globalAlpha=0.10; c.fillStyle=ownerHex(playerCfg(p).color);
     c.fillRect(z.x,z.y,z.w,z.h); c.restore();
-    c.save(); c.strokeStyle="rgba(60,60,70,.45)"; c.setLineDash([7,6]); c.lineWidth=1.6;
+    c.save(); c.strokeStyle=inkOnPaper("rgba(60,60,70,.45)", "rgba(232,228,218,.5)"); c.setLineDash([7,6]); c.lineWidth=1.6;
     c.strokeRect(z.x+2,z.y+2,z.w-4,z.h-4); c.setLineDash([]); c.restore();
     // no lettering on the paper: the tinted zone and the base drawing explain themselves
   }
 }
-function pencilStroke(c, fn){ c.save(); c.strokeStyle="rgba(70,70,80,0.85)"; c.lineWidth=1.8; c.lineJoin="round"; fn(); c.restore(); }
+function pencilStroke(c, fn){ c.save(); c.strokeStyle=inkOnPaper("rgba(70,70,80,0.85)", "rgba(226,224,232,0.9)"); c.lineWidth=1.8; c.lineJoin="round"; fn(); c.restore(); } // dark paper: the outline pencil becomes a pale one (light ink)
 function drawObstacle(c,o){
   // Ellipse obstacles are measured off the plate boards (where the plate
   // drawing itself shows them). If one ever reaches the DRAWN board — the
@@ -3988,7 +4259,7 @@ function drawPrizes(c){
   if(!G.prisoners) return;
   G.prisoners.forEach(function(prz, p){
     if(!prz || prz.freed) return;
-    var col=PLAYER_COLORS[playerCfg(p).color].hex;
+    var col=ownerHex(playerCfg(p).color);
     var pkey = CFG.theme==="space" ? "pod" : CFG.theme==="knights" ? "knight" : "pen";
     var pim=prizeSprite(pkey, playerCfg(p).color);
     var pfa=prizeFade(prz); // a bornAt-stamped captive fades in; opening captives draw at full strength
@@ -4104,7 +4375,7 @@ function drawJoustLance(c, t, col){
   c.restore();
 }
 function drawThing(c,t){
-  var col=PLAYER_COLORS[playerCfg(t.owner).color].hex;
+  var col=ownerHex(playerCfg(t.owner).color);
   var ci=playerCfg(t.owner).color;
   var isSel = G && G.selected===t.id;
   var reloading = !!(t.turret && G && !turretReady(t));
@@ -4160,7 +4431,7 @@ function drawThing(c,t){
         // travel and stays upright, like a piece slid across the page
         var kw=86, kh=kw*(kim.naturalHeight/kim.naturalWidth);
         c.save(); c.translate(t.x,t.y); if(Math.cos(t.angle)<0) c.scale(-1,1);
-        c.globalCompositeOperation="multiply";
+        c.globalCompositeOperation = kim._ssKeyed ? "source-over" : "multiply";
         c.drawImage(kim,-kw/2,-kh/2,kw,kh); c.restore(); drawn=true;
       } else {
         var kw2=48, kh2=kw2*(kim.naturalHeight/kim.naturalWidth);
@@ -4175,7 +4446,7 @@ function drawThing(c,t){
       // the crop (the barrel is the rest), so anchor the hull on the unit point
       var tl=t.cls==="heavy"?80:68, tw=tl*(tim.naturalWidth/tim.naturalHeight);
       c.save(); c.translate(t.x,t.y); c.rotate(t.angle+Math.PI/2);
-      c.globalCompositeOperation="multiply";
+      c.globalCompositeOperation = tim._ssKeyed ? "source-over" : "multiply";
       c.drawImage(tim,-tw/2,-tl*0.70,tw,tl); c.restore(); drawn=true;
     }
     /* CLASS SILHOUETTE OVERLAYS (Oct 29, 2026): drawn in the hull's
@@ -4321,15 +4592,238 @@ function drawFlame(c, x, y, s, seed){
   c.restore();
 }
 function scorch(c, x, y, r, seed){
+  if(lightInk()){
+    /* DARK-PAPER LIGHT INK: a burn mark cannot be a black smudge on
+       a dark sheet — it reads as a pale ash ring instead, the way
+       gel and crayon actually mark a scorch: a chalky halo with a
+       few bright flecks, never a dark fill. */
+    c.save(); c.translate(x,y);
+    c.strokeStyle="rgba(238,234,222,0.5)"; c.lineWidth=2;
+    for(var li=0;li<4;li++){ c.beginPath(); c.arc((sr(seed+li*3)-0.5)*r*0.7, (sr(seed+li*7)-0.5)*r*0.5, r*(0.3+sr(seed+li)*0.4), sr(seed+li*11)*3, sr(seed+li*11)*3+2.2); c.stroke(); }
+    c.fillStyle="rgba(244,240,228,0.55)";
+    for(var lj=0;lj<5;lj++){ c.beginPath(); c.arc((sr(seed+lj*5)-0.5)*r, (sr(seed+lj*9)-0.5)*r*0.7, 1.6+sr(seed+lj)*1.6, 0, 6.29); c.fill(); }
+    c.restore(); return;
+  }
   c.save(); c.translate(x,y); c.globalAlpha=0.5; c.strokeStyle="#3d3830"; c.lineWidth=1.7;
   for(var i=0;i<7;i++){ c.beginPath();
     c.arc((sr(seed+i*3)-0.5)*r*1.2, (sr(seed+i*7)-0.5)*r*0.8, r*(0.2+sr(seed+i)*0.3), sr(seed+i*11)*3, sr(seed+i*11)*3+2.4); c.stroke(); }
   c.restore();
 }
-function baseArtFor(p){
-  if(CFG.theme!=="space") return null; // Knights/Tanks: pencil-outline placeholders for now
+/* ================================================================
+   MOTHERSHIP VARIETIES (Nov 13, 2026 — Matthew: "We should also
+   vary the mothership like we do with the space ships", approving
+   all six hulls from the design sheet). A Mothership Style setting
+   mirrors Fighter Style exactly: it lives in the same places
+   (entrance dropdown, Variants), persists in the same settings
+   key family, and defaults to Rotate. A named pick gives BOTH
+   sides that hull. Rotate is the one deliberate difference from
+   the fighter rule: fighters rotate as a matched set because both
+   sides fly the same sheet, but a mothership is each side's own
+   flagship, so Rotate rolls EACH SIDE's hull independently at
+   match start — two different motherships can face off. The roll
+   is match identity: it is made once in startMatch, stays stable
+   across every round, rides the v2 match save (match.hulls), is
+   restored exactly on Resume, and re-rolls on Rematch / new
+   match. Hulls are drawn in code in the game's ballpoint doodle
+   hand, inside the same 176x110 design box and the same base
+   footprint as the retired sprite, then pixel-tinted to the
+   owner exactly like the art they replace (baseHue 220).
+   MEDIUM-TRUE (Matthew: "done in crayon, colored pencil, etc,
+   whatever is the appropriate medium for the board"): the kit
+   below renders each hull in the match's shared drawing medium —
+   pen is the clean ballpoint of the approved sheet; pencil is
+   sketchy graphite double-strokes with a light color-pencil wash
+   in place of the dense hatch; crayon is fat waxy strokes with
+   broken, grainy coverage. Silhouette and footprint never change
+   with the medium; only the stroke and fill treatment does. On
+   dark papers the finished sprite also passes through the
+   light-ink treatment (toLightSprite), so a hull on blue
+   construction reads in pale gel like everything else there —
+   the audit's faint dotted ghost is gone by construction: these
+   sprites carry full ink at game size on every paper. */
+var HULL_ORDER=["classic","needle","ring","twin","dread","moon"];
+var HULL_NAMES={classic:"Classic Saucer", needle:"Needle Carrier", ring:"Ring Carrier", twin:"Twin-Dome", dread:"Dreadnought", moon:"Moon Base"};
+var MATCH_HULLS=["classic","classic"]; // this match's hull per side — resolved at match start, saved with the match
+function resolveMatchHulls(){
+  var pref=SETTINGS.mothershipStyle||"rotate";
+  if(pref!=="rotate" && HULL_NAMES[pref]) return [pref,pref];
+  return [ HULL_ORDER[Math.floor(Math.random()*HULL_ORDER.length)], HULL_ORDER[Math.floor(Math.random()*HULL_ORDER.length)] ];
+}
+function hullKit(medium){
+  if(medium==="pencil") return { ink:"#7d94b8", deep:"#454552", lw:1.05, hatchA:0.40, hatchSp:4.8, dbl:1.7, capA:0.22 };
+  if(medium==="crayon") return { ink:"#2a5db0", deep:"#1d4486", lw:1.9, hatchA:0.52, hatchSp:5.8, dbl:0.7, capA:0.30 };
+  return { ink:"#1f4d9d", deep:"#173d7d", lw:1.0, hatchA:0.5, hatchSp:4.2, dbl:0.8, capA:0.35 }; // pen: the approved sheet's clean ballpoint
+}
+function hSketch(c, K, fn, w, col, alpha){
+  c.save(); c.strokeStyle=col||K.deep; c.lineWidth=(w||2.3)*K.lw; c.lineJoin="round"; c.lineCap="round";
+  c.globalAlpha=(alpha==null?0.95:alpha); fn(0,0); c.stroke();
+  c.globalAlpha=0.45; fn(K.dbl, K.dbl*0.75); c.stroke();
+  c.restore();
+}
+function hEll(c,cx,cy,rx,ry){ c.beginPath(); c.ellipse(cx,cy,rx,ry,0,0,6.29); }
+function hHatch(c, K, clipFn, spacing, alpha, angle){
+  c.save(); clipFn(); c.clip();
+  c.strokeStyle=K.ink; c.globalAlpha=(alpha||0.5)*K.hatchA/0.5; c.lineWidth=1.5*K.lw;
+  var a=(angle==null?-0.6:angle), dx=Math.cos(a), dy=Math.sin(a), px=-dy, py=dx;
+  for(var t=-130;t<=130;t+=((spacing||4.2)*K.hatchSp/4.2)){
+    c.beginPath(); c.moveTo(px*t-dx*130, py*t-dy*130); c.lineTo(px*t+dx*130, py*t+dy*130); c.stroke();
+  }
+  c.restore();
+}
+function hDome(c, K, cx, cy, rx, ry, dense){
+  hHatch(c, K, function(){ c.beginPath(); c.ellipse(cx,cy,rx,ry,0,Math.PI,6.29); c.closePath(); }, dense?3.6:4.4, 0.55);
+  hSketch(c, K, function(ox,oy){ c.beginPath(); c.ellipse(cx+ox,cy+oy,rx,ry,0,Math.PI,6.29); c.closePath(); }, 2.3);
+  c.save(); c.fillStyle="#ffffff"; c.globalAlpha=K.capA;
+  c.beginPath(); c.ellipse(cx-rx*0.34, cy-ry*0.52, rx*0.22, ry*0.22, -0.5, 0, 6.29); c.fill(); c.restore();
+  hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(cx-rx+ox,cy+oy); c.lineTo(cx+rx+ox,cy+oy); }, 1.6);
+}
+function hBowl(c, K, cx, cy, rx, ry){
+  hHatch(c, K, function(){ c.beginPath(); c.ellipse(cx,cy,rx,ry,0,0.15,Math.PI-0.15); c.closePath(); }, 4.2, 0.5);
+  hSketch(c, K, function(ox,oy){ c.beginPath(); c.ellipse(cx+ox,cy+oy,rx,ry,0,0.15,Math.PI-0.15); }, 2.1);
+}
+function hRim(c, K, cx, cy, rx, ry){ hSketch(c, K, function(ox,oy){ hEll(c,cx+ox,cy+oy,rx,ry); }, 2.4); }
+function hPorts(c, K, y, xs, s){
+  xs.forEach(function(x){
+    c.save(); c.strokeStyle=K.deep; c.lineWidth=1.5*K.lw; c.globalAlpha=0.9;
+    c.strokeRect(x-(s||5)/2, y-(s||5)/2, s||5, s||5);
+    c.beginPath(); c.moveTo(x-(s||5)/2, y+(s||5)/2); c.lineTo(x+(s||5)/2, y-(s||5)/2); c.stroke();
+    c.restore();
+  });
+}
+function hSeam(c, K, x0,y0,x1,y1){ hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(x0+ox,y0+oy); c.lineTo(x1+ox,y1+oy); }, 1.3, K.ink, 0.65); }
+var HULL_DRAW={
+  classic:function(c,K){
+    hBowl(c, K, 0, 4, 78, 34);
+    hRim(c, K, 0, 0, 86, 20);
+    hDome(c, K, 0, -2, 34, 31, true);
+    hPorts(c, K, 9, [-64,-48,-32,-16,0,16,32,48,64], 5.5);
+  },
+  needle:function(c,K){
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(-72+ox,-4+oy); c.lineTo(-88+ox,-20+oy); c.lineTo(-84+ox,-1+oy); c.closePath(); }, 2.1);
+    hHatch(c, K, function(){ c.beginPath(); c.ellipse(0,2,84,13,0,0.1,Math.PI-0.1); c.closePath(); }, 4.0, 0.45);
+    hSketch(c, K, function(ox,oy){ hEll(c,ox,oy,86,14); }, 2.4);
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.ellipse(ox,2+oy,84,13,0,0.1,Math.PI-0.1); }, 1.8);
+    hHatch(c, K, function(){ c.beginPath(); c.moveTo(52,-11); c.lineTo(86,0); c.lineTo(52,11); c.closePath(); }, 3.4, 0.5);
+    hSeam(c, K, -78,-2, 52,-2);
+    hDome(c, K, -34, -3, 16, 14, true);
+    hPorts(c, K, 4, [-8,8,24,40], 4.5);
+  },
+  ring:function(c,K){
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.ellipse(ox,2+oy,82,25,0,Math.PI,6.29); }, 2.2);
+    hBowl(c, K, 0, 3, 40, 17);
+    hRim(c, K, 0, 0, 47, 16);
+    hDome(c, K, 0, -2, 20, 19, true);
+    hPorts(c, K, 7, [-26,-9,9,26], 4.5);
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.ellipse(ox,2+oy,82,25,0,0,Math.PI); }, 2.4);
+    [-82,0,82].forEach(function(x,i){
+      var y = i===1 ? 27 : 2;
+      c.save(); c.fillStyle=K.ink; c.globalAlpha=0.85; c.beginPath(); c.arc(x, y, 5, 0, 6.29); c.fill(); c.restore();
+      hSketch(c, K, function(ox,oy){ c.beginPath(); c.arc(x+ox, y+oy, 5, 0, 6.29); }, 1.4);
+    });
+  },
+  twin:function(c,K){
+    hBowl(c, K, 0, 4, 76, 26);
+    hRim(c, K, 0, 0, 84, 19);
+    hDome(c, K, -31, -3, 19, 17, true);
+    hDome(c, K, 31, -3, 19, 17, true);
+    hSeam(c, K, -12,-6, 12,-6);
+    hPorts(c, K, 9, [-52,-36,36,52], 5);
+    hPorts(c, K, 10, [-5,5], 4);
+  },
+  dread:function(c,K){
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(-82+ox,-4+oy); c.lineTo(-87+ox,3+oy); c.lineTo(-80+ox,9+oy); c.closePath(); }, 2.0);
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(82+ox,-4+oy); c.lineTo(87+ox,3+oy); c.lineTo(80+ox,9+oy); c.closePath(); }, 2.0);
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(-54+ox,-13+oy); c.lineTo(-62+ox,-26+oy); c.lineTo(-42+ox,-15+oy); c.closePath(); }, 2.0);
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(54+ox,-13+oy); c.lineTo(62+ox,-26+oy); c.lineTo(42+ox,-15+oy); c.closePath(); }, 2.0);
+    var pts=[[-84,0],[-50,-15],[50,-15],[84,0],[56,21],[-56,21]];
+    hHatch(c, K, function(){ c.beginPath(); pts.forEach(function(p,i){ i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]); }); c.closePath(); }, 5.2, 0.30);
+    hSketch(c, K, function(ox,oy){ c.beginPath(); pts.forEach(function(p,i){ i?c.lineTo(p[0]+ox,p[1]+oy):c.moveTo(p[0]+ox,p[1]+oy); }); c.closePath(); }, 2.5);
+    hSeam(c, K, -84,0, 84,0); hSeam(c, K, -50,-15, -20,21); hSeam(c, K, 50,-15, 20,21);
+    hDome(c, K, 0, -4, 22, 12, true);
+    hSketch(c, K, function(ox,oy){ c.beginPath(); c.moveTo(ox,-16+oy); c.lineTo(ox,-30+oy); }, 1.6);
+    c.save(); c.fillStyle=K.ink; c.beginPath(); c.arc(0,-32,2.6,0,6.29); c.fill(); c.restore();
+    c.save(); c.strokeStyle=K.deep; c.lineWidth=1.5*K.lw; c.globalAlpha=0.9;
+    [-58,-38,38,58].forEach(function(x){ c.strokeRect(x-4, 8, 8, 3.4); });
+    c.restore();
+  },
+  moon:function(c,K){
+    hBowl(c, K, 0, 5, 72, 30);
+    hRim(c, K, 0, 0, 80, 24);
+    hDome(c, K, 0, -3, 30, 16, false);
+    [[-57,-5,7],[58,-4,6],[-33,7,5],[36,8,4]].forEach(function(cr){
+      c.save();
+      c.strokeStyle=K.deep; c.lineWidth=1.5*K.lw; c.globalAlpha=0.75;
+      c.beginPath(); c.ellipse(cr[0],cr[1],cr[2],cr[2]*0.62,0,0.3,Math.PI-0.3); c.stroke();
+      c.strokeStyle=K.ink; c.globalAlpha=0.4;
+      c.beginPath(); c.ellipse(cr[0],cr[1],cr[2],cr[2]*0.62,0,Math.PI+0.3,6.29-0.3); c.stroke();
+      c.restore();
+    });
+    hPorts(c, K, 12, [-34,-12,12,34], 5);
+  }
+};
+var hullMasterCache={};
+function hullMaster(hullId, medium){
+  var key=hullId+"|"+medium;
+  if(hullMasterCache[key]) return hullMasterCache[key];
+  var cv2=document.createElement("canvas"); cv2.width=528; cv2.height=330;
+  var g=cv2.getContext("2d"); g.scale(3,3); g.translate(88,55);
+  var K=hullKit(medium.replace("+L",""));
+  if(medium.indexOf("+L")>0){ K=Object.assign({}, K, { lw:K.lw*1.55, hatchA:Math.min(0.85, K.hatchA*1.3) }); } // DARK-PAPER LIGHT INK: the same hull drawn pressed-harder — gel and crayon go on bolder so the lines survive at game size on a dark sheet
+  (HULL_DRAW[hullId]||HULL_DRAW.classic)(g, K);
+  hullMasterCache[key]=cv2; return cv2;
+}
+function crayonGrain(cv2){
+  var g=cv2.getContext("2d");
+  try{
+    var id=g.getImageData(0,0,cv2.width,cv2.height), d=id.data;
+    for(var i=0;i<d.length;i+=4){
+      if(d[i+3]<200) continue;
+      var n=sr(i*0.618);
+      if(n<0.16) d[i+3]=Math.round(d[i+3]*(0.25+n)); // broken coverage — the wax misses
+      else if(n<0.30){ d[i]=Math.min(255, d[i]*1.12+14); d[i+1]=Math.min(255, d[i+1]*1.12+14); d[i+2]=Math.min(255, d[i+2]*1.12+14); } // and piles up beside it
+    }
+    g.putImageData(id,0,0);
+  }catch(e){}
+}
+var hullSpriteCache={};
+function hullSpriteFor(p){
+  if(!window.CFG || CFG.theme!=="space") return null;
+  var hull=(MATCH_HULLS && MATCH_HULLS[p]) || "classic";
+  var medium=(CFG.p1 && CFG.p1.medium) || "pen";
   var ci=playerCfg(p).color;
-  return artTinted("mothership", ci, 220); // one drawing, hue-shifted per player color (purple included)
+  var key=hull+"|"+medium+"|"+ci+(lightInk()?"|L":"");
+  if(hullSpriteCache[key]) return hullSpriteCache[key];
+  var cv2=document.createElement("canvas"); cv2.width=352; cv2.height=220;
+  var g=cv2.getContext("2d"); g.drawImage(hullMaster(hull, medium+(lightInk()?"+L":"")), 0, 0, 352, 220);
+  pxTintCanvas(cv2, ci, 220); // the game's own pixel tint, mothership baseHue 220 — graphite (pencil outlines) has no saturation to rotate and stays graphite
+  if(medium==="crayon") crayonGrain(cv2);
+  var out = lightInk() ? toLightSprite(cv2, "hull|"+key) : cv2;
+  hullSpriteCache[key]=out; return out;
+}
+/* Damage for a code-drawn hull: the crack, scorch and wreck
+   darkening are rendered in the hull's design box and clipped to
+   the hull's own alpha — the marks live ON the silhouette,
+   whichever of the six it is, never in a saucer's shape. Flames
+   and smoke stay free above it (drawBase draws them after). */
+function hullDamageCanvas(img, hp, seedP){
+  var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+  var cv2=document.createElement("canvas"); cv2.width=w; cv2.height=h;
+  var g=cv2.getContext("2d");
+  g.translate(w/2, h/2); g.scale(w/176, h/110);
+  if(hp<=0){ g.fillStyle="rgba(43,39,34,0.55)"; g.fillRect(-88,-55,176,110); }
+  g.strokeStyle= hp<=0 ? "rgba(28,25,22,0.9)" : "rgba(35,32,28,0.85)"; g.lineWidth=3.4; g.lineCap="round";
+  g.beginPath(); g.moveTo(-48,-26); g.lineTo(-18,2); g.lineTo(-40,28); g.stroke();
+  g.beginPath(); g.moveTo(30,-32); g.lineTo(48,-4); g.lineTo(26,20); g.stroke();
+  if(hp<=0){ g.beginPath(); g.moveTo(-66,-14); g.lineTo(-8,8); g.lineTo(-48,34); g.moveTo(8,-36); g.lineTo(44,0); g.lineTo(18,32); g.stroke(); }
+  g.strokeStyle="rgba(61,56,48,0.6)"; g.lineWidth=2.4;
+  for(var i=0;i<6;i++){ g.beginPath(); g.arc((sr(seedP+i*3)-0.5)*84, (sr(seedP+i*7)-0.5)*48, 14+sr(seedP+i)*16, sr(seedP+i*11)*3, sr(seedP+i*11)*3+2.4); g.stroke(); }
+  g.setTransform(1,0,0,1,0,0);
+  g.globalCompositeOperation="destination-in"; g.drawImage(img,0,0);
+  return cv2;
+}
+function baseArtFor(p){
+  if(CFG.theme!=="space") return null; // Knights/Tanks: their own art paths below
+  return hullSpriteFor(p); // MOTHERSHIP VARIETIES: this side's hull for the match, in the match's medium, tinted to the owner
 }
 /* OWNER-COLOR PLATES (Nov 12, 2026 fix pass: Matthew found both
    motherships reading blue, and the Tanks HQs reading as neither
@@ -4402,7 +4896,10 @@ function plateImageFor(theme){
   if(theme!=="space" && theme!=="tanks") return img;
   if(!window.G || !CFG || !CFG.p1) return img;
   var ci0=playerCfg(0).color, ci1=playerCfg(1).color;
-  var key=theme+"|"+ci0+"|"+ci1;
+  // Space plates also bake in THIS match's hulls and medium (the
+  // composite below), so their cache key carries them; Tanks plates
+  // keep the plain color key they have always had.
+  var key=theme+"|"+ci0+"|"+ci1 + (theme==="space" ? "|"+(MATCH_HULLS||[]).join(",")+"|"+((CFG.p1&&CFG.p1.medium)||"pen") : "");
   if(plateTintCache[key]) return plateTintCache[key];
   try{
     var cv2=document.createElement("canvas"); cv2.width=img.naturalWidth; cv2.height=img.naturalHeight;
@@ -4412,8 +4909,68 @@ function plateImageFor(theme){
       var region = theme==="space" ? P.bubbles[p] : {x:P.base[p].x, y:P.base[p].y, rx:0.19, ry:0.115};
       plateRegionRotate(g, img.naturalWidth, img.naturalHeight, region, playerCfg(p).color, theme==="tanks" ? 1.3 : 1);
     }
+    if(theme==="space"){
+      // MOTHERSHIP VARIETIES ON THE PLATE: the scan's baked saucer is
+      // patched out with the plate's own paper (sampled just beside
+      // the hull, ruled lines and all) and this side's hull sprite —
+      // pixel-tinted, medium-treated — is drawn into the same
+      // footprint, inside the tinted bubble. The shield mask that
+      // effaces a fallen bubble only touches strokes at 0.76x the
+      // bubble and out, so the composite survives shield loss.
+      for(var hp2=0;hp2<2;hp2++) plateCompositeHull(g, img.naturalWidth, img.naturalHeight, P, hp2);
+    }
     plateTintCache[key]=cv2; return cv2;
   }catch(e){ return img; }
+}
+function plateCompositeHull(g, W, H, P, p){
+  var bc=P.base[p], bub=P.bubbles[p], spr=hullSpriteFor(p);
+  if(!spr) return;
+  var bw=176/760*W, bh=110/1520*H; // the equalized footprint, in plate pixels
+  var cx=bc.x*W, cy=bc.y*H;
+  /* PATCH v2: the baked saucer sits in a bubble whose whole interior
+     is swirl shading, so the patch has to do three things at once:
+     cover the saucer's core (0.62 of the bubble's width, 0.72 of its
+     height — wide enough for the rim and dome, narrow enough to
+     leave the turrets standing at the bubble's edges), fill with
+     CLEAN paper sampled at the SAME height from the sheet's bare
+     right strip (the ruling lines up because the rules are
+     horizontal; the strip is drawn twice, once mirrored, to span
+     the patch), and redraw a few of the bubble's own swirl arcs in
+     the owner's tint over the patch, feathered at the rim, so the
+     patched zone keeps the bubble's character instead of reading
+     as a clean hole in a shaded bubble. */
+  var prx=bub.rx*W*0.62, pry=bub.ry*H*0.72;
+  var pw=Math.ceil(prx*2), ph=Math.ceil(pry*2);
+  var pc=document.createElement("canvas"); pc.width=pw; pc.height=ph;
+  var pg2=pc.getContext("2d");
+  var sx=Math.round(W*0.755), sw=Math.round(W*0.20);
+  var syT=Math.max(0, Math.min(H-ph, Math.round(cy-pry)));
+  pg2.drawImage(PLATE_IMGS.space, sx, syT, sw, ph, 0, 0, Math.ceil(pw*0.55), ph);
+  pg2.save(); pg2.translate(pw, 0); pg2.scale(-1, 1);
+  pg2.drawImage(PLATE_IMGS.space, sx, syT, sw, ph, 0, 0, Math.ceil(pw*0.55), ph);
+  pg2.restore();
+  // the bubble's swirls, redrawn over the patch in the owner's tint
+  var oc=PLAYER_COLORS[playerCfg(p).color].hex;
+  pg2.save(); pg2.translate(pw/2, ph/2); pg2.strokeStyle=oc; pg2.lineCap="round";
+  [[0.97,0.20,0.5,3.6],[0.80,0.26,2.2,5.3],[0.62,0.20,4.0,6.0]].forEach(function(a, i){
+    pg2.globalAlpha=a[1]; pg2.lineWidth=(5+i*1.5)*(W/1120);
+    pg2.beginPath(); pg2.ellipse(0, 0, prx*a[0], pry*a[0], 0, a[2], a[3]); pg2.stroke();
+  });
+  pg2.restore();
+  // feather the rim so the patch melts into the bubble's shading
+  pg2.save(); pg2.globalCompositeOperation="destination-in";
+  var gr=pg2.createRadialGradient(pw/2, ph/2, Math.min(pw,ph)*0.30, pw/2, ph/2, Math.min(pw,ph)*0.52);
+  gr.addColorStop(0, "rgba(0,0,0,1)"); gr.addColorStop(0.82, "rgba(0,0,0,1)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  pg2.fillStyle=gr; pg2.fillRect(0, 0, pw, ph); pg2.restore();
+  g.save();
+  g.beginPath(); g.ellipse(cx, cy, prx, pry, 0, 0, 6.29); g.clip();
+  g.drawImage(pc, Math.round(cx-prx), Math.round(cy-pry));
+  g.restore();
+  // HULL: the top base (index 1, at the sheet's top) is drawn from
+  // that side of the table, like the baked saucer it replaces.
+  g.save(); g.translate(cx, cy); if(p===1) g.rotate(Math.PI);
+  g.drawImage(spr, -bw/2, -bh/2, bw, bh);
+  g.restore();
 }
 /* ---- PLATE RENDERING: the drawing is the board; only change is overlaid ---- */
 function drawPlate(c){
@@ -4553,7 +5110,7 @@ function knightFlagTone(p, fi){
   return knightFlagToneCache[p+"|"+fi] || "#f2ead8";
 }
 function drawCastleFlags(c,p){
-  var col=PLAYER_COLORS[playerCfg(p).color].hex;
+  var col=ownerHex(playerCfg(p).color);
   KNIGHT_FLAGS[p].forEach(function(f, fi){
     var px=mirrorX(f.pole*FW), dir=G.mirror ? -f.dir : f.dir;
     var xa=mirrorX(f.x0*FW), xb=mirrorX(f.x1*FW);
@@ -4775,10 +5332,24 @@ function drawBase(c,p){
   }
   // staged damage: health reads visually only — cracks, scorch, smoke, fire
   if(hp<=2 && hp>0){
-    c.save(); c.translate(bc.x,bc.y); c.strokeStyle="rgba(35,32,28,.85)"; c.lineWidth=2;
-    c.beginPath(); c.moveTo(-BASE_W*0.30,-10); c.lineTo(-BASE_W*0.10,2); c.lineTo(-BASE_W*0.24,13); c.stroke();
-    c.beginPath(); c.moveTo(BASE_W*0.18,-14); c.lineTo(BASE_W*0.30,-2); c.stroke(); c.restore();
-    scorch(c, bc.x-BASE_W*0.18, bc.y+2, 24, p*7+2);
+    if(CFG.theme==="space" && drewArt && img){
+      // MOTHERSHIP VARIETIES: on a drawn board the cracks and scorch
+      // are clipped to THIS hull's silhouette (hullDamageCanvas), so
+      // damage reads on any of the six hulls, in the hull's own
+      // rotation and fitted size; on dark paper the marks lift pale
+      // with the hull (light ink) so they stay visible there.
+      var dmgCv=hullDamageCanvas(img, hp, p*13+3);
+      var dmgImg = lightInk() ? toLightSprite(dmgCv, "hdmg|"+MATCH_HULLS[p]+"|"+((CFG.p1&&CFG.p1.medium)||"pen")+"|"+ciB+"|"+hp+"|"+p) : dmgCv;
+      c.save(); c.translate(bc.x,bc.y); c.rotate(rot);
+      c.globalCompositeOperation = dmgImg._ssKeyed ? "source-over" : "multiply";
+      c.drawImage(dmgImg, -fb.w/2, -fb.h/2, fb.w, fb.h);
+      c.restore();
+    } else {
+      c.save(); c.translate(bc.x,bc.y); c.strokeStyle="rgba(35,32,28,.85)"; c.lineWidth=2;
+      c.beginPath(); c.moveTo(-BASE_W*0.30,-10); c.lineTo(-BASE_W*0.10,2); c.lineTo(-BASE_W*0.24,13); c.stroke();
+      c.beginPath(); c.moveTo(BASE_W*0.18,-14); c.lineTo(BASE_W*0.30,-2); c.stroke(); c.restore();
+      scorch(c, bc.x-BASE_W*0.18, bc.y+2, 24, p*7+2);
+    }
   }
   if(hp<=1 && hp>0){
     drawFlame(c, bc.x-BASE_W*0.28, bc.y-BASE_H/2+2, 1, p);
@@ -4791,8 +5362,17 @@ function drawBase(c,p){
   }
   if(hp<=0){
     scorch(c, bc.x, bc.y, 46, p*5+9);
-    c.save(); c.translate(bc.x,bc.y); c.strokeStyle="rgba(35,32,28,.8)"; c.lineWidth=2.4;
-    c.beginPath(); c.moveTo(-BASE_W*0.4,-12); c.lineTo(-BASE_W*0.05,4); c.lineTo(-BASE_W*0.3,16); c.moveTo(BASE_W*0.05,-16); c.lineTo(BASE_W*0.28,0); c.lineTo(BASE_W*0.12,15); c.stroke(); c.restore();
+    if(CFG.theme==="space" && drewArt && img){
+      var dmgCv0=hullDamageCanvas(img, 0, p*13+3);
+      var dmgImg0 = lightInk() ? toLightSprite(dmgCv0, "hdmg|"+MATCH_HULLS[p]+"|"+((CFG.p1&&CFG.p1.medium)||"pen")+"|"+ciB+"|0|"+p) : dmgCv0;
+      c.save(); c.translate(bc.x,bc.y); c.rotate(rot);
+      c.globalCompositeOperation = dmgImg0._ssKeyed ? "source-over" : "multiply";
+      c.drawImage(dmgImg0, -fb.w/2, -fb.h/2, fb.w, fb.h);
+      c.restore();
+    } else {
+      c.save(); c.translate(bc.x,bc.y); c.strokeStyle="rgba(35,32,28,.8)"; c.lineWidth=2.4;
+      c.beginPath(); c.moveTo(-BASE_W*0.4,-12); c.lineTo(-BASE_W*0.05,4); c.lineTo(-BASE_W*0.3,16); c.moveTo(BASE_W*0.05,-16); c.lineTo(BASE_W*0.28,0); c.lineTo(BASE_W*0.12,15); c.stroke(); c.restore();
+    }
   }
   // Space forcefield bubble goes over everything (present = shield up, gone = popped)
   if(CFG.theme==="space" && (CFG.spaceBase==="forcefield"&&hp===3 || CFG.spaceBase==="extra"&&hp>2)){
@@ -4800,7 +5380,7 @@ function drawBase(c,p){
   }
 }
 function drawTrace(c,tr){
-  var pc=PLAYER_COLORS[tr.color].hex;
+  var pc=ownerHex(tr.color); // the owner's own ink — pale gel on dark paper (light ink), standard elsewhere
   c.save();
   c.globalAlpha = Math.max(0.14, 0.92 - tr.age*0.13);
   c.strokeStyle=pc; c.lineCap="round"; c.lineJoin="round";
@@ -4933,7 +5513,7 @@ function drawAmbientFG(c, now){
   }
   if(CFG.theme==="tanks"){ // a flag over each standing HQ, waving in the owner's color
     for(var p2=0;p2<2;p2++){ if(G.bases[p2].hp<=0) continue;
-      var bc2=baseCenter(p2), col=PLAYER_COLORS[playerCfg(p2).color].hex;
+      var bc2=baseCenter(p2), col=ownerHex(playerCfg(p2).color);
       var fx=bc2.x+baseFootW()*0.34, fy=bc2.y-baseFootH()/2, wv=Math.sin(now/300+p2*2);
       c.save(); c.strokeStyle="#4c4235"; c.lineWidth=2; c.beginPath(); c.moveTo(fx,fy+4); c.lineTo(fx,fy-30); c.stroke();
       c.fillStyle=col; c.beginPath(); c.moveTo(fx,fy-30);
@@ -4948,21 +5528,21 @@ function drawCraters(c){
   G.craters.forEach(function(cr, idx){
     if(CFG.theme==="knights"){ // scorched, churned earth where the arrow struck
       c.save(); c.translate(cr.x, cr.y);
-      c.fillStyle="rgba(74,58,40,0.32)"; c.beginPath(); c.arc(0,0,cr.r,0,6.29); c.fill();
-      c.strokeStyle="rgba(60,48,34,0.55)"; c.lineWidth=1.7;
+      c.fillStyle=inkOnPaper("rgba(74,58,40,0.32)", "rgba(238,232,216,0.26)"); c.beginPath(); c.arc(0,0,cr.r,0,6.29); c.fill();
+      c.strokeStyle=inkOnPaper("rgba(60,48,34,0.55)", "rgba(226,220,205,0.55)"); c.lineWidth=1.7;
       for(var i=0;i<4;i++){ c.beginPath(); c.arc((sr(idx*13+i*3)-0.5)*cr.r, (sr(idx*17+i*5)-0.5)*cr.r*0.7, cr.r*(0.25+sr(idx+i)*0.25), sr(idx+i*7)*3, sr(idx+i*7)*3+2.2); c.stroke(); }
       c.restore();
       scorch(c, cr.x, cr.y, cr.r*0.9, idx*7+3);
     } else if(CFG.theme==="tanks"){ // a shell crater: dark bowl, thrown-up rim lit on one side
       c.save(); c.translate(cr.x, cr.y);
-      c.fillStyle="rgba(56,46,34,0.5)"; c.beginPath(); c.ellipse(0,0,cr.r,cr.r*0.78,0,0,6.29); c.fill();
-      c.strokeStyle="rgba(30,26,20,0.65)"; c.lineWidth=2; c.beginPath(); c.ellipse(0,0,cr.r,cr.r*0.78,0,0,6.29); c.stroke();
+      c.fillStyle=inkOnPaper("rgba(56,46,34,0.5)", "rgba(240,236,224,0.36)"); c.beginPath(); c.ellipse(0,0,cr.r,cr.r*0.78,0,0,6.29); c.fill();
+      c.strokeStyle=inkOnPaper("rgba(30,26,20,0.65)", "rgba(226,220,205,0.6)"); c.lineWidth=2; c.beginPath(); c.ellipse(0,0,cr.r,cr.r*0.78,0,0,6.29); c.stroke();
       c.strokeStyle="rgba(214,192,150,0.5)"; c.lineWidth=1.6; c.beginPath(); c.ellipse(0,1.5,cr.r*1.12,cr.r*0.88,0, 3.4, 5.6); c.stroke();
       c.restore();
     } else { // space: a dark bowl torn in the rock (or the paper), pale rim where the light catches
       c.save(); c.translate(cr.x, cr.y);
       c.fillStyle="rgba(38,36,44,0.55)"; c.beginPath(); c.arc(0,0,cr.r,0,6.29); c.fill();
-      c.fillStyle="rgba(20,19,26,0.5)"; c.beginPath(); c.arc(-cr.r*0.15,-cr.r*0.1,cr.r*0.62,0,6.29); c.fill();
+      c.fillStyle=inkOnPaper("rgba(20,19,26,0.5)", "rgba(238,236,228,0.40)"); c.beginPath(); c.arc(-cr.r*0.15,-cr.r*0.1,cr.r*0.62,0,6.29); c.fill();
       c.strokeStyle="rgba(226,220,205,0.55)"; c.lineWidth=1.8; c.beginPath(); c.arc(0,0,cr.r, 3.6, 5.9); c.stroke();
       c.strokeStyle="rgba(120,116,128,0.6)"; c.lineWidth=1.4; c.beginPath(); c.arc(0,0,cr.r*0.8, 0.4, 2.4); c.stroke();
       c.restore();
@@ -4989,15 +5569,15 @@ function drawWrecks(c){
         else if(t.kind==="turret"){ var tu2=pieceFor("turret", ci, 215); if(tu2) drawnW=drawArt(c, tu2, t.x, t.y, 54, 54*(tu2.naturalHeight||tu2.height)/(tu2.naturalWidth||tu2.width), t.wreckRot); }
         c.restore();
         if(!drawnW){ // rubble while a drawing loads: a jagged dark heap
-          c.save(); c.translate(t.x, t.y); c.fillStyle="rgba(52,47,42,0.85)"; c.strokeStyle="rgba(30,27,24,0.9)"; c.lineWidth=1.8;
+          c.save(); c.translate(t.x, t.y); c.fillStyle=inkOnPaper("rgba(52,47,42,0.85)", "rgba(232,228,216,0.8)"); c.strokeStyle=inkOnPaper("rgba(30,27,24,0.9)", "rgba(240,238,230,0.85)"); c.lineWidth=1.8;
           c.beginPath(); var rr=(t.wreckR||22);
           for(var vi2=0;vi2<7;vi2++){ var va=vi2/7*6.29, vr2=rr*(0.55+sr(sd+vi2*3)*0.5); var vx=Math.cos(va)*vr2, vy=Math.sin(va)*vr2*0.8; vi2?c.lineTo(vx,vy):c.moveTo(vx,vy); }
           c.closePath(); c.fill(); c.stroke(); c.restore();
         }
         // charring over the hulk, and the crossed-out strokes the game already speaks
         c.save(); c.translate(t.x, t.y);
-        c.fillStyle="rgba(43,38,33,0.30)"; c.beginPath(); c.arc(0,0,(t.wreckR||22),0,6.29); c.fill();
-        c.strokeStyle="rgba(43,43,51,0.75)"; c.lineWidth=2.4; c.lineCap="round";
+        c.fillStyle=inkOnPaper("rgba(43,38,33,0.30)", "rgba(240,236,224,0.26)"); c.beginPath(); c.arc(0,0,(t.wreckR||22),0,6.29); c.fill();
+        c.strokeStyle=inkOnPaper("rgba(43,43,51,0.75)", "rgba(238,236,230,0.8)"); c.lineWidth=2.4; c.lineCap="round";
         var cr2=(t.wreckR||22)*0.8;
         c.beginPath(); c.moveTo(-cr2,-cr2*0.7); c.lineTo(cr2,cr2*0.7); c.moveTo(cr2,-cr2*0.7); c.lineTo(-cr2,cr2*0.7); c.stroke();
         c.restore();
@@ -5044,7 +5624,7 @@ function drawMarginScore(c){
   c.save();
   for(var p=0;p<2;p++){
     var n=Math.min(3, rounds[p]||0); if(n<=0) continue;
-    var col=PLAYER_COLORS[playerCfg(p).color].hex;
+    var col=ownerHex(playerCfg(p).color); // the tally is drawn in the owner's ink — pale gel on dark paper
     c.strokeStyle=col; c.globalAlpha=0.9; c.lineWidth=3; c.lineCap="round";
     var pts=[];
     if(isFaceLayout()){
@@ -5100,7 +5680,7 @@ function draw(){
   }); }
   drawProdButton(ctx,0); drawProdButton(ctx,1); // reinforcements, requested at the base itself
   if(CFG.mode==="2p" && !G.over){ // 2P at-a-glance cue, in the side to move's color: a soft pulse hugging their reinforcements disc (TIER 2 ruling, Nov 12, 2026: the old ring around the whole base read as an unexplained red circle around the army base — the pulse belongs on the disc itself, all themes; drawn in board space, so it turns with the sheet)
-    var tp=G.turn, tcol=PLAYER_COLORS[playerCfg(tp).color].hex, tpu=0.5+0.5*Math.sin(Date.now()/340);
+    var tp=G.turn, tcol=ownerHex(playerCfg(tp).color), tpu=0.5+0.5*Math.sin(Date.now()/340);
     if(CFG.deployment!=="none" && G.bases[tp].hp>0){ var tpp=prodBtnPos(tp); ctx.save(); ctx.strokeStyle=tcol; ctx.lineCap="round"; ctx.globalAlpha=0.35+0.30*tpu; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(tpp.x, tpp.y, tpp.r+6+2*tpu, 0, 6.29); ctx.stroke(); ctx.restore(); }
   }
   // (no clock is drawn on the paper or in the chrome any more — TIER 2 removed the lunch clock; the round badge in the chrome carries the standing)
@@ -5114,12 +5694,12 @@ function draw(){
     var mH=mortarHeight(Math.hypot(ma.x1-ma.x0, ma.y1-ma.y0));
     var mgx=ma.x0+(ma.x1-ma.x0)*mu, mgy=ma.y0+(ma.y1-ma.y0)*mu, mh=4*mH*mu*(1-mu);
     ctx.save();
-    ctx.strokeStyle="rgba(193,39,27,.75)"; ctx.setLineDash([4,5]); ctx.lineWidth=1.8;
+    ctx.strokeStyle=inkOnPaper("rgba(193,39,27,.75)", "rgba(255,157,143,.85)"); ctx.setLineDash([4,5]); ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(ma.x1, ma.y1, 16+3*Math.sin(Date.now()/160), 0, 6.29); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(ma.x1-7, ma.y1); ctx.lineTo(ma.x1+7, ma.y1); ctx.moveTo(ma.x1, ma.y1-7); ctx.lineTo(ma.x1, ma.y1+7); ctx.stroke();
-    ctx.fillStyle="rgba(40,35,28,"+(0.15+0.22*mu)+")";
+    ctx.fillStyle= lightInk() ? "rgba(240,238,230,"+(0.10+0.18*mu)+")" : "rgba(40,35,28,"+(0.15+0.22*mu)+")"; // dark paper: the shell's shadow reads as a pale pool, not a black one
     ctx.beginPath(); ctx.ellipse(mgx, mgy, 10-4*mu, 4.5-1.5*mu, 0, 0, 6.29); ctx.fill();
-    ctx.fillStyle="#2b2b33"; ctx.beginPath(); ctx.arc(mgx, mgy-mh, 4.5+3.5*Math.sin(mu*Math.PI), 0, 6.29); ctx.fill();
+    ctx.fillStyle=inkOnPaper("#2b2b33", "#e3e1ea"); ctx.beginPath(); ctx.arc(mgx, mgy-mh, 4.5+3.5*Math.sin(mu*Math.PI), 0, 6.29); ctx.fill();
     ctx.fillStyle="rgba(255,255,255,.65)"; ctx.beginPath(); ctx.arc(mgx-1.6, mgy-mh-1.6, 1.4, 0, 6.29); ctx.fill();
     ctx.restore();
   }
@@ -5197,7 +5777,7 @@ function draw(){
   if(input.preview){ var pvAct=input.thing?effectiveAction(input.thing):"move"; // the cue is drawn from the SAME effectiveAction the flick will use — it cannot disagree with the switch
     drawTrace(ctx,{points:input.preview,color:playerCfg(G.turn).color,width:MEDIUMS[playerCfg(G.turn).medium].w,age:0,dash:(pvAct==="shoot"?"shot":true)}); }
   if(input.previewLand){ // HEAVY MORTAR aim: a landing ring at the arc's foot — this shot clears cover and lands HERE
-    ctx.save(); ctx.strokeStyle="#c1271b"; ctx.lineWidth=2.4;
+    ctx.save(); ctx.strokeStyle=inkOnPaper("#c1271b", "#ff9d8f"); ctx.lineWidth=2.4; // dark paper: the ring lifts to a pale gel red with everything else on the sheet
     ctx.beginPath(); ctx.arc(input.previewLand.x, input.previewLand.y, 15+2*Math.sin(Date.now()/200), 0, 6.29); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(input.previewLand.x-6, input.previewLand.y); ctx.lineTo(input.previewLand.x+6, input.previewLand.y);
     ctx.moveTo(input.previewLand.x, input.previewLand.y-6); ctx.lineTo(input.previewLand.x, input.previewLand.y+6); ctx.stroke(); ctx.restore(); }
@@ -6804,11 +7384,60 @@ document.getElementById("coachSkip").addEventListener("click", function(){ coach
 /* ============================================================
    MATCH START / NAV
    ============================================================ */
+/* ================================================================
+   FULL SCREEN DURING MATCHES (Nov 13, 2026 — Matthew: "We should
+   have a full screen option. I still feel like we are sacrificing
+   board space for other items", ruled: matches only). A toggle in
+   the in-game Menu, persisted (SETTINGS.fullScreen, default OFF).
+   While it is on and the game view is up — match, intermission
+   and the results modal all live in viewGame — the hub brand band
+   hides too (html.ss-fsmatch, see CSS), so the measured top offset
+   falls to zero and the stage reclaims the whole screen; and the
+   page asks the platform for true fullscreen, but only from
+   user-gesture flows (starting or resuming a match, flipping the
+   toggle), never on its own. iPhone Safari does not offer web
+   pages device fullscreen at all; the collapse is the win there,
+   and the request is simply skipped where unsupported. If the
+   player exits fullscreen themselves, the game never fights it:
+   it stays collapsed in-page and asks again only at the next
+   gesture. Leaving the game view restores the chrome exactly as
+   it stands with the toggle off, and exits fullscreen only if
+   this game asked for it. */
+var SS_FS_OURS=false;
+function fsSupported(){ var el=document.documentElement; return !!(el.requestFullscreen || el.webkitRequestFullscreen); }
+function fsActive(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function requestFs(){
+  if(!SETTINGS.fullScreen || fsActive() || !fsSupported()) return;
+  try{ var el=document.documentElement, r=(el.requestFullscreen||el.webkitRequestFullscreen).call(el); SS_FS_OURS=true; if(r && r.catch) r.catch(function(){}); }catch(e){}
+}
+function exitFsIfOurs(){
+  if(!SS_FS_OURS) return; SS_FS_OURS=false;
+  try{ if(fsActive()){ var x=(document.exitFullscreen||document.webkitExitFullscreen); if(x) x.call(document); } }catch(e){}
+}
+function applyFsChrome(){
+  var on = !!SETTINGS.fullScreen && document.getElementById("viewGame").style.display!=="none";
+  document.documentElement.classList.toggle("ss-fsmatch", on);
+  ssMeasureAbove();
+  if(window.G) refreshPresentation();
+}
+function syncFsUI(){
+  var b=document.getElementById("btnFsGame"); if(!b) return;
+  b.textContent = SETTINGS.fullScreen ? "🖥 Full screen: On" : "🖥 Full screen: Off";
+}
+document.addEventListener("fullscreenchange", function(){
+  if(!fsActive()) SS_FS_OURS=false; // the player (or the system) left: stay collapsed, never re-ask mid-match
+  applyFsChrome(); // the stage changed size either way — re-measure and refit
+});
+document.addEventListener("webkitfullscreenchange", function(){
+  if(!fsActive()) SS_FS_OURS=false;
+  applyFsChrome();
+});
 function showView(id){
   document.body.classList.toggle("onEntrance", id==="viewSetup");
   ["viewSetup","viewGame","viewPractice"].forEach(function(v){ document.getElementById(v).style.display = v===id ? (v==="viewGame"?"flex":"block") : "none"; });
   document.documentElement.classList.toggle("ss-inmatch", id==="viewGame"); // TIER 2 BOARD EXPANSION: hub chrome collapses around a live match (see the CSS block) — the entrance keeps it all
-  ssMeasureAbove(); // re-read the offset for the new chrome state before anything refits against it
+  applyFsChrome(); // FULL SCREEN (matches only): the brand band hides too while the toggle is on and a match is up; leaving the game view restores it — this also re-measures the offset for the new chrome state
+  if(id!=="viewGame") exitFsIfOurs(); // and give the device its screen back, if we were the ones who took it
   window.scrollTo(0,0);
   if(id==="viewGame") refreshPresentation(); // the one-screen stage sizes the board to the space it actually has — and turns the sheet if the stage is wide
   if(id==="viewSetup"){ refreshResumeUI(); refreshRecordUI(); } // MID-MATCH SAVE: the entrance's Resume offer always reflects the save as it stands right now (offered after a quit, gone after a finish); the saved record row rides the same refresh
@@ -6873,8 +7502,10 @@ function startMatch(){
   clearMatchSave(); // MID-MATCH SAVE: a new match (or Rematch) replaces any saved one — the fresh match writes its own save as it is built
   viewingFinalBoard=false; setViewBoardBar(false); // a fresh match never inherits the final-board view
   if(CFG.theme==="space") MATCH_STYLE=resolveFighterStyle(); // pinned choice, or the next style in the rotation
-  MATCH={rounds:[0,0], round:1, cpuEsc:0, starter:0, mirror:false, fieldObs:null}; // TIER 2: a fresh match frame — created BEFORE newGame so everything downstream (badge, tallies, saves) can read it
+  MATCH_HULLS=resolveMatchHulls(); // MOTHERSHIP VARIETIES: a named pick flies both sides; Rotate rolls each side's hull on its own, once, here
+  MATCH={rounds:[0,0], round:1, cpuEsc:0, starter:0, mirror:false, fieldObs:null, hulls:MATCH_HULLS.slice()}; // TIER 2: a fresh match frame — created BEFORE newGame so everything downstream (badge, tallies, saves) can read it
   showView("viewGame");
+  requestFs(); // FULL SCREEN (matches only): starting a match is a tap, so the request rides this gesture
   var needEditor = (CFG.battlefield==="stamps"||CFG.battlefield==="freehand");
   newGame(needEditor?[]:undefined);
   if(!needEditor){ MATCH.fieldObs=JSON.parse(JSON.stringify(G.obstacles)); MATCH.mirror=MIRROR_THIS_MATCH; } // the PRISTINE field, deep-copied before any shot can carve it — rounds 2-5 are dealt from this, never from the scarred sheet
@@ -6962,7 +7593,7 @@ document.getElementById("btnBackResults").addEventListener("click", function(){
 /* ---------- How to Play ---------- */
 function howHTML(){
   var themeRules = CFG.theme==="space" ?
-    "<h3>🚀 Space</h3><p>Ships die in "+CFG.shipHp+" hit(s). Shots <b>tunnel asteroids</b>, carving holes (Variants: block, destroy). Flying into an asteroid, a ship or a wall wrecks the ship; two ships colliding wreck both. The <b>forcefield is hit 1 of 3</b>. While it is UP, flying into its <b>core</b> zaps any ship at the rim — band grazes pass — scoring <b>no base hit</b> and leaving the shield untouched; shots still count it as hit 1. Turrets <b>pulse gold</b> when they can fire: tap one, flick, like a fighter. Fired, a turret <b>reloads through your next turn</b> — dim grey, then gold; each reloads alone. Ships and shots <b>wrap</b> the edges.</p>" :
+    "<h3>🚀 Space</h3><p>Ships die in "+CFG.shipHp+" hit(s). Shots <b>tunnel asteroids</b>, carving holes (Variants: block, destroy). Flying into an asteroid, a ship or a wall wrecks the ship; two ships colliding wreck both. The <b>forcefield is hit 1 of 3</b>. While it is UP, flying into its <b>core</b> zaps any ship at the rim — band grazes pass — scoring <b>no base hit</b> and leaving the shield untouched; shots still count it as hit 1. Turrets <b>pulse gold</b> when they can fire: tap one, flick, like a fighter. Fired, a turret <b>reloads through your next turn</b> — dim grey, then gold; each reloads alone. Ships and shots <b>wrap</b> the edges. Your <b>mothership</b> is picked in Variants: six hulls, or <b>Rotate</b>, which deals each side its own hull at match start and keeps it all match. Hulls are drawn in the match's medium, like everything else on the sheet.</p>" :
     CFG.theme==="knights" ?
     "<h3>🏰 Knights</h3><p>Knights have <b>no shot</b> — the flick is a <b>charge</b>. Crossing an enemy unhorses him; reaching the castle scores a hit and unhorses the charger. On foot he cannot hurt the castle, and one more hit puts him out — but he <b>trudges home alone</b>: one step at the end of each of your turns (rocks block, forests don't slow), <b>remounting</b> on arrival. Towers fire arrows as your turn action, then <b>reload through your next turn</b> — dim, then gold. <b>Rocks</b> block charges and arrows. <b>Forests</b> never stop a charge; end inside one and only <b>1-in-4</b> arrows get through.</p>" :
     "<h3>🛡️ Tanks</h3><p>Two unmistakable classes. <b>Light Cannon</b> (slim hull, long thin barrel): fast, long, <b>straight</b> shells with a sharp crack and a small flat burst — hills and ruins block, and its aim line <b>stops at the first blocker</b>; 1 hit kills. <b>Heavy Mortar</b> (bulky armored hull, short fat tube): slow, short moves; its shell rides a <b>smooth high arc</b> — the aim preview draws the arc and a landing ring — <b>whistling as it falls</b> into a big round boom where it lands, clearing hills, ruins and sandbags entirely; 2 hits, smoking and slower after the first. <b>Heavier tank wins a ram.</b> Hills: crossing costs a quarter of the move; from the top, cannon fire clears low cover. <b>Sandbags</b> absorb the bunker's first straight hit — mortars skip them. <b>Building a tank?</b> Tap the base disc and <b>pick Light or Heavy</b> each time. The bunker cannon fires as your turn action, then <b>reloads through your next turn</b>.</p>";
@@ -6978,8 +7609,8 @@ function howHTML(){
   "<p><b>🔓⭐ Field prizes:</b> a captured teammate waits off to the side in the enemy half — any fighter whose move crosses the spot <b>frees</b> them, a fresh fighter <b>above your cap</b> (one per side). <b>Two</b> golden <b>stars</b> sit a little off center, one within each side's reach: the first fighter across either shrugs off the first hit that would damage, unhorse or wreck it (one armor at a time). A fresh pair of stars and fresh captives are dealt at the start of every round.</p>"+
   "<p><b>Bases &amp; structures:</b> every base shares one <b>capped footprint</b> in its end zone; battles are won in the middle. Structures stand in front of the base and <b>block like obstacles</b> — ram one and you wreck (knights unhorse); shots destroy them in one hit. Crews of anything destroyed <b>escape unharmed</b>: stick figures on land, escape pods in space.</p>"+
   "<p><b>💥 The paper keeps the score:</b> whatever gets wrecked stays on the sheet, burnt out and <b>blocking its lane</b> for the rest of the round; moves bump to a stop on it and shots burn out in it. Shots tear <b>craters</b> in the ground, and a flick whose road crosses one gets knocked a little off line. The aim cue draws the bend before you flick.</p>"+
-  "<p><b>"+MOVE_ICONS[moveGlyphTheme()]+"/💥 The switch &amp; tools:</b> the Move/Shoot switch sets itself in Move + Shoot; in Classic your pick sticks until flipped — <b>tap the selected fighter again</b> to flip. The aim cue follows: dots move, dashes shoot. Tools are <b>shared</b> — same flicker, same medium both sides: pencil thin and precise, crayon fat and wobbly, pen between. Only color differs.</p>"+
-  "<p><b>🖥 One screen:</b> no scrolling; on wide screens the sheet turns <b>landscape</b>. <b>2P:</b> a pill in the current player's color sits at their end; their reinforcements disc pulses with it. Plate boards can <b>mirror-flip</b> as one (Variants). Results offer <b>View Board</b> — the final board, look-only. <b>Random</b> rolls a pack of variants; a Rematch keeps it.</p>"+
+  "<p><b>"+MOVE_ICONS[moveGlyphTheme()]+"/💥 The switch &amp; tools:</b> the Move/Shoot switch sets itself in Move + Shoot; in Classic your pick sticks until flipped — <b>tap the selected fighter again</b> to flip. The aim cue follows: dots move, dashes shoot. Tools are <b>shared</b> — same flicker, same medium both sides: pencil thin and precise, crayon fat and wobbly, pen between. Only color differs. On the dark construction papers the whole sheet switches to <b>light ink</b>: pale gel, light crayon, soft pencil, the way you would really draw on them. Each side keeps its color, just paler.</p>"+
+  "<p><b>🖥 One screen:</b> no scrolling; on wide screens the sheet turns <b>landscape</b>. <b>2P:</b> a pill in the current player's color sits at their end; their reinforcements disc pulses with it. Plate boards can <b>mirror-flip</b> as one (Variants). Results offer <b>View Board</b> — the final board, look-only. <b>Random</b> rolls a pack of variants; a Rematch keeps it. The in-game Menu offers <b>Full screen</b> for matches: the hub band hides, and where the device allows it the game takes the whole screen until you leave the match.</p>"+
   "<p><b>This match:</b> turn structure <b>"+CFG.turnStructure+"</b> · control <b>"+CFG.control+"</b> · friendly fire <b>"+CFG.friendly+"</b> · edge <b>"+CFG.edge+"</b> · obstacles <b>"+CFG.obstacle+"</b> · deployment <b>"+CFG.deployment+"</b> · defense <b>"+CFG.defense+"</b> · Siege Momentum <b>"+(CFG.siege?"on":"off")+"</b> · Field prizes <b>"+(CFG.prizes?"on":"off")+"</b>.</p>";
 }
 function openHow(){ document.getElementById("howBody").innerHTML=howHTML(); var hm=document.getElementById("howModal"); hm.classList.remove("howPage2"); document.getElementById("howTab1").classList.add("gold"); document.getElementById("howTab2").classList.remove("gold"); hm.classList.add("open"); }
@@ -7020,6 +7651,13 @@ document.querySelectorAll("[data-close]").forEach(function(b){
 
 /* ---------- Dev Log ---------- */
 document.getElementById("devBody").textContent =
+"Nov 13, 2026 (later) — MOTHERSHIP VARIETIES, MEDIUM-TRUE HULLS, FULL SCREEN, AND LIGHT INK ON DARK PAPER (Matthew, Nov 13, 2026).\n\n" +
+"1) SIX MOTHERSHIPS. The mothership varies now, the way the fighters do: Classic Saucer, Needle Carrier, Ring Carrier, Twin-Dome, Dreadnought and Moon Base, all drawn in code in the game's own ballpoint hand, inside the same footprint and the same shield bubble as the old sprite. A Mothership setting sits exactly where Fighter Style sits (the home screen dropdown and Variants, one persisted setting, two controls), with the same choices plus Rotate, and Rotate is the default. One deliberate difference from the fighters: fighters rotate as a matched set, but a mothership is each side's own flagship, so Rotate rolls EACH SIDE's hull independently at match start — a Needle Carrier can face a Moon Base. The roll is match identity: stable across all rounds, carried in the match save, restored exactly on Resume, re-rolled on Rematch. A named pick flies that hull on both sides. The Match Card names both hulls. Damage is drawn onto the hull itself: cracks and scorch are clipped to whichever silhouette is flying, so every hull shows its hits the way the saucer did; flames, smoke and the wreck read as before. On the ready-made plate the baked saucer is patched out with the plate's own paper (sampled from the sheet beside the hull, ruling and all) and the chosen hull is composited into the same footprint inside its tinted bubble, so varieties fly on plate boards too; the shield mask still only effaces the bubble's rim, so a popped shield leaves the composite intact.\n\n" +
+"2) DRAWN IN THE MATCH'S MEDIUM (Matthew: they should look done in crayon, colored pencil, etc, whatever is appropriate for the board). Each hull is rendered in the match's shared drawing medium. Pen is the clean ballpoint of the approved design sheet. Pencil is sketchy graphite double-strokes with a light color-pencil wash where the ballpoint hatch sat (the graphite has no color to tint, so it stays graphite under the pixel tint, exactly like a real colored-pencil drawing). Crayon is fat waxy strokes with broken, grainy coverage. Silhouette and footprint never change with the medium; only the stroke and fill treatment does, on drawn boards and on the plate composite alike.\n\n" +
+"3) FULL SCREEN, MATCHES ONLY (Matthew: we are still sacrificing board space for other items). A Full screen toggle lives in the in-game Menu (persisted, default off; no setup-screen change). While it is on and a match is up — the intermission and the results card count, the entrance does not — the hub brand band hides along with the games strip, the measured top offset falls to zero, and the sheet refits the whole screen: at phone size the plate sheet grows by about a fifth. Where the platform offers it, the game also requests true device fullscreen, but only from a tap (starting or resuming a match, or flipping the toggle); if the player exits fullscreen themselves the game never fights it, and leaving the match restores the chrome exactly as it was and exits only a fullscreen the game itself requested. iPhone Safari offers web pages no device fullscreen; there the collapsed chrome is the whole win, and Add to Home Screen already gives the standalone game a real full screen.\n\n" +
+"4) LIGHT INK ON DARK PAPER (Matthew's ruling: change the ink on dark papers; drop no paper). Measured, not listed: a paper qualifies when its luminance sits in the band where standard inks start to sink AND at least one owner's ink either falls under 3:1 contrast on it or collides with the paper's own hue at under 4.5:1. Of the six construction colors, pink, green, blue, peach and lavender qualify; yellow stays standard (bright enough that its inks still read, and pale ink would sink there instead). On a qualifying paper everything drawn ON the sheet switches to the light-ink set: white, silver and pale gel colors, expressed through the match's medium — pale gel strokes for pen, light waxy crayon for crayon, pale pencil for pencil. Sprites are re-expressed pale with their ink keyed onto the sheet; code-drawn ink (traces, tallies, the production disc, base zones, pennants and flags) lightens per owner with the hue kept, so blue reads pale ice blue, purple lavender-white, red pale rose. A scorch on dark paper is a pale ash ring, never a black smudge. The chrome and menus keep their normal styling; only the drawing on the paper changes. The treatment is derived from the paper in play, so a resumed match on dark paper comes back in light ink exactly.\n\n" +
+"5) THE GHOST IS GONE. The paper audit found the drawn-board mothership rendered as a faint dotted ghost, worst as blue on blue construction and over the comic newspaper. The code-drawn hulls carry full ink at game size by construction, and under light ink they stamp pale onto dark sheets; the audit's weakest combinations were re-shot for this pass and read strongly.\n\n" +
+"NOT CHANGED: ranges, physics, Production, structures and reloads, Move + Shoot, Momentum and Breach, prizes, the quarter, Tier 1 texture, Tier 2 rounds and the save's shape beyond the additive hulls field, the settings keys beyond the two additive ones (mothershipStyle, fullScreen), the copyright footer, the two Share controls, and the guarded ambient audio session.\n\n————————————————\n\n" +
 "Nov 13, 2026 — STRUCTURE PASS, TIER 2: ROUNDS, AND THE LUNCH CLOCK RETIRES (Matthew's rulings, Nov 12, 2026).\n\n1) FIRST TO 3 ROUNDS. A match is now first to 3 round wins (best of 5). Destroying the enemy base takes the ROUND, instantly, the way it used to take the match. Every round starts on a fresh sheet: full bases, full fighters, no craters, no wrecks, a fresh pair of stars and fresh captives, the quarter re-parked. Round 1 still opens with the visible quarter flip; from round 2 on there is no ceremony, and the LOSER of the round just finished goes first. Round wins are tallied as pencil strokes in the notebook margin, in the owner's color: a group per side, and a diagonal strike through the group at 3. The chrome carries a compact badge (Round N and the tally) where the lunch clock used to sit, and the Match Card speaks in rounds too.\n\n2) THE 30-TURN CAP. A round lasts at most 30 turns. At the cap, with both bases standing, most base damage dealt takes the round; level damage means the round is a draw and is REPLAYED on a fresh sheet, no tally awarded, same round number, and the replay's starter alternates. The stalemate clock survives untouched, scoped to the round: its expiry draws the round (a replay), and a side that cannot act at all loses the round. Results come in two shapes now: a round card (Next round, or Replay round, over the finished round's board) and the match card at 3 round wins (Rematch, Share, and the standing in rounds).\n\n3) THE LUNCH CLOCK, THE LUNCH-LENGTH SETTING AND HALFTIME ARE GONE. The analog clock is removed from the chrome, the Lunch length row is removed from Variants (old settings files that still carry the fields load fine; nothing reads them), sudden death is removed, and the halftime prize top-up is removed with it: fresh prizes are dealt each round instead. The story the game tells now is the structure itself: first to 3, and lunch is over. How to Play says exactly that, and Share results speak in rounds (rounds won, and base or castle hits in the final round).\n\n4) THE CPU SHARPENS AS IT LOSES ROUNDS. Escalation equals the number of rounds the CPU has lost this match (0, 1 or 2 in a live match): aim wobble shrinks by 0.05 a level (floor 0.05), its candidate search deepens by 6 a level, its sampled retry hops grow by 1 a level (clamped at 6), it refills from production more eagerly (0.4 / 0.6 / 0.8), and its base-attack intent grows by 8 a level. Being behind on rounds also switches on the old late-lunch base push for the whole round. A Rematch resets it to zero. Nothing about the physics, the sims or the score tables changed: the same flick resolves identically.\n\n5) A SAVED RECORD. A new key of its own (scribbleSiegeRecord) keeps career 1P match wins and the current win streak against the CPU. Only a finished 1P match writes it: a win adds a win and extends the streak, a loss zeroes the streak. 2P matches and quits never touch it. The entrance shows it under the Resume row once there is a win to show, and the 1P match-end screen and Match Card carry the running line.\n\n6) THE SAVE GROWS UP (version 2). The mid-match save now carries the whole match frame: rounds tally, round number, escalation level, round starter, and the pristine field as dealt at match start, so a resumed match can deal its later rounds exactly (a mirrored plate match stays mirrored in round 2: the restore path takes its mirror decision from the saved frame, not a fresh flip). The save guard keys on the match being over, not the round, so quitting BETWEEN rounds saves the intermission and Resume reopens the round-end card itself, never silently losing the match. The save still clears only at match end and at a new match or Rematch; the Resume button names the round; version 1 saves are discarded quietly, as unknown versions always were; the settings key is byte-for-byte untouched throughout.\n\n7) KNIGHTS SCORCHES AND CHURNS. Knights gains the crater sources it was missing: a charge that slams into a rock churns the ground at the rock's foot, and a hit on the castle (charge or arrow) scorches the ground at the impact point. Same craters as every theme: they persist for the round and bend a crossing flick by the same fixed 10 degrees, first crater only.\n\n8) THE DISC PULSE HUGS THE DISC. The 2P at-a-glance cue no longer rings the whole base (it read as an unexplained red circle around the army base): the side to move's reinforcements disc pulses in their color, tight on the disc, all three themes, exactly where the tap lands.\n\n9) THE BOARD GETS ITS ROOM BACK (Matthew, from live hub play: \"The game play on mobile is super tiny. Can we expand that?\"). On the hub the games strip wraps to two or three rows at phone width, and with the in-flow footer it ate the vertical budget the sheet is fitted from, so the plate sat at barely half the screen's width mid-match. While a match is live the strip and the in-flow footer now leave the match view and the document locks its scroll; the entrance keeps the full hub chrome. The offset re-measures to the brand band alone and the sheet fits the reclaimed column (about 58 percent of the screen's width before, about 71 percent after for a plate sheet, more for a drawn sheet). One window still, no scrolling in a match, and every flick still lands inside the invisible border.\n\nNOT CHANGED: Tier 1 texture (ambient motion, themed beds, wrecks blocking lanes, crater deflection at 10 degrees), the fix pass (header offset, pixel tinting, per-theme Move icons, Space turret range 200, sandbags), Production, defense structures and their reload rule, Move + Shoot, Siege Momentum and Breach, prize placement, the quarter, the copyright footer, the two Share controls, and the guarded ambient audio session.\n\n————————————————\n\n" +
 "Nov 12, 2026 (later) — FIX PASS: HEADER, MOVE ICONS, OWNER COLORS, SANDBAGS, TURRET RANGE (all Matthew, from live play tonight).\n\n1) THE HUB HEADER NO LONGER COVERS THE GAME. On the hub page the Real Sparks header sits in flow above the game and painted over it: the entrance logo clipped under the band, and in a match the top chrome sat beneath it. The game now measures whatever sits above it in flow and lifts both full-screen views below the measure, shrinking their heights by the same amount, and the entrance compacts against the height actually left. Any header height is respected, the standalone game measures zero and is unchanged, and no scrolling appears on either.\n\n2) MOVE WEARS THE BATTLEFIELD. The running boy is retired. The Move switch, the How to Play switch line and the battle log flip line now carry a travel glyph per battlefield: a rocket climbing its dotted flight path in Space, a galloping horse in Knights, a little tank in profile in Tanks (tread marks alone blurred into a ladder at switch size, so the silhouette won). The glyph follows the theme in play, entrance pick included, and the Shoot side is untouched.\n\n3) BASES READ IN THEIR OWNER COLOR. Root cause, found by audit: every hue rotation leaned on a canvas filter call that some browsers accept and quietly ignore, so tinted pieces rendered in their drawn colors there: the mothership sprite is blue ink, so both motherships read blue. All tinting is now done pixel by pixel, the method the prisoner sprites already used, so saturated ink rotates to the owner color while paper, graphite and shading keep their drawn values. That one change recolors the drawn-board mothership, turrets, castle accents and Tanks HQ sprite. The plates needed their own pass, because their bases are baked into the drawings (Space: a blue saucer low, a blue-violet one high; Tanks: khaki and rust HQs): each plate is now re-tinted per match inside each base region, rotating the hue actually drawn there to the owner color, with a touch more saturation for the Tanks earth tones so red and blue read at a glance. Knights plate castles were audited and left alone: earth-toned stone, and their flags were already repainted per owner. Shield masking, cracks, flames and wrecks draw over the tint exactly as before.\n\n4) SPACE TURRETS REACH FURTHER (Matthew: turrets should shoot a little further for defense). The Space defense turret goes from 172 to 200, deliberately out-ranging the ships now. One constant in the one range function, so the flick cap, the aim preview, auto-defense, both CPU sims and the Practice Sheet all read the same 200. Ship shot stays 172, ship move stays 198, Momentum untouched; Knights towers and Tanks cannons unchanged.\n\n5) SANDBAGS REDRAWN. The old band was two rows of identical flat ellipses with a hairline outline: pills in a tray. The band is now two stacked rows of plump rounded sacks with pinched seams, tied corners, crown light, ground shadow and a whisper of per-bag variation, drawn by one shared helper for the plate, the drawn board and the prisoner pen. Art only: same anchor, same extent, and armor and collision read nothing from the pixels.\n\nNOT CHANGED: save keys and payloads, the audio session guard, the footer, Tier 1 behavior (motion, beds, wrecks, craters), and every other range in the game.\n\n————————————————\n\n" +
 "Nov 12, 2026 — FEEL PASS, TIER 1 (Matthew, after playing the build: not enough movement, the sounds feel off per battlefield, not enough explosions, battles too flat). Three parts; staging only, nothing published; Tier 2 (rounds structure) is separate later work and is NOT in here — the lunch clock stands exactly as it was.\n\n1) THE LIVING PAPER. Ambient motion on the background and idle layers ONLY: Space gets twinkling stars on a slow drift and faint debris shards floating past; Knights gets torch flames on the standing towers and the castle gates, drifting dust motes, castle pennants and lance pennons stirring; Tanks gets a soft heat shimmer over the field, dust, and a waving flag over each standing HQ in its owner's color. Idle fighters bob a pixel and a half. None of it is state: every flicker is computed from the clock and stable per-piece seeds, and no position, path, collision, sim or preview reads it — aiming, sliding and physics are bit-for-bit the game's own (proven headlessly: the same scripted flick on an empty field rests at the same point, pre-pass build against this one). The draw loop now runs for the length of a match to carry it.\n\n2) THEMED BEDS. One quiet synthesized bed per battlefield takes the ambience chair while a match runs: Space is a low synth drone (two sines and a breath of triangle through a slowly breathing filter) with soft sonar pings; Knights is plucked minstrel strings over a low open fifth; Tanks is distant brass motifs over a low ground hum. TONAL ONLY, per Matthew's standing verdict: every bed voice is an oscillator — no noise buffers, no crackle, no wind anywhere in a bed (the pluck's attack is a gain swell, not a noise burst). The lunchroom bed keeps the entrance and setup screens, returns when a match is left, and its little room events fall silent during play. Beds ride the ambience bus (slider and toggle govern them, off means off, back on mid-match restores the battle's bed), pause with the page, follow a resume, and the guarded ambient audio session handling is byte-for-byte the approach it was. Whether they SOUND right is Matthew's ear verdict, still owed.\n\n3) BATTLE DAMAGE THAT STAYS. Every destruction (and every base hit) opens with a big layered fireball and a scatter of tumbling debris, and the burnt hulk STAYS on the paper for the rest of the match as a lane blocker: moves bump to a stop against it with no extra damage (a knight keeps his saddle), shots burn out in it, the aim line stops at it, the CPU's sims plan around it, and wrecks of plate structures wear the plate's existing wreck overlay plus the new flames. Flames stand tall for the wreck's first two turns, then settle to glowing embers with an occasional last lick. Deaths off the page edge leave NO wreck (nothing remains on the sheet). Movers killed against an obstacle now die AT the impact point, so their fireball and hulk land where the crash happened (a dead piece's position was previously unread, so nothing else moves). Shots also tear CRATERS that persist: asteroid tunnel mouths, blocked-shot scars, and rubble craters where an asteroid is erased (Space); scorched churned ground where an arrow strikes rock (Knights); shell craters where a cannon shell stops, and a crater wherever a mortar lands, hit or miss (Tanks). A flick whose road crosses a crater's bowl is knocked off line by a FIXED ~10 degrees, pivoting at the entry point and bending away from the crater's heart — fully deterministic, no dice; a rim graze runs free, like every forgiving edge here; only the FIRST crater on the road bends a flick. The Aimed cue draws the bend, the travelled trace shows the kink, and the CPU's move sim bends over the same end point. SAVE: craters join the scribbleSiegeMatch payload as their own list and wrecks ride inside the fighter/structure snapshots as ordinary fields, so a mid-match save reloads with every hulk and crater exactly in place; a pre-pass save carries neither field and resumes with both empty, never a crash; the settings key is untouched, match end still clears the save, a new match or Rematch starts with a clean sheet. How to Play gains exactly one short paragraph (The paper keeps the score).\n\nNOT CHANGED: the win condition (base in 3 hits), Production, defense structures and their reload rule, Move + Shoot, Siege Momentum and Breach, prize placement, the quarter, Space ranges (198 move / 172 shot), Knights lances and rules, Tanks classes, the lunch clock, the copyright footer, both Share controls and their payloads. Verified headlessly (Playwright/Chromium, the game's own functions driven directly): matches start and complete in all three themes in 1P and 2P with zero page errors; the ambient frame counter advances while a match idles; wreck blocking proven both ways (a road that ran free before the kill stops at the hulk after it, for moves and for shots, knights included); crater creation proven for asteroid tunnel/block/destroy, rock arrows, cannon stops and mortar hits and misses, and the deflection proven deterministic (same flick, same resting point, twice) at the fixed angle; beds proven per theme (graph builds, the bed handle reports its theme, and ZERO buffer sources are created while a bed runs — oscillators only); save/resume proven with a wreck and a crater on the board (deep-equal restore), with a stripped pre-pass payload (resumes clean), at match end (key cleared) and across a Rematch (clean sheet); settings bytes unchanged throughout; footer byte-exact.\n\n————————————————\n\n" +
