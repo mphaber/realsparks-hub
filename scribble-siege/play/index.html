@@ -622,7 +622,7 @@ footer{ color:#6d675a; font-size:12.5px; letter-spacing:.2px; background:transpa
    stays inside the border. Landscape and wider screens are
    untouched by this block.
    ================================================================ */
-#clockCv{width:52px;height:52px;flex:0 0 auto;margin-left:auto;}
+#roundBadge{height:52px;display:inline-flex;align-items:center;flex:0 1 auto;min-width:0;margin-left:auto;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;padding:0 10px;}
 @media (orientation: portrait) and (max-width: 520px){
   #viewGame{padding:calc(6px + env(safe-area-inset-top)) 0 calc(6px + env(safe-area-inset-bottom));overflow:hidden;}
   #viewGame #paperCv{display:block;position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;}
@@ -631,8 +631,7 @@ footer{ color:#6d675a; font-size:12.5px; letter-spacing:.2px; background:transpa
   #viewGame .hudbar .turnBadge{font-size:15px;padding:5px 10px;white-space:nowrap;}
   #viewGame #mirrorTag{font-size:13px;padding:5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
   #viewGame #clockPips{font-size:13px;white-space:nowrap;overflow:hidden;min-width:0;}
-  #viewGame #clockCv{width:40px;height:40px;}
-  #viewGame .hudbar .btn.small{min-height:38px;padding:4px 9px;font-size:14px;white-space:nowrap;}
+  #viewGame #roundBadge{height:40px;}  #viewGame .hudbar .btn.small{min-height:38px;padding:4px 9px;font-size:14px;white-space:nowrap;}
   #viewGame .hudbar .row{flex-wrap:nowrap;gap:6px;}
   #viewGame #viewBoardBar{position:relative;z-index:6;margin:0 6px 4px;}
   #viewGame .turnEdge{padding:0 0 2px;position:relative;z-index:6;}
@@ -704,6 +703,25 @@ footer{ color:#6d675a; font-size:12.5px; letter-spacing:.2px; background:transpa
 }
 
 /* ================================================================
+   TIER 2 BOARD EXPANSION (Nov 13, 2026 — Matthew: "The game play on
+   mobile is super tiny. Can we expand that?"): on the hub the games
+   strip wraps to two or three rows at phone width, and together
+   with the in-flow footer it eats the vertical budget the sheet is
+   fitted from — mid-match the plate sat at barely half the screen's
+   width. While a match is live (html.ss-inmatch, set by showView),
+   the strip and the in-flow footer/social row leave the match view:
+   the entrance keeps the full hub chrome, the match gets the space
+   back, and ssMeasureAbove re-reads the offset (a display:none
+   sibling measures zero), so --ss-top falls to the brand band alone
+   and fitBoard fits the sheet into the reclaimed column. Standalone
+   there is no strip; the footer rules only ever hide what the fixed
+   match view already covers. The document also locks its scroll
+   in-match: the play page must never scroll mid-game, in any shell. */
+html.ss-inmatch .rs-subnav{display:none;}
+html.ss-inmatch .wrap>footer, html.ss-inmatch .wrap>.socialRow{display:none;}
+html.ss-inmatch, html.ss-inmatch body{overflow:hidden;}
+
+/* ================================================================
    HUB HEADER TIERS (Nov 12, 2026 fix pass): when something sits
    above the game in flow (the hub's transplanted header), the
    entrance must compact against the height actually left under it,
@@ -766,7 +784,7 @@ html.ss-avshort #viewSetup .btn.big{min-height:36px;font-size:14.5px;padding:5px
 html.ss-avshort #viewSetup #btnMenuTop{min-height:34px;padding:3px 9px;font-size:13px;}
 html.ss-avshort #viewSetup .entActions{margin-top:4px;}
 html.ss-avshort #viewGame{padding:6px;}
-html.ss-avshort #viewGame #clockCv{width:36px;height:36px;}
+html.ss-avshort #viewGame #roundBadge{height:36px;}
 html.ss-avshort #viewGame .hudbar{margin-bottom:5px;}
 html.ss-avshort #viewGame .hudbar .btn.small{min-height:36px;}
 html.ss-avshort #viewGame #turnBar{padding:6px 8px;margin-top:5px;}
@@ -838,6 +856,7 @@ html.ss-avshort #viewGame #turnBar .seg button{min-height:40px;font-size:15px;pa
     <div class="row" id="resumeRow" style="display:none;margin-top:8px;">
       <button class="btn gold big" id="btnResume">▶ Resume</button>
     </div>
+    <div class="row" id="recordRow" style="display:none;margin-top:8px;"><span class="small" id="recordText"></span></div>
     <div class="row entActions">
       <button class="btn primary big" id="btnStart" style="flex:1 1 240px;">Play!</button>
       <button class="btn big" id="btnRandom" style="flex:0 1 auto;"><span aria-hidden="true">🎲</span><span>Random</span></button>
@@ -854,7 +873,7 @@ html.ss-avshort #viewGame #turnBar .seg button{min-height:40px;font-size:15px;pa
       <span class="turnBadge" id="turnBadge">Your turn</span>
       <span class="turnBadge" id="mirrorTag" style="display:none;background:#e9defc;color:#4a2a7a;">🪞 Mirrored board</span>
       <span class="hpPips" id="clockPips" style="color:#b3541e;"></span>
-      <canvas id="clockCv" width="132" height="132" role="img" aria-label="Lunch clock — one minute per turn from 12:00"></canvas>
+      <span class="turnBadge" id="roundBadge" style="margin-left:auto;"></span>
       <span class="row">
         <span class="menuWrap">
           <button class="btn small" id="btnMenuGame">☰ Menu</button>
@@ -1168,18 +1187,18 @@ function shareHitNoun(){
 }
 function shareResultText(){
   var theme=shareThemeName(), noun=shareHitNoun();
-  if(!G || !G.over) return MENU_SHARE_TEXT;
+  if(!G || !G.matchOver || !MATCH) return MENU_SHARE_TEXT;
   var d0=(G.baseDamage&&G.baseDamage[0])||0, d1=(G.baseDamage&&G.baseDamage[1])||0;
   if(CFG.mode==="2p"){
-    if(G.draw || G.winner==null) return "We finished a "+theme+" battle in Scribble Siege in a draw, "+noun+" "+d0+" to "+d1+".";
-    var w=G.winner, ws=w===0?d0:d1, ls=w===0?d1:d0;
+    if(G.draw || G.winner==null) return "We finished a "+theme+" match in Scribble Siege in a draw, "+noun+" "+d0+" to "+d1+".";
+    var w=G.winner, ws=w===0?d0:d1, ls=w===0?d1:d0, wr=MATCH.rounds[w], lr=MATCH.rounds[1-w];
     var col=(PLAYER_COLORS[playerCfg(w).color]||{}).name || playerName(w);
-    if(CFG.theme==="tanks") return "We finished a "+theme+" battle in Scribble Siege: "+col+" won, hits "+ws+" to "+ls+".";
-    return "We finished a "+theme+" battle in Scribble Siege: "+col+" won "+ws+" to "+ls+" on "+noun+".";
+    if(CFG.theme==="tanks") return "We finished a "+theme+" match in Scribble Siege: "+col+" won "+wr+" rounds to "+lr+", hits "+ws+" to "+ls+" in the final round.";
+    return "We finished a "+theme+" match in Scribble Siege: "+col+" won "+wr+" rounds to "+lr+", "+noun+" "+ws+" to "+ls+" in the final round.";
   }
-  if(G.draw || G.winner==null) return "My "+theme+" battle in Scribble Siege ended in a draw, "+noun+" "+d0+" to "+d1+".";
-  if(G.winner===0) return "I won a "+theme+" battle in Scribble Siege, "+noun+" "+d0+" to "+d1+".";
-  return "I lost a "+theme+" battle in Scribble Siege, "+noun+" "+d0+" to "+d1+".";
+  if(G.draw || G.winner==null) return "My "+theme+" match in Scribble Siege ended in a draw, "+noun+" "+d0+" to "+d1+".";
+  if(G.winner===0) return "I won a "+theme+" match in Scribble Siege, "+MATCH.rounds[0]+" rounds to "+MATCH.rounds[1]+", "+noun+" "+d0+" to "+d1+" in the final round.";
+  return "I lost a "+theme+" match in Scribble Siege, "+MATCH.rounds[0]+" rounds to "+MATCH.rounds[1]+", "+noun+" "+d0+" to "+d1+" in the final round.";
 }
 var SHARE_COPIED_MS=1600, shareToastTimer=null;
 function shareCopied(btn){
@@ -1234,6 +1253,30 @@ try{
 }catch(e){}
 function saveSettings(){ try{ localStorage.setItem("scribbleSiegeSettings", JSON.stringify(SETTINGS)); }catch(e){} }
 
+/* ---------- Saved record vs the CPU (TIER 2, D5) ----------
+   A third key, its own: career 1P match wins and the current win
+   streak against the CPU. Written ONLY by endMatch in 1P mode —
+   a win adds a win and extends the streak; a loss zeroes the
+   streak and leaves the wins alone. 2P matches and quits never
+   touch it. Read once at boot; a corrupt or partial value loads
+   as zeros so the entrance simply shows nothing. */
+var RECORD_KEY="scribbleSiegeRecord";
+var RECORD={wins:0, streak:0};
+try{
+  var _recRaw=localStorage.getItem(RECORD_KEY);
+  if(_recRaw){ var _rec=JSON.parse(_recRaw); if(_rec && isFinite(_rec.wins) && _rec.wins>=0 && isFinite(_rec.streak) && _rec.streak>=0){ RECORD.wins=Math.floor(_rec.wins); RECORD.streak=Math.floor(_rec.streak); } }
+}catch(e){}
+function saveRecord(){ try{ localStorage.setItem(RECORD_KEY, JSON.stringify({v:1, wins:RECORD.wins, streak:RECORD.streak})); }catch(e){} }
+function refreshRecordUI(){
+  var row=document.getElementById("recordRow"), tx=document.getElementById("recordText");
+  if(!row||!tx) return;
+  if(RECORD.wins>0){
+    tx.textContent="🏆 Against the CPU: "+RECORD.wins+" match win"+(RECORD.wins===1?"":"s")+" · win streak "+RECORD.streak;
+    row.style.display="flex";
+  } else row.style.display="none";
+}
+refreshRecordUI(); // once at boot, so a returning player's record shows before any view change (after that it rides showView's refresh, beside the Resume row)
+
 /* ---------- Mid-match save (house save standard, Oct 31, 2026) ----------
    An in-progress match auto-saves under its OWN key, scribbleSiegeMatch,
    and the entrance offers it back as a Resume. The settings key above is
@@ -1248,7 +1291,10 @@ function saveSettings(){ try{ localStorage.setItem("scribbleSiegeSettings", JSON
    quarter, both bases, every fighter and defense structure with its
    live state, whose turn it is AND the turn phase (a save taken after
    the move resumes at the shot step), the turn count and lunch length
-   (through CFG), the stalemate clock, halftime-refresh and production
+   (through CFG), the stalemate clock, the round structure (MATCH: the
+   rounds tally, the round number, the CPU escalation level, the round
+   starter, and the PRISTINE field as dealt at match start, so a later
+   round can be dealt again exactly), production
    state, the prize state, and the battle log. The game rolls with
    Math.random (no seeded RNG), so restoring the full board state is
    what lets the CPU continue fairly at its saved difficulty. Transients
@@ -1266,7 +1312,7 @@ function saveSettings(){ try{ localStorage.setItem("scribbleSiegeSettings", JSON
    Rematch starts; opening menus, How to Play or settings never
    touches it. Quitting to setup leaves the match resumable. */
 var MATCH_SAVE_KEY="scribbleSiegeMatch";
-var MATCH_SAVE_VERSION=1;
+var MATCH_SAVE_VERSION=2; // TIER 2: the payload carries the round structure (MATCH); v1 saves fall into the quiet-discard path below — no migration (D3)
 var _matchSaveLast="";
 function _ssSnapThing(t){
   if(!t) return t;
@@ -1286,7 +1332,7 @@ function _ssSnapPrizes(list){
   return out;
 }
 function buildMatchSave(){
-  if(!G || G.over || G.draw || !CFG) return null;
+  if(!G || G.matchOver || !CFG) return null; // TIER 2: the guard keys on matchOver, NOT G.over — the between-rounds intermission IS G.over, and quitting there must resume onto the round-end card, never silently lose the match
   var logLines=[];
   var lb=document.getElementById("logBox");
   if(lb){ for(var i=0;i<lb.children.length;i++) logLines.push(lb.children[i].textContent); }
@@ -1306,20 +1352,22 @@ function buildMatchSave(){
       traces:(G.traces||[]).map(_ssSnapThing),
       craters:JSON.parse(JSON.stringify(G.craters||[])),
       reserve:(G.reserve||[0,0]).slice(), prodCd:(G.prodCd||[0,0]).slice(),
-      turnCount:G.turnCount||0, prizeRefreshDone:!!G.prizeRefreshDone,
-      baseDamage:(G.baseDamage||[0,0]).slice(), sdNote:G.sdNote||null,
+      turnCount:G.turnCount||0,
+      baseDamage:(G.baseDamage||[0,0]).slice(),
+      roundEnd:!!G.roundEnd, roundWinner:(G.roundWinner==null?null:G.roundWinner), matchOver:!!G.matchOver,
       clock:G.clock ? {side:G.clock.side, left:G.clock.left, start:G.clock.start} : null,
       coin:G.coin ? {x:G.coin.x, y:G.coin.y, r:G.coin.r, face:G.coin.face, landed:!!G.coin.landed} : null,
       stars:_ssSnapPrizes(G.stars), star:null, prisoners:_ssSnapPrizes(G.prisoners),
       mirror:!!G.mirror,
       editor:G.editor ? {mode:G.editor.mode, stampType:G.editor.stampType, stampSize:G.editor.stampSize} : null
     },
+    match: MATCH ? { rounds:(MATCH.rounds||[0,0]).slice(), round:MATCH.round||1, cpuEsc:MATCH.cpuEsc||0, starter:MATCH.starter||0, fieldObs:(MATCH.fieldObs===undefined?null:MATCH.fieldObs) } : null,
     log:logLines
   };
 }
 function saveMatch(){
   try{
-    if(!G || G.over || G.draw) return;
+    if(!G || G.matchOver) return; // TIER 2: matchOver-based, like buildMatchSave — a round ending mid-match must NOT stop the writes (the intermission save is the whole point)
     var data=buildMatchSave(); if(!data) return;
     var s=JSON.stringify(data);
     if(s===_matchSaveLast) return; // unchanged state costs no write
@@ -1342,7 +1390,9 @@ function readMatchSave(){
     && (d.cfg.mode==="1p"||d.cfg.mode==="2p")
     && Array.isArray(d.g.units) && d.g.units.length===2
     && Array.isArray(d.g.turrets) && Array.isArray(d.g.bases) && Array.isArray(d.g.obstacles)
-    && (d.g.turn===0||d.g.turn===1) && isFinite(d.g.turnCount);
+    && (d.g.turn===0||d.g.turn===1) && isFinite(d.g.turnCount)
+    && !!d.match && Array.isArray(d.match.rounds) && d.match.rounds.length===2
+    && isFinite(d.match.round) && d.match.round>=1 && d.match.round<=9;
   if(!ok){ clearMatchSave(); return null; }
   return d;
 }
@@ -1352,7 +1402,7 @@ function refreshResumeUI(){
   var d=readMatchSave();
   if(!d){ row.style.display="none"; return; }
   var themeNames={space:"🚀 SPACE", knights:"🏰 KNIGHTS", tanks:"🛡️ TANKS"};
-  btn.textContent="▶ Resume — "+(themeNames[d.cfg.theme]||"🚀 SPACE")+" · "+(d.cfg.mode==="2p" ? "2P Pass-and-Play" : "1P vs CPU")+" · Turn "+((d.g.turnCount||0)+1);
+  btn.textContent="▶ Resume — "+(themeNames[d.cfg.theme]||"🚀 SPACE")+" · "+(d.cfg.mode==="2p" ? "2P Pass-and-Play" : "1P vs CPU")+" · Round "+(d.match?d.match.round:1)+" · Turn "+((d.g.turnCount||0)+1);
   row.style.display="flex";
 }
 function resumeMatch(){
@@ -1364,6 +1414,7 @@ function resumeMatch(){
     if(d.names){ SETTINGS.name1=d.names.name1||""; SETTINGS.name2=d.names.name2||""; } // in memory only — the settings key itself is never written by a resume, so saved names speak on the results screen exactly as they did when the match was saved
     MATCH_STYLE=d.matchStyle||"triangles";
     FW=d.fw||760; FH=d.fh||960; MIRROR_THIS_MATCH=!!d.mirror;
+    MATCH={ rounds:(d.match.rounds||[0,0]).slice(), round:d.match.round||1, cpuEsc:d.match.cpuEsc||0, starter:(d.match.starter==null?0:d.match.starter), mirror:!!d.mirror, fieldObs:(d.match.fieldObs===undefined?null:d.match.fieldObs) }; // TIER 2: the match frame comes back before anything reads it (badge, tallies, next round)
     var sg=d.g;
     G={
       turn:sg.turn, phase:sg.phase||"select", action:sg.action||"move",
@@ -1372,12 +1423,13 @@ function resumeMatch(){
       units:sg.units, turrets:sg.turrets, bases:sg.bases,
       obstacles:sg.obstacles||[], traces:sg.traces||[], craters:sg.craters||[],
       particles:[], stickmen:[], pods:[], selected:(sg.selected==null?null:sg.selected),
-      over:false, winner:null, draw:false,
+      over:!!sg.roundEnd, winner:null, draw:!!(sg.roundEnd && sg.roundWinner==null),
+      roundEnd:!!sg.roundEnd, roundWinner:(sg.roundWinner==null?null:sg.roundWinner), matchOver:false,
       reserve:sg.reserve||[0,0], editor:null, anim:null, mortarAnim:null,
       shake:0, flashShield:-1, lastRoll:null, clock:sg.clock||null,
       prodCd:sg.prodCd||[0,0], turnCount:sg.turnCount||0,
-      prizeRefreshDone:!!sg.prizeRefreshDone, baseDamage:sg.baseDamage||[0,0],
-      sdNote:sg.sdNote||null, coin:sg.coin||null,
+      baseDamage:sg.baseDamage||[0,0],
+      sdNote:null, coin:sg.coin||null,
       stars:(sg.stars===undefined?null:sg.stars), star:null,
       prisoners:(sg.prisoners===undefined?null:sg.prisoners), mirror:!!sg.mirror
     };
@@ -1396,6 +1448,19 @@ function resumeMatch(){
     if(sg.editor){
       G.editor={ mode:sg.editor.mode, stampType:sg.editor.stampType, stampSize:sg.editor.stampSize, drawing:null, pts:[] };
       showEditorBar();
+    }
+    if(sg.roundEnd){
+      // TIER 2: the save was taken BETWEEN rounds — the match resumes onto
+      // its round-end card, exactly where it left off. No action pick and
+      // no CPU kick here: the card's button (Next round / Replay round)
+      // is the only way forward.
+      updateHUD(); draw(); fitBoard();
+      log("▶ Match resumed — right where it left off.");
+      bedTheme=CFG.theme; startThemedBed(CFG.theme);
+      applyMoveIcon();
+      saveMatch();
+      showRoundEnd(sg.roundWinner==null ? null : sg.roundWinner, true);
+      return;
     }
     setAction(G.action||"move", true);
     updateHUD(); draw(); fitBoard();
@@ -2038,18 +2103,6 @@ function renderVariants(){
   bl.appendChild(selRow("Board layout","boardMirror",[["random","🎲 Random mirror — each match flips a coin (default)"],["drawn","🖼 As drawn"],["mirrored","🪞 Mirrored — flipped left-for-right"]]));
   body.appendChild(bl);
 
-  var ln=document.createElement("div");
-  ln.appendChild(selRow("Lunch length","lunch",[["30","🥪 Short — 30 turns"],["60","🕛 Lunch — 60 turns (default)"],["120","🍱 Long — 120 turns"],["custom","✏️ Custom"]]));
-  if(CFG.lunch==="custom"){
-    var cw=document.createElement("div");
-    var cl=document.createElement("label"); cl.className="lbl"; cl.textContent="Custom turns (10–240)"; cw.appendChild(cl);
-    var cin=document.createElement("input"); cin.type="number"; cin.min="10"; cin.max="240"; cin.step="1"; cin.value=CFG.lunchCustom||60;
-    cin.style.cssText="width:100%;min-height:48px;font-size:16px;border:2.5px solid var(--ink);border-radius:10px;background:#fff;padding:6px 10px;font-family:inherit;";
-    cin.addEventListener("change", function(){ var v=parseInt(cin.value,10); if(isNaN(v)) v=60; CFG.lunchCustom=Math.max(10,Math.min(240,v)); cin.value=CFG.lunchCustom; });
-    cw.appendChild(cin); ln.appendChild(cw);
-  }
-
-  body.appendChild(ln);
   if(CFG.mode==="1p"){
     var d=document.createElement("div");
     d.appendChild(selRow("CPU difficulty","cpuDiff",[["recess","Recess — big aim wobble, casual choices"],["lunch","Lunchroom — a fair fight (default)"],["study","Study Hall — sharp aim, smart picks"]]));
@@ -2221,6 +2274,19 @@ var BASE_W=132, BASE_H=56;          // MODEST capped base footprint — identica
 var BASE_ZONE=0.12;                  // base zone band = end 12% of sheet length
 var G=null;                          // game state
 var rafId=null;
+/* TIER 2 (Nov 12, 2026): the MATCH frame — one match is first to 3
+   ROUND wins (best of 5). G stays exactly what it always was: the
+   state of the round being played right now. MATCH carries what a
+   round cannot: the rounds tally, the round number, the CPU
+   escalation level, who starts the next round, whether the dealt
+   field was mirrored, and the PRISTINE field as dealt (obstacles
+   deep-copied at match start, before any shot) so rounds 2-5 are
+   dealt the same sheet again. Created by startMatch, restored by
+   resumeMatch, read (never created) by Practice. */
+var MATCH=null;
+var ROUND_TURN_CAP=30;               // TIER 2 ruling: a round ends at 30 completed turns, decided by base-damage tally; level damage replays the round
+var ROUND_FIELD_RESTORE=false;       // set by nextRound for the one newGame call that restores the pristine field — its mirror decision must come from MATCH, not a fresh coin (the mirror trap)
+var overMode="match";                // what the results modal is showing: "match" (Rematch), "round" (Next round) or "replay" (Replay round)
 
 /* BOARD MIRRORING (Oct 26, 2026 — Matthew: "Mirror now, full
    placement later"): on a plate board a match may be flipped
@@ -2269,6 +2335,7 @@ function playerName(p){
 function customName(p){ return ((p===0?SETTINGS.name1:SETTINGS.name2)||"").trim(); }
 function subjectName(p){ var nm=customName(p); return nm ? nm : playerName(p); }
 function secondPerson(p){ return CFG.mode==="1p" && p===0 && !customName(0); }
+function badgeName(p){ if(CFG.mode==="1p") return p===0?"You":"CPU"; return playerName(p); } // TIER 2: the chrome round badge's short side names (1P is literally You / CPU)
 function subjPossessive(p){ return secondPerson(p) ? "Your" : subjectName(p)+"'s"; }
 function dirToEnemy(p){ // unit vector toward enemy base
   var a=baseCenter(p), b=baseCenter(1-p);
@@ -2355,23 +2422,18 @@ function makeTurrets(p){
   return out;
 }
 function baseMaxHp(){ return (CFG.theme==="space"&&CFG.spaceBase==="extra") ? 4 : 3; }
-/* LUNCH LENGTH (Oct 26, 2026): how many turns a match lasts — the school
-   clock on the board counts them, one minute per turn from 12:00.
-   "30" Short Lunch, "60" standard (out at 1:00), "120" Long Lunch
-   (out at 2:00), or "custom" with the player's own count. */
-function lunchTurns(){
-  if(!CFG) return 60;
-  if(CFG.lunch==="custom"){ var v=parseInt(CFG.lunchCustom,10); return isNaN(v)?60:Math.max(10,Math.min(240,v)); }
-  var n=parseInt(CFG.lunch,10); return isNaN(n)?60:n;
-}
-
-function newGame(obstacles){
+function newGame(obstacles, roundStart){
   if(isFaceLayout()){ FW=760; FH= plateCfg() ? 1520 : 960; } else { FW=960; FH=760; } // plate mode: the field takes the plate's own 1:2 aspect, contain fit with no stretching
   PRES_ROT=computePresRot(); applyCanvasSize(); // landscape presentation swaps the canvas's displayed axes; board coordinates (FW×FH) never change
   // BOARD MIRROR decision, made once per match before any geometry is
   // built: plate boards only (never an editor/custom field — those
   // arrive as the obstacles argument — and never a drawn fallback).
-  MIRROR_THIS_MATCH = (!obstacles && plateCfg() && CFG.boardMirror!=="drawn" && (CFG.boardMirror==="mirrored" || Math.random()<0.5));
+  // TIER 2 exception: a round restore (nextRound dealing the pristine
+  // field again) passes obstacles too, but its mirror decision was
+  // made at match start and lives on MATCH — take it from there.
+  if(ROUND_FIELD_RESTORE && MATCH){ MIRROR_THIS_MATCH=!!MATCH.mirror; }
+  else { MIRROR_THIS_MATCH = (!obstacles && plateCfg() && CFG.boardMirror!=="drawn" && (CFG.boardMirror==="mirrored" || Math.random()<0.5)); }
+  ROUND_FIELD_RESTORE=false;
   // SHARED TOOLS: the other side (Player 2 or CPU) always mirrors Player 1's
   // flicker + medium — traces differ only in color, never in type or width.
   { var t=playerCfg(1); t.flicker=CFG.p1.flicker; t.medium=CFG.p1.medium; }
@@ -2385,17 +2447,17 @@ function newGame(obstacles){
     reserve:[CFG.fighterCount-Math.ceil(CFG.fighterCount/2), CFG.fighterCount-Math.ceil(CFG.fighterCount/2)], // only Launch Bay spends these
     editor:null, anim:null, shake:0, flashShield:-1, lastRoll:null, clock:null, draw:false,
     prodCd:[0,0],        // production cooldown, in the producer's own turns (set to 2 on a launch, ticked down at the end of each of that side's turns — so exactly the next turn is blocked)
-    turnCount:0,         // total completed turns, both sides — the lunch clock ends the match when the lunch runs out (60 turns by default)
-    prizeRefreshDone:false, // halftime prize refresh (long games only): fires exactly once, when turnCount reaches half the lunch
-    baseDamage:[0,0],    // base hits LANDED by each side (shield pops count: the forcefield IS hit 1 of 3)
-    sdNote:null          // set when sudden death decides the match, for the end screen
+    turnCount:0,         // completed turns THIS ROUND, both sides — the round cap (ROUND_TURN_CAP) counts them, and wrecks age by them
+    baseDamage:[0,0],    // base hits LANDED by each side this round (shield pops count: the forcefield IS hit 1 of 3) — the round-cap tally reads these
+    sdNote:null,         // legacy field, kept for state shape stability; nothing writes it any more (the lunch clock and sudden death are gone — TIER 2)
+    roundEnd:false, roundWinner:null, matchOver:false // TIER 2: roundEnd marks the between-rounds intermission (G.over is true but the MATCH lives on); matchOver is the only true end
   };
   if(CFG.deployment!=="launchbay") G.reserve=[0,0];
   G.mirror=MIRROR_THIS_MATCH;
   if(G.mirror) log("🪞 Mirrored board this match — the whole battlefield is flipped left-for-right.");
   if(CFG.prizes) placePrizes(); else { G.prisoners=null; G.stars=null; G.star=null; }
   placeCoin(); // the flip's 1985 quarter will land on the paper and stay as a movement-only barrier
-  log("A coin flip says "+playerName(G.turn)+" goes first. Blow up the enemy base — 3 hits!");
+  if(!roundStart) log("A coin flip says "+playerName(G.turn)+" goes first. Blow up the enemy base — 3 hits!"); // TIER 2: later rounds have no flip — nextRound logs the round banner instead
   if(CFG.theme==="space"&&CFG.spaceBase!=="none") log("The forcefield IS hit 1. Pop it, crack it, blow it.");
   updateHUD(); draw(); fitBoard();
 }
@@ -2438,8 +2500,9 @@ function newGame(obstacles){
    is then gone. A fighter may hold only one armor at a time — an
    already-armored fighter leaves a star waiting. Armor never drops
    or transfers.
-   LONG GAMES (lunch of 90+ turns) refresh both prizes once at
-   halftime — see refreshPrizesHalftime below. */
+   TIER 2: there is no mid-round prize refresh any more — a fresh
+   pair of stars and fresh captives are dealt at the start of every
+   ROUND, with the new sheet. */
 /* PRIZE CLEARANCE (fix, Oct 27, 2026 — Matthew: "Sometimes the star
    bonus is showing up inside of a meteor and is unattainable.").
    Placement runs against the FINAL field — obstacles as actually
@@ -2505,8 +2568,8 @@ function prizeRelocate(cx, cy, rad, extra){
   }
   return best;
 }
-/* The prisoner candidate spots (fractions of the sheet), shared by
-   the opening placement and the halftime refresh: candidates for
+/* The prisoner candidate spots (fractions of the sheet), used by
+   the opening placement each round: candidates for
    PLAYER 0's prisoner (held in player 1's half); player 1's spot is
    the point-mirror. prizeCand maps a fraction to board coordinates
    for the active layout, flipping with a mirrored board. In the
@@ -2576,8 +2639,8 @@ function starSpotFromOffset(off){
    a symmetric relocation search (a spot qualifies only when its
    180-degree twin qualifies too, so relocation never breaks the
    symmetry). keeps are footprints both stars must also clear (the
-   waiting prisoners at halftime). bornAt, when given, stamps both
-   stars for the halftime fade-in. */
+   waiting prisoners). bornAt, when given, stamps both stars for
+   the prize fade-in. */
 function placeStarPair(keeps, bornAt){
   function mk(x, y){ var s={x:x, y:y, taken:false}; if(bornAt) s.bornAt=bornAt; return s; }
   function pairFrom(a){ var b=rotPt(a.x, a.y); return [mk(a.x, a.y), mk(b.x, b.y)]; }
@@ -2652,119 +2715,8 @@ function placePrizes(){
   if(!spot0){ var f0=PRIZE_PAIRS[0]; spot0 = face ? {x:f0[0]*FW, y:f0[1]*FH} : {x:(1-f0[1])*FW, y:f0[0]*FH}; if(MIRROR_THIS_MATCH && face) spot0.x=FW-spot0.x; spot1={x:FW-spot0.x, y:FH-spot0.y}; }
   G.prisoners=[{x:spot0.x, y:spot0.y, freed:false}, {x:spot1.x, y:spot1.y, freed:false}];
 }
-/* ============================================================
-   HALFTIME PRIZE REFRESH (Oct 27, 2026 — Matthew approved the
-   proposal as offered: "Yes, refresh prizes at halftime in long
-   games"). LONG GAMES ONLY: a lunch of 90 turns or more (Long Lunch
-   120, or a custom 90–240) with Field Prizes on. Exactly once per
-   match, at the end of the turn on which the completed-turn count
-   reaches half the lunch, the prizes top back up:
-   (1) STARS — the waiting pair is topped back up to TWO (Oct 30,
-       2026, adapted to the star pair): if any star was taken, the
-       missing one is restored — at the exact 180-degree rotation of
-       the star still waiting when one survives (that was its twin's
-       spot), or as a fresh re-randomized symmetric pair when both
-       were taken — through the same clearance discipline as the
-       opening placement, against the field as it now stands (wrecks
-       and all). Never more than two waiting; if both still wait, no
-       star refresh.
-   (2) PRISONERS — each side whose prisoner was already rescued gets
-       a NEW captive at its usual mirrored spot in the enemy half,
-       clear-checked and relocated minimally if blocked; a side whose
-       prisoner still waits gets no second one.
-   So at most two unclaimed stars and one unrescued prisoner per side
-   exist at any time. Refreshed prizes are ordinary prizes — same
-   pickup, armor, rescue and CPU valuation (checkPrizes and the CPU
-   read G.stars / G.prisoners, nothing else). Presentation stays
-   minimal: the new pieces fade in on the paper (bornAt, drawn by
-   drawPrizes), no modal, no words on the paper; one Battle Log line
-   notes the refresh. Standard 60 and Short 30 lunches never refresh,
-   Field Prizes off never refreshes, and a Rematch / new match resets
-   the once-per-match flag with the rest of G (prizeRefreshDone). */
-function halftimePrizesDue(){
-  return !!(CFG && CFG.prizes && lunchTurns()>=90);
-}
-/* A clear spot for ONE side's refreshed prisoner: the usual candidate
-   spots first (this side's own spot, not the pair — randomized within
-   the same fair lateral band as the opening placement), then the same
-   candidates relocated — always inside that side's enemy half, and
-   clear of the waiting stars and of the other side's waiting prisoner.
-   starKeeps is the array of waiting-star footprints. */
-function findPrisonerSpotFor(p, starKeeps){
-  var cx=FW/2, cy=FH/2, face=isFaceLayout();
-  var keeps = starKeeps ? (Array.isArray(starKeeps) ? starKeeps : [starKeeps]) : [];
-  var other=G.prisoners && G.prisoners[1-p];
-  var otherKeep=(other && !other.freed) ? {x:other.x, y:other.y, r:PRIZE_FOOT.prisoner} : null;
-  function ownSpot(a){ return p===0 ? a : {x:FW-a.x, y:FH-a.y}; }
-  function clearFor(x, y){
-    var sx = p===0 ? x : FW-x, sy = p===0 ? y : FH-y; // test the half in player 0's frame
-    if(!(face ? sy<cy : sx>cx)) return false;
-    if(!prizeSpotClear(x, y, PRIZE_FOOT.prisoner, null)) return false;
-    if(!keepsClear(x, y, PRIZE_FOOT.prisoner, keeps)) return false;
-    if(otherKeep && !prizeSpotClear(x, y, PRIZE_FOOT.prisoner, otherKeep)) return false;
-    return true;
-  }
-  var cands=prisonerCandidates();
-  for(var i=0;i<cands.length;i++){
-    var c=ownSpot(prizeCand(cands[i][0], cands[i][1]));
-    if(clearFor(c.x, c.y)) return c;
-  }
-  for(var k=0;k<cands.length;k++){
-    var ak=ownSpot(prizeCand(cands[k][0], cands[k][1]));
-    var mv=prizeRelocate(ak.x, ak.y, PRIZE_FOOT.prisoner, clearFor);
-    if(mv) return mv;
-  }
-  return null;
-}
-function refreshPrizesHalftime(){
-  if(!G || G.over || G.prizeRefreshDone) return;
-  G.prizeRefreshDone=true; // exactly once per match, topped up or not
-  if(!halftimePrizesDue()) return;
-  var now=(window.performance && performance.now) ? performance.now() : Date.now();
-  var added=[];
-  // (1) STARS: top the waiting pair back up to two — never more.
-  var waitingStars=(G.stars||[]).filter(function(s){ return s && !s.taken; });
-  if(waitingStars.length<2){
-    var keeps=[];
-    if(G.prisoners) G.prisoners.forEach(function(prz){ if(prz && !prz.freed) keeps.push({x:prz.x, y:prz.y, r:PRIZE_FOOT.prisoner}); });
-    if(waitingStars.length===1 && G.stars && G.stars.length===2){
-      // One twin survives: restore the missing star at the survivor's
-      // exact 180-degree rotation (its twin's original spot), relocated
-      // minimally only if that spot is blocked by now.
-      var surv=waitingStars[0], rot=rotPt(surv.x, surv.y), spot=null;
-      if(prizeSpotClear(rot.x, rot.y, PRIZE_FOOT.star, {x:surv.x, y:surv.y, r:PRIZE_FOOT.star}) && keepsClear(rot.x, rot.y, PRIZE_FOOT.star, keeps)) spot=rot;
-      else spot=prizeRelocate(rot.x, rot.y, PRIZE_FOOT.star, function(x, y){
-        return prizeSpotClear(x, y, PRIZE_FOOT.star, {x:surv.x, y:surv.y, r:PRIZE_FOOT.star}) && keepsClear(x, y, PRIZE_FOOT.star, keeps);
-      });
-      if(spot){
-        var ti=G.stars[0].taken ? 0 : 1;
-        G.stars[ti]={x:spot.x, y:spot.y, taken:false, bornAt:now};
-        added.push("a fresh golden ARMOR STAR");
-      }
-    } else {
-      // Both taken (or no pair standing): a fresh re-randomized pair.
-      var pair=placeStarPair(keeps, now);
-      if(pair){ G.stars=pair; added.push("a fresh pair of golden ARMOR STARS"); }
-    }
-  }
-  // (2) PRISONERS: a new captive only for a side whose first was rescued.
-  if(G.prisoners){
-    var starKeeps=starKeepsOf(G.stars);
-    for(var p=0;p<2;p++){
-      var prz=G.prisoners[p];
-      if(!prz || !prz.freed) continue;
-      var spot=findPrisonerSpotFor(p, starKeeps);
-      if(spot){ G.prisoners[p]={x:spot.x, y:spot.y, freed:false, bornAt:now}; added.push("a new captive for "+playerName(p)); starKeeps=starKeepsOf(G.stars); }
-    }
-  }
-  if(added.length){
-    log("⏸ HALFTIME! The prizes are topped up: "+added.join(" and ")+" on the paper.");
-    SFX.pop();
-    draw();
-  }
-}
-/* Fade for a freshly refreshed prize (bornAt is set only on halftime
-   pieces; opening prizes have none and draw at full strength). */
+/* Fade for a freshly dealt prize carrying a bornAt stamp (the
+   opening prizes of a round have none and draw at full strength). */
 var PRIZE_FADE_MS=650;
 function prizeFade(prize){
   if(!prize || !prize.bornAt) return 1;
@@ -2862,10 +2814,9 @@ function findThing(id){
    THE LUNCH CLOCK LEFT THE PAPER (Oct 27, 2026, later — Matthew):
    the analog school clock used to sit in the board's top-right
    corner, its disc fenced off from movement and prize placement.
-   It now lives in the top chrome row, at the upper right beside the
-   layout badge (see drawChromeClock) — same hand-drawn face, same
-   size class, final 10 minutes still red — and no corner of the
-   sheet is out of play any more.
+   It lived in the top chrome row for a while after that; TIER 2
+   removed it outright (rounds replaced the lunch), and no corner
+   of the sheet is out of play.
    ============================================================ */
 function barrierAt(pt, pad){
   pad=pad||0;
@@ -3065,45 +3016,6 @@ function drawQuarter(c, q){
     arcText("LIBERTY", 40, 0.21, false, 4.6);
   }
   c.restore(); c.restore();
-}
-/* THE LUNCH CLOCK: starts at 12:00, one minute per completed turn.
-   The final 10 minutes run red — rim, hands, and the danger arc on
-   the minute dial (always drawn faintly, so the end is never a
-   surprise). Numerals: just the 12 — it's a school clock, you read
-   the hands. It is drawn in the TOP CHROME now (drawChromeClock,
-   beside the layout badge), upright and off the paper: the board's
-   top-right corner is ordinary playable paper again. */
-function drawClockFace(c, cx, cy, r){
-  var total=lunchTurns(), elapsed=G?(G.turnCount||0):0, t=Math.min(elapsed, total);
-  var late=(total-elapsed)<=10;
-  c.save(); c.translate(cx, cy);
-  var sc=r/54; c.scale(sc, sc); // the face is authored at the old on-paper radius (54) and scaled to its chrome slot
-  c.fillStyle="rgba(60,50,30,.20)"; c.beginPath(); c.ellipse(3, 5, 54, 54*0.94, 0, 0, 6.29); c.fill();
-  c.beginPath(); c.arc(0, 0, 54, 0, 6.29); c.fillStyle="#fdfdf4"; c.fill();
-  c.lineWidth=5; c.strokeStyle= late ? "#c1271b" : "#2b2b33"; c.stroke();
-  if(total>10){
-    var a0=((total-10)%60)/60*Math.PI*2 - Math.PI/2;
-    c.beginPath(); c.arc(0, 0, 54-13, a0, a0+Math.PI/3);
-    c.strokeStyle= late ? "rgba(193,39,27,.95)" : "rgba(193,39,27,.30)"; c.lineWidth=5.5; c.stroke();
-  }
-  for(var i=0;i<12;i++){
-    c.save(); c.rotate(i*Math.PI/6); c.strokeStyle="#2b2b33"; c.lineWidth=i%3===0?3:1.6;
-    c.beginPath(); c.moveTo(0, -54+8); c.lineTo(0, -54+(i%3===0?19:15)); c.stroke(); c.restore();
-  }
-  c.fillStyle="#2b2b33"; c.font="800 14px 'Segoe Print','Bradley Hand',system-ui,sans-serif"; c.textAlign="center"; c.textBaseline="middle";
-  c.fillText("12", 0, -54+32);
-  var ma=((t%60)/60)*Math.PI*2 - Math.PI/2, ha=(((t/60)%12)/12)*Math.PI*2 - Math.PI/2;
-  c.strokeStyle= late ? "#c1271b" : "#2b2b33"; c.lineCap="round";
-  c.lineWidth=5; c.beginPath(); c.moveTo(0,0); c.lineTo(Math.cos(ha)*54*0.46, Math.sin(ha)*54*0.46); c.stroke();
-  c.lineWidth=3.4; c.beginPath(); c.moveTo(0,0); c.lineTo(Math.cos(ma)*54*0.70, Math.sin(ma)*54*0.70); c.stroke();
-  c.fillStyle= late ? "#c1271b" : "#2b2b33"; c.beginPath(); c.arc(0, 0, 4, 0, 6.29); c.fill();
-  c.restore();
-}
-function drawChromeClock(){
-  var el=document.getElementById("clockCv"); if(!el) return;
-  var g2=el.getContext("2d"); if(!g2) return;
-  g2.clearRect(0,0,el.width,el.height);
-  drawClockFace(g2, el.width/2, el.height/2, el.width/2-6);
 }
 /* The production button lives ON the base (one-screen pass): a disc
    in the owner's color that fires the same action as #btnLaunch and
@@ -3358,7 +3270,7 @@ function updateHUD(){
   if(!G) return;
   var tb=document.getElementById("turnBadge");
   var col=PLAYER_COLORS[playerCfg(G.turn).color].hex;
-  tb.textContent = G.draw ? "Draw" : G.over ? "Match over" : (CFG.mode==="1p" ? (G.turn===0?"Your turn":"CPU is thinking…") : playerName(G.turn)+"'s turn");
+  tb.textContent = G.matchOver ? (G.draw ? "Draw" : "Match over") : G.roundEnd ? "Round over" : G.draw ? "Draw" : (CFG.mode==="1p" ? (G.turn===0?"Your turn":"CPU is thinking…") : playerName(G.turn)+"'s turn");
   var cp=document.getElementById("clockPips");
   if(cp){
     // The MATCH length is the analog lunch clock in the chrome now —
@@ -3375,7 +3287,13 @@ function updateHUD(){
     } else { cp.textContent=""; cp.classList.remove("hot"); }
   }
   tb.style.borderColor=col; tb.style.color=col;
-  drawChromeClock(); // the lunch clock lives in the top chrome now (beside the layout badge) — every HUD pass re-reads the turn count, so its hands move with the match
+  // TIER 2: the round badge takes the chrome slot the lunch clock used
+  // to hold — round number and the rounds tally, always current.
+  var rb=document.getElementById("roundBadge");
+  if(rb){
+    if(MATCH && !G.editor){ rb.textContent="Round "+MATCH.round+" · "+badgeName(0)+" "+MATCH.rounds[0]+" – "+MATCH.rounds[1]+" "+badgeName(1); rb.style.display=""; }
+    else rb.style.display="none";
+  }
   var mTag=document.getElementById("mirrorTag"); if(mTag) mTag.style.display = G.mirror ? "" : "none"; // 🪞 tag lives in the chrome, never on the paper
   updateTurnIndicator(); // the 2P turn pill at the current player's end follows every turn change (incl. launches & defense fire, which end the turn through here)
   // Base health is NOT lettered anywhere any more: it reads off the base
@@ -3407,7 +3325,8 @@ function updateHUD(){
   mc.innerHTML = "<b>"+CFG.theme.toUpperCase()+"</b> · "+PRESETS[CFG.preset].label+" · "+CFG.control+" flicks<br>"+
     "Turn: "+CFG.turnStructure+" · FF: "+CFG.friendly+" · Edge: "+CFG.edge+"<br>"+
     "Shared tools: "+CFG.p1.flicker+" flicker · "+CFG.p1.medium+" traces — both sides, only the colors differ"+
-    (CFG.theme==="space" ? "<br>🚀 Fighter style: <b>"+FIGHTER_STYLE_NAMES[MATCH_STYLE]+"</b>"+((SETTINGS.fighterStyle||"rotate")==="rotate"?" (rotating — change it in Variants)":"") : "");
+    (CFG.theme==="space" ? "<br>🚀 Fighter style: <b>"+FIGHTER_STYLE_NAMES[MATCH_STYLE]+"</b>"+((SETTINGS.fighterStyle||"rotate")==="rotate"?" (rotating — change it in Variants)":"") : "")+
+    (MATCH && !G.editor ? "<br>Rounds: "+MATCH.rounds[0]+" – "+MATCH.rounds[1]+" (first to 3)"+(CFG.mode==="1p" ? " · 🏆 "+RECORD.wins+" wins, streak "+RECORD.streak : "") : "");
   var sel=G.selected?findThing(G.selected):null;
   document.getElementById("selInfo").textContent = sel ? thingLabel(sel) : ""; // MINIMAL WORDING: selection speaks through its drawn cue, not a sentence;
   saveMatch(); // MID-MATCH SAVE: every turn / phase / hit / launch funnels through updateHUD, so the saved match tracks the live one (a dirty check inside keeps it cheap; a finished match never writes)
@@ -4057,7 +3976,7 @@ function drawPrizes(c){
     G.stars.forEach(function(st){
       if(!st || st.taken) return;
       var sx=st.x, sy=st.y;
-      var sfa=prizeFade(st); // a halftime-refreshed star fades in (bornAt); opening prizes draw at full strength
+      var sfa=prizeFade(st); // a bornAt-stamped star fades in; opening prizes draw at full strength
       if(!sim2 || !drawArt(c, sim2, sx, sy, 76, 76, 0, sfa)){
         c.save(); c.globalAlpha=sfa;
         starPath(c, sx, sy, 21); c.fillStyle="#f6c945"; c.fill(); c.strokeStyle="#8a6414"; c.lineWidth=2.2; c.stroke();
@@ -4072,7 +3991,7 @@ function drawPrizes(c){
     var col=PLAYER_COLORS[playerCfg(p).color].hex;
     var pkey = CFG.theme==="space" ? "pod" : CFG.theme==="knights" ? "knight" : "pen";
     var pim=prizeSprite(pkey, playerCfg(p).color);
-    var pfa=prizeFade(prz); // a halftime-refreshed captive fades in (bornAt); opening captives draw at full strength
+    var pfa=prizeFade(prz); // a bornAt-stamped captive fades in; opening captives draw at full strength
     if(pim){
       var pd = pkey==="pod" ? {w:66,h:98} : pkey==="knight" ? {w:76,h:90} : {w:80,h:80};
       if(drawArt(c, pim, prz.x, prz.y, pd.w, pd.h, 0, pfa)) return;
@@ -5102,6 +5021,53 @@ function drawWrecks(c){
     }
   }
 }
+/* ============================================================
+   TIER 2 — THE MARGIN SCOREBOARD. Round wins are tallied in
+   pencil in the notebook margin: one near-vertical stroke per
+   round won, in the OWNER's color, grouped per side; the third
+   win gets a diagonal strike through that side's group (the
+   match is over). Face layout: the margin band is the looseleaf
+   red-line column (logical x 10..46) — side 1's group in the top
+   half, side 0's in the bottom half, matching where their bases
+   stand. Side layout: the margin runs along the top — side 0's
+   group top-left, side 1's top-right, positions tuned to sit
+   clear of the binder holes. Jitter comes from sr() keyed by
+   (side, index), so a given standing draws identically every
+   frame (no shimmer), and the marks ride the board transform,
+   turning with the sheet exactly like the margin line itself.
+   Pure paint over state: reads MATCH.rounds, writes nothing.
+   ============================================================ */
+function drawMarginScore(c){
+  if(!MATCH || !G || G.editor) return;
+  var rounds=MATCH.rounds||[0,0];
+  if(!rounds[0] && !rounds[1]) return;
+  c.save();
+  for(var p=0;p<2;p++){
+    var n=Math.min(3, rounds[p]||0); if(n<=0) continue;
+    var col=PLAYER_COLORS[playerCfg(p).color].hex;
+    c.strokeStyle=col; c.globalAlpha=0.9; c.lineWidth=3; c.lineCap="round";
+    var pts=[];
+    if(isFaceLayout()){
+      var mx=28, y0=(p===0 ? FH*0.60 : FH*0.16); // side 1's group in the top half, side 0's in the bottom half — clear of the binder holes at 120 / FH/2 / FH-120
+      for(var i=0;i<n;i++) pts.push({x:mx, y:y0+i*26});
+    } else {
+      var my=28, x0=(p===0 ? 150 : FW-260); // along the top margin, clear of the holes at 120 / FW/2 / FW-120
+      for(var j=0;j<n;j++) pts.push({x:x0+j*26, y:my});
+    }
+    pts.forEach(function(m, idx){
+      var j1=(sr((p+1)*131+idx*17)-0.5)*3, j2=(sr((p+1)*211+idx*29)-0.5)*3;
+      c.beginPath(); c.moveTo(m.x+j1, m.y-9); c.lineTo(m.x+j2, m.y+9); c.stroke();
+    });
+    if(rounds[p]>=3 && pts.length){
+      var f=pts[0], l=pts[pts.length-1];
+      c.beginPath();
+      if(isFaceLayout()){ c.moveTo(f.x-8, f.y-12); c.lineTo(l.x+8, l.y+12); }
+      else { c.moveTo(f.x-12, f.y-8); c.lineTo(l.x+12, l.y+8); }
+      c.stroke();
+    }
+  }
+  c.restore();
+}
 function draw(){
   if(!G) return;
   drawPaperLayer(); // the full-bleed paper backdrop (signature-gated: a no-op unless theme, mirror, stage size or artwork readiness changed)
@@ -5110,6 +5076,7 @@ function draw(){
   if(PRES_ROT){ ctx.translate(FH,0); ctx.rotate(Math.PI/2); } // landscape presentation: the whole sheet turns 90° CW — everything drawn below is in board coordinates
   if(plateCfg()){ drawPlate(ctx); drawPlateState(ctx); }
   else { drawPaper(ctx); drawBaseZones(ctx); G.obstacles.forEach(function(o){ drawObstacle(ctx,o); }); }
+  drawMarginScore(ctx); // TIER 2: the pencil tallies in the margin — the scoreboard of record, under the pieces
   drawAmbientBG(ctx, Date.now()); // FEEL PASS: the living background (twinkling stars / heat shimmer) — pure paint, under everything that plays
   drawCraters(ctx); // FEEL PASS: the torn ground, lying under the pieces that must cross it
   if(G.coin && G.coin.landed) drawQuarter(ctx, G.coin); // the flip's quarter, lying on the paper under the traces — shots cross over it, moves bump into it
@@ -5132,15 +5099,11 @@ function draw(){
     }
   }); }
   drawProdButton(ctx,0); drawProdButton(ctx,1); // reinforcements, requested at the base itself
-  if(CFG.mode==="2p" && !G.over){ // 2P at-a-glance cue, in the side to move's color: a soft pulsing outline on their base and its reinforcements disc (drawn in board space, so it turns with the sheet and always hugs the right base)
-    var tp=G.turn, tbc=baseCenter(tp), tcol=PLAYER_COLORS[playerCfg(tp).color].hex, tpu=0.5+0.5*Math.sin(Date.now()/340);
-    ctx.save(); ctx.strokeStyle=tcol; ctx.lineCap="round";
-    ctx.globalAlpha=0.30+0.28*tpu; ctx.lineWidth=4;
-    ctx.beginPath(); ctx.ellipse(tbc.x, tbc.y, baseFootW()/2+11+3*tpu, baseFootH()/2+11+3*tpu, 0, 0, 6.29); ctx.stroke();
-    if(CFG.deployment!=="none" && G.bases[tp].hp>0){ var tpp=prodBtnPos(tp); ctx.globalAlpha=0.35+0.30*tpu; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(tpp.x, tpp.y, tpp.r+6+2*tpu, 0, 6.29); ctx.stroke(); }
-    ctx.restore();
+  if(CFG.mode==="2p" && !G.over){ // 2P at-a-glance cue, in the side to move's color: a soft pulse hugging their reinforcements disc (TIER 2 ruling, Nov 12, 2026: the old ring around the whole base read as an unexplained red circle around the army base — the pulse belongs on the disc itself, all themes; drawn in board space, so it turns with the sheet)
+    var tp=G.turn, tcol=PLAYER_COLORS[playerCfg(tp).color].hex, tpu=0.5+0.5*Math.sin(Date.now()/340);
+    if(CFG.deployment!=="none" && G.bases[tp].hp>0){ var tpp=prodBtnPos(tp); ctx.save(); ctx.strokeStyle=tcol; ctx.lineCap="round"; ctx.globalAlpha=0.35+0.30*tpu; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(tpp.x, tpp.y, tpp.r+6+2*tpu, 0, 6.29); ctx.stroke(); ctx.restore(); }
   }
-  // (the lunch clock is NOT drawn here any more — it lives in the top chrome; see drawChromeClock)
+  // (no clock is drawn on the paper or in the chrome any more — TIER 2 removed the lunch clock; the round badge in the chrome carries the standing)
   /* HEAVY MORTAR IN FLIGHT (Oct 29, 2026): the shell on its smooth
      parabola — a landing ring waits at the target, a ground shadow
      runs the straight line underneath (shrinking and darkening as
@@ -5449,6 +5412,7 @@ function damageBase(owner, byPlayer, opts){
   }
   var wasShield = CFG.theme==="space" && ((CFG.spaceBase==="forcefield"&&G.bases[owner].hp===3)||(CFG.spaceBase==="extra"&&G.bases[owner].hp>2));
   G.bases[owner].hp--; haptic([30,40,30]);
+  if(CFG.theme==="knights" && opts.pt) addCrater(opts.pt.x, opts.pt.y, 14); // TIER 2 (ruling 4): a hit on the castle scorches the ground at the impact point — same crater, same 10-degree bend as every theme's
   if(byPlayer!==owner) G.baseDamage[byPlayer]++; // sudden-death tally: a landed base hit (a shield pop counts — the forcefield IS hit 1)
   noteBaseHit(owner);
   if(wasShield){ G.flashShield=owner; SFX.shield(); setTimeout(function(){ G.flashShield=-1; draw(); },450);
@@ -5461,7 +5425,7 @@ function damageBase(owner, byPlayer, opts){
   if(G.bases[owner].hp<=0){
     SFX.boom(true); spawnEscape(bc.x, bc.y, 6);
     log("🎉 "+playerName(owner)+"'s base BLOWS UP! "+(CFG.theme==="space"?"The whole crew ejects in tiny escape pods and bobs away, unharmed.":"The crew escapes, waving their arms. Nobody is hurt — it's paper."));
-    endMatch(1-owner);
+    endRound(1-owner); // TIER 2: a destroyed base ends the ROUND, instantly — the match only ends when a side reaches 3 round wins (endRound falls through to endMatch there)
   } else if(byPlayer!==owner){
     breachHit(owner); // SIEGE MOMENTUM — BREACH: a counted hit that doesn't end the game also brings down the nearest guard structure
   }
@@ -5549,9 +5513,9 @@ function checkStalemate(){ evaluateClock(); }
 function evaluateClock(){
   if(!G || G.over) return;
   var can0=sideCanAct(0), can1=sideCanAct(1);
-  if(!can0 && !can1){ endMatchDraw("Neither side can act any more."); return; }
-  if(!can0){ log(playerName(0)+" has no fighters, no working defenses, and nothing left to launch — they cannot act at all."); endMatch(1); return; }
-  if(!can1){ log(playerName(1)+" has no fighters, no working defenses, and nothing left to launch — they cannot act at all."); endMatch(0); return; }
+  if(!can0 && !can1){ endRoundDraw("Neither side can act any more."); return; }
+  if(!can0){ log(playerName(0)+" has no fighters, no working defenses, and nothing left to launch — they cannot act at all."); endRound(1); return; }
+  if(!can1){ log(playerName(1)+" has no fighters, no working defenses, and nothing left to launch — they cannot act at all."); endRound(0); return; }
   var f0=allUnits(0).length>0, f1=allUnits(1).length>0;
   if(f0!==f1){
     var side=f0?0:1;
@@ -5581,32 +5545,122 @@ function noteBaseHit(owner){
   }
 }
 function endMatchDraw(why){
+  // TIER 2: defensive only. Draws are ROUND-level now (endRoundDraw,
+  // replayed fresh); no normal path reaches a whole-match draw. If
+  // one ever does, it ends the match as a draw and — per D5 — a
+  // drawn match never touches the record.
   if(G.over) return;
   clearMatchSave(); // MID-MATCH SAVE: the match has concluded — its save goes with it (settings and records are untouched)
-  var clockStart=(G.clock&&G.clock.start)||null; // captured before the clock is cleared, for the end-screen wording
-  G.over=true; G.winner=null; G.draw=true; G.clock=null;
+  G.over=true; G.winner=null; G.draw=true; G.matchOver=true; G.clock=null;
+  overMode="match";
+  document.getElementById("overRematch").textContent="↺ Rematch";
+  document.getElementById("overShare").style.display="";
   if(CFG.theme==="space" && !SETTINGS.turretHintDone){ SETTINGS.turretHintDone=true; saveSettings(); } // the one-time turret hint never outlives the first match
   log("🤝 "+(why||"The stalemate clock ran out with no base hit.")+" It's a draw — nobody camps their way to a win.");
   updateHUD(); draw();
   haptic([25,70,25]); crowdReact("draw");
   setTimeout(function(){
-    document.getElementById("overTitle").textContent = G.sdNote ? "🕐 Lunch over — dead level!" : "🤝 Stalemate — it's a draw!";
-    document.getElementById("overText").textContent = G.sdNote || ""; // MINIMAL WORDING: results keep the winner line (the title) — and, for lunch-over endings, the damage tally that decided it — and nothing else;
+    document.getElementById("overTitle").textContent = "🤝 Stalemate — it's a draw!";
+    document.getElementById("overText").textContent = ""; // MINIMAL WORDING: results keep the winner line (the title) and nothing else
     document.getElementById("overModal").classList.add("open");
   }, 900);
 }
 function endMatch(winner){
   if(G.over) return;
   clearMatchSave(); // MID-MATCH SAVE: the match has concluded — its save goes with it (settings and records are untouched)
-  G.over=true; G.winner=winner; G.clock=null;
+  G.over=true; G.winner=winner; G.matchOver=true; G.clock=null;
+  overMode="match";
+  document.getElementById("overRematch").textContent="↺ Rematch";
+  document.getElementById("overShare").style.display="";
+  if(CFG.mode==="1p"){ // TIER 2 (D5): the saved record counts 1P vs CPU only, and it is accounted HERE, once — the G.over guard above means even View Board round-trips can never double-count a match
+    if(winner===0){ RECORD.wins++; RECORD.streak++; } else { RECORD.streak=0; }
+    saveRecord();
+  }
   if(CFG.theme==="space" && !SETTINGS.turretHintDone){ SETTINGS.turretHintDone=true; saveSettings(); } // the one-time turret hint never outlives the first match
   haptic([25,70,25]); crowdReact(CFG.mode==="2p" ? "win" : (winner===0 ? "win" : "lose"));
   updateHUD(); draw();
   setTimeout(function(){
     document.getElementById("overTitle").textContent = "💥 "+subjectName(winner)+" "+(secondPerson(winner)?"win!":"wins!");
-    document.getElementById("overText").textContent = G.sdNote || ""; // MINIMAL WORDING: winner line only (see endMatchDraw);
+    document.getElementById("overText").textContent = CFG.mode==="1p"
+      ? "🏆 Match wins: "+RECORD.wins+" · Win streak: "+RECORD.streak
+      : (MATCH ? "Rounds "+MATCH.rounds[winner]+" to "+MATCH.rounds[1-winner]+"." : ""); // MINIMAL WORDING: winner line plus the rounds standing (1P shows the record line instead)
     document.getElementById("overModal").classList.add("open");
   }, 900);
+}
+/* ============================================================
+   TIER 2 — ROUND ENDINGS. A round ends the moment a base falls
+   (damageBase), when a side cannot act at all (evaluateClock),
+   when the stalemate clock runs out, or at the 30-turn cap
+   (resolveRoundCap, in endTurn). endRound banks the tally; at 3
+   the match itself ends through the endMatch above. A drawn
+   round banks nothing and is replayed on a fresh sheet.
+   ============================================================ */
+function endRound(winner){
+  if(!G || G.over) return;
+  if(!MATCH){ endMatch(winner); return; } // defensive: no match frame (practice edges) — behave exactly as before Tier 2
+  MATCH.rounds[winner]++;
+  if(CFG.mode==="1p") MATCH.cpuEsc=MATCH.rounds[0]; // D6: escalation IS the tally of rounds the CPU has lost — set from the tally here, never incremented anywhere else
+  if(MATCH.rounds[winner]>=3){ endMatch(winner); return; }
+  G.over=true; G.roundEnd=true; G.roundWinner=winner; G.clock=null;
+  if(CFG.theme==="space" && !SETTINGS.turretHintDone){ SETTINGS.turretHintDone=true; saveSettings(); } // the one-time turret hint never outlives the first match
+  log("🏆 "+playerName(winner)+" takes round "+MATCH.round+". Rounds: "+MATCH.rounds[0]+" to "+MATCH.rounds[1]+".");
+  haptic([25,70,25]); crowdReact(CFG.mode==="2p" ? "win" : (winner===0 ? "win" : "lose"));
+  updateHUD(); draw();
+  saveMatch(); // the intermission save: quitting here resumes onto the round-end card (the save is NOT cleared at a round end — only at match end)
+  setTimeout(function(){ showRoundEnd(winner); }, 900);
+}
+function endRoundDraw(why){
+  if(!G || G.over) return;
+  if(!MATCH){ endMatchDraw(why); return; } // defensive: no match frame — the old whole-match draw
+  G.over=true; G.roundEnd=true; G.roundWinner=null; G.draw=true; G.clock=null;
+  MATCH.starter=1-MATCH.starter; // a replayed round alternates its starter (the flip that decides it happens here, once)
+  log("🤝 "+(why||"The stalemate clock ran out with no base hit."));
+  log("🤝 Round "+MATCH.round+" is a draw. It will be replayed on a fresh sheet.");
+  haptic([25,70,25]); crowdReact("draw");
+  updateHUD(); draw();
+  saveMatch(); // the intermission save, as in endRound
+  setTimeout(function(){ showRoundEnd(null); }, 900);
+}
+function showRoundEnd(winner, reshown){
+  // The results modal in its round shape: Next round (or Replay
+  // round), View Board over the finished round's sheet, Change
+  // setup — and NO Share: a round is not a result, and hiding the
+  // button here is a display state only (the DOM keeps exactly
+  // the two standard Share controls). Reshown (a resume) rebuilds
+  // the same card from MATCH alone, so it is identical either way.
+  var rematchBtn=document.getElementById("overRematch"), shareBtn=document.getElementById("overShare");
+  shareBtn.style.display="none";
+  if(winner==null){
+    overMode="replay";
+    document.getElementById("overTitle").textContent="🤝 Round "+MATCH.round+" is a draw.";
+    document.getElementById("overText").textContent="No tally for a drawn round. It is replayed on a fresh sheet.";
+    rematchBtn.textContent="▶ Replay round";
+  } else {
+    overMode="round";
+    document.getElementById("overTitle").textContent = CFG.mode==="2p"
+      ? "💥 "+subjectName(winner)+" take"+(secondPerson(winner)?"":"s")+" round "+MATCH.round+"!"
+      : (winner===0 ? "💥 Round "+MATCH.round+" to you!" : "💥 Round "+MATCH.round+" to the CPU.");
+    var t;
+    if(MATCH.rounds[0]===MATCH.rounds[1]) t="Level at "+MATCH.rounds[0]+" to "+MATCH.rounds[1]+". First to 3 takes the match.";
+    else if(CFG.mode==="2p") t=subjectName(0)+" "+MATCH.rounds[0]+" · "+MATCH.rounds[1]+" "+subjectName(1)+". First to 3 takes the match.";
+    else if(MATCH.rounds[0]>MATCH.rounds[1]) t="You lead "+MATCH.rounds[0]+" to "+MATCH.rounds[1]+". First to 3 takes the match.";
+    else t="The CPU leads "+MATCH.rounds[1]+" to "+MATCH.rounds[0]+". First to 3 takes the match.";
+    document.getElementById("overText").textContent=t;
+    rematchBtn.textContent="▶ Next round";
+  }
+  document.getElementById("overModal").classList.add("open");
+}
+/* TIER 2 — THE ROUND CAP (locked ruling, Nov 12, 2026): at 30
+   completed turns with both bases standing, the round is decided
+   by the base-damage tally — the same G.baseDamage sudden death
+   used to read, now scoped to the round. Level damage replays
+   the round on a fresh sheet. */
+function resolveRoundCap(){
+  if(!G || G.over) return;
+  var d0=G.baseDamage[0], d1=G.baseDamage[1];
+  log("⏱ Round "+(MATCH?MATCH.round:1)+" time! "+ROUND_TURN_CAP+" turns gone, both bases still stand. Base damage dealt: "+playerName(0)+" "+d0+" · "+playerName(1)+" "+d1+".");
+  if(d0===d1){ endRoundDraw("Round time: base damage level at "+d0+" to "+d1+"."); }
+  else endRound(d0>d1?0:1);
 }
 
 /* ---- MOVE resolution: first intersection only ---- */
@@ -5695,12 +5749,13 @@ function resolveMove(u, end, vec){
   if(u.kind==="knight"){
     if(hitSomething){
       if(hitSomething.type==="base"){
-        if(u.mounted){ damageBase(hitSomething.owner, u.owner); unhorse(u,"Charging a castle costs you your horse."); u.x=finalPt.x; u.y=finalPt.y; }
+        if(u.mounted){ damageBase(hitSomething.owner, u.owner, {pt:{x:finalPt.x, y:finalPt.y}}); unhorse(u,"Charging a castle costs you your horse."); u.x=finalPt.x; u.y=finalPt.y; }
         else { log("On foot, a knight can't hurt the castle. He bounces off, dignity bruised."); u.x=finalPt.x; u.y=finalPt.y; }
       } else if(hitSomething.type==="remount"){
         u.mounted=true; u.x=finalPt.x; u.y=finalPt.y; SFX.pop(); log("🐴 Remounted! Back to full charging strength.");
       } else if(hitSomething.type==="obstacle"&&hitSomething.ob.type==="rock"){ haptic(20);
         u.x=finalPt.x; u.y=finalPt.y; unhorse(u,"Clanged into a rock.");
+        addCrater(finalPt.x, finalPt.y, 14); // TIER 2 (ruling 4): the slam churns the ground at the rock's foot — same crater behavior as every other source
       } else if(hitSomething.type==="obstacle"){
         u.x=finalPt.x; u.y=finalPt.y;
       } else if(hitSomething.type==="unit"){
@@ -5923,7 +5978,7 @@ function resolveShot(shooter, end, vec){
       if(baseHitAt(pt,bp)){
         if(bp===owner && CFG.friendly!=="full"){ /* passes over own base harmlessly unless full */ }
         else if(wallBlocks(start,pt,bp)){ stopped=true; log("The wall blocks the shot — thread the door gap!"); }
-        else { damageBase(bp, owner, {}); }
+        else { damageBase(bp, owner, {pt:{x:pt.x, y:pt.y}}); } // the impact point rides along: Knights castle hits scorch a crater there (TIER 2)
         if(bp!==owner) stopped = (CFG.obstacle!=="tunnel"); // a base hit always ends a normal shot narratively; tunneling shots in space may continue past fighters but base hit ends it
         if(bp!==owner) stopped=true;
         break;
@@ -6122,26 +6177,6 @@ afterAction=function(thing,action){
   if(G._noEnd){ draw(); updateHUD(); return; }
   _origAfter(thing,action);
 };
-/* LUNCH OVER (Oct 26, 2026 — replaces sudden-death-at-40): at the END of
-   the last turn of the lunch (CFG.lunch: 60 turns by default, 30 Short,
-   120 Long, or a custom count) with both bases still standing, the side
-   that dealt MORE total base damage wins; level damage is a draw. The
-   school clock drawn in the board's corner IS the counter — one minute
-   per turn from 12:00, its final 10 minutes red — and the end screen
-   says the match was decided on damage. */
-function resolveSuddenDeath(){
-  if(G.over) return;
-  var total=lunchTurns(), d0=G.baseDamage[0], d1=G.baseDamage[1];
-  log("🕐 LUNCH IS OVER! "+total+" turns gone, both bases still stand. Base damage dealt: "+playerName(0)+" "+d0+" · "+playerName(1)+" "+d1+".");
-  if(d0===d1){
-    G.sdNote="🕐 Lunch over ("+total+" turns): base damage was level at "+d0+"–"+d1+", so nobody takes it.";
-    endMatchDraw("Lunch over: base damage tied.");
-  } else {
-    var w=d0>d1?0:1;
-    G.sdNote="🕐 Lunch over ("+total+" turns): "+subjectName(w)+" dealt more base damage ("+Math.max(d0,d1)+"–"+Math.min(d0,d1)+") and "+(secondPerson(w)?"take":"takes")+" the match.";
-    endMatch(w);
-  }
-}
 function endTurn(){
   if(G.over) return;
   var prev=G.turn;
@@ -6151,13 +6186,12 @@ function endTurn(){
   // stalemate clock burns down only on the fighter-having side's own turns
   if(G.clock && G.clock.side===prev){
     G.clock.left--;
-    if(G.clock.left<=0){ endMatchDraw(); return; }
+    if(G.clock.left<=0){ endRoundDraw(); return; } // TIER 2: a stalemate expiry draws the ROUND, not the match — it replays fresh
     log("⏱ Stalemate clock: "+playerName(prev)+" has "+G.clock.left+" turn"+(G.clock.left===1?"":"s")+" left to hit the enemy base.");
   }
   G.turnCount++;
   if(G.prodCd && G.prodCd[prev]>0) G.prodCd[prev]--; // production cooldown ticks at the end of the producer's own turns
-  if(G.turnCount>=lunchTurns() && !G.over){ resolveSuddenDeath(); return; } // the lunch clock runs out: most base damage takes it
-  if(!G.over && !G.prizeRefreshDone && G.turnCount>=Math.ceil(lunchTurns()/2)) refreshPrizesHalftime(); // HALFTIME (long games only): top the prizes back up, exactly once — refreshPrizesHalftime itself checks the 90+ turn / prizes-on scope
+  if(G.turnCount>=ROUND_TURN_CAP && !G.over){ resolveRoundCap(); return; } // TIER 2: the round cap — most base damage takes the round, level damage replays it (the old lunch-clock line and the mid-match prize top-up trigger are both gone: fresh prizes are dealt each round instead)
   G.turn=1-G.turn; G.fastPhase="move"; G.movedId=null;
   /* the Move/Shoot pick STICKS across turns in Classic (it used to reset
      to Move silently every turn); Fast re-enters on its Move phase and
@@ -6360,11 +6394,14 @@ function simShotOutcome(shooter, end){
 }
 function cpuTurn(){
   if(!G||G.over||G.turn!==1) return;
-  var err = CFG.cpuDiff==="recess"?0.34 : CFG.cpuDiff==="study"?0.07 : 0.18;
-  var budget = CFG.cpuDiff==="recess"?6 : CFG.cpuDiff==="study"?26 : 14; // candidate flicks it bothers to simulate
+  var esc = (CFG.mode==="1p" && MATCH) ? (MATCH.cpuEsc||0) : 0; // TIER 2 (D6): the CPU sharpens per round it has LOST this match — 0, 1 or 2 in a live match
+  var err = Math.max(0.05, (CFG.cpuDiff==="recess"?0.34 : CFG.cpuDiff==="study"?0.07 : 0.18) - 0.05*esc);
+  var budget = (CFG.cpuDiff==="recess"?6 : CFG.cpuDiff==="study"?26 : 14) + 6*esc; // candidate flicks it bothers to simulate — escalation deepens the search
+  var hopsBase = Math.min(6, (CFG.cpuDiff==="study"?5 : CFG.cpuDiff==="lunch"?4 : 3) + esc); // sampled retry hops per unit, escalated and clamped (basis for the per-unit hops below)
   var p=1, foeBase=baseCenter(0);
   var clockPush = !!(G.clock && G.clock.side===1); // stalemate clock running against the CPU: shove at the base, no camping
-  var latePush = G.turnCount>=lunchTurns()-11 && G.baseDamage[1]<G.baseDamage[0]; // lunch-clock maths: behind on base damage in the last stretch of the lunch — weight base attacks hard
+  var roundPush = !!(MATCH && MATCH.rounds[1]<MATCH.rounds[0]); // TIER 2: behind on ROUNDS — weight base attacks the way the old late-lunch push did
+  window.__SS_CPU_LAST={esc:esc, err:err, budget:budget, hops:hopsBase}; // proof hook: the levers this CPU turn actually ran with
   function flick(thing, ang, len, action){
     G.selected=thing.id;
     var end={x:thing.x+Math.cos(ang)*len, y:thing.y+Math.sin(ang)*len};
@@ -6391,7 +6428,7 @@ function cpuTurn(){
   var fastMove = CFG.turnStructure==="fast" && G.fastPhase==="move";
   /* Production: a fighter-less CPU always builds; below cap it often refills;
      at cap it never wastes the turn. */
-  if(!fastShoot && canProduce(p) && (myUnits.length===0 || Math.random()<0.4)){ document.getElementById("btnLaunch").click(); return; }
+  if(!fastShoot && canProduce(p) && (myUnits.length===0 || Math.random()<(0.4+0.2*esc))){ document.getElementById("btnLaunch").click(); return; } // TIER 2: escalation also refills more eagerly
   /* Shot candidates: honest lines at the base, fighters, turrets */
   myUnits.concat(myTurrets).forEach(function(t){
     if(t.turret && !turretReady(t)) return; // RELOAD RULE: a structure that fired sits out its owner's next turn — the CPU's guns reload too
@@ -6403,7 +6440,7 @@ function cpuTurn(){
     tgts.forEach(function(tg){
       var d=Math.hypot(tg.x-t.x, tg.y-t.y);
       if(d>maxLen(t,"shoot")+26) return;
-      addCand(t, "shoot", Math.atan2(tg.y-t.y, tg.x-t.x), Math.min(maxLen(t,"shoot"), d+10), tg.base ? (clockPush?130 : latePush?118 : 72) : 46);
+      addCand(t, "shoot", Math.atan2(tg.y-t.y, tg.x-t.x), Math.min(maxLen(t,"shoot"), d+10), tg.base ? (clockPush?130 : roundPush?118 : 72+8*esc) : 46);
     });
     if(CFG.theme==="space" && CFG.edge==="wrap" && !t.turret)
       addCand(t, "shoot", Math.random()<0.5?0.12:Math.PI-0.12, maxLen(t,"shoot"), 26); // wrap trick shot — simulated like everything else
@@ -6437,13 +6474,13 @@ function cpuTurn(){
         // AUTO-WALK: no candidates — an unhorsed CPU knight is not flicked
         // anywhere; he trudges home on his own at the end of the CPU's turns.
       } else {
-        addCand(u, "move", Math.atan2(foeBase.y-u.y, foeBase.x-u.x), Math.min(maxLen(u,"move"), dB), clockPush?115 : latePush?102 : 64); // charge the castle
+        addCand(u, "move", Math.atan2(foeBase.y-u.y, foeBase.x-u.x), Math.min(maxLen(u,"move"), dB), clockPush?115 : roundPush?102 : 64+8*esc); // charge the castle
         foes.forEach(function(f){ var d=Math.hypot(f.x-u.x,f.y-u.y); if(d<maxLen(u,"move")+22) addCand(u, "move", Math.atan2(f.y-u.y,f.x-u.x), Math.min(maxLen(u,"move"), d), 52); });
         foeTurrets.forEach(function(f){ var d=Math.hypot(f.x-u.x,f.y-u.y); if(d<maxLen(u,"move")+22) addCand(u, "move", Math.atan2(f.y-u.y,f.x-u.x), Math.min(maxLen(u,"move"), d), 44); });
       }
       return;
     }
-    var hops = CFG.cpuDiff==="study"?5 : CFG.cpuDiff==="lunch"?4 : 3;
+    var hops = hopsBase; // TIER 2: escalated at cpuTurn entry (see hopsBase)
     var adv=dirToEnemy(p), baseAng=Math.atan2(adv.y, adv.x);
     for(var i=0;i<hops;i++)
       addCand(u, "move", baseAng+(Math.random()-0.5)*1.6, maxLen(u,"move")*(0.45+Math.random()*0.55), clockPush?58:30);
@@ -6725,6 +6762,7 @@ function finishEditor(){
   G.coin=null; // the quarter is re-placed below anyway; its placeholder spot must not fence the prizes out
   if(CFG.prizes) placePrizes(); // re-place the prizes against the FINAL field — the editor's obstacles didn't exist when newGame placed them, and a drawn obstacle may cover the first spots picked
   placeCoin(); // re-place the quarter against the FINAL field — the editor's obstacles didn't exist when newGame placed it
+  if(MATCH){ MATCH.fieldObs=JSON.parse(JSON.stringify(G.obstacles)); MATCH.mirror=MIRROR_THIS_MATCH; MATCH.starter=G.turn; } // TIER 2: for editor fields the pristine snapshot is taken HERE, against the final field (startMatch's post-newGame snapshot only covers generated fields)
   fitBoard(); // the editor bar leaves the stage — the board grows back
   updateHUD(); draw();
   if(SETTINGS.tutorialSeen===false && CFG.mode==="1p"){ landCoin(); startCoach(); if(CFG.mode==="1p"&&G.turn===1) setTimeout(cpuTurn,1200); }
@@ -6769,9 +6807,11 @@ document.getElementById("coachSkip").addEventListener("click", function(){ coach
 function showView(id){
   document.body.classList.toggle("onEntrance", id==="viewSetup");
   ["viewSetup","viewGame","viewPractice"].forEach(function(v){ document.getElementById(v).style.display = v===id ? (v==="viewGame"?"flex":"block") : "none"; });
+  document.documentElement.classList.toggle("ss-inmatch", id==="viewGame"); // TIER 2 BOARD EXPANSION: hub chrome collapses around a live match (see the CSS block) — the entrance keeps it all
+  ssMeasureAbove(); // re-read the offset for the new chrome state before anything refits against it
   window.scrollTo(0,0);
   if(id==="viewGame") refreshPresentation(); // the one-screen stage sizes the board to the space it actually has — and turns the sheet if the stage is wide
-  if(id==="viewSetup") refreshResumeUI(); // MID-MATCH SAVE: the entrance's Resume offer always reflects the save as it stands right now (offered after a quit, gone after a finish)
+  if(id==="viewSetup"){ refreshResumeUI(); refreshRecordUI(); } // MID-MATCH SAVE: the entrance's Resume offer always reflects the save as it stands right now (offered after a quit, gone after a finish); the saved record row rides the same refresh
 }
 /* ============================================================
    THE COIN FLIP, MADE VISIBLE (Oct 26, 2026). The game has flipped
@@ -6833,12 +6873,16 @@ function startMatch(){
   clearMatchSave(); // MID-MATCH SAVE: a new match (or Rematch) replaces any saved one — the fresh match writes its own save as it is built
   viewingFinalBoard=false; setViewBoardBar(false); // a fresh match never inherits the final-board view
   if(CFG.theme==="space") MATCH_STYLE=resolveFighterStyle(); // pinned choice, or the next style in the rotation
+  MATCH={rounds:[0,0], round:1, cpuEsc:0, starter:0, mirror:false, fieldObs:null}; // TIER 2: a fresh match frame — created BEFORE newGame so everything downstream (badge, tallies, saves) can read it
   showView("viewGame");
   var needEditor = (CFG.battlefield==="stamps"||CFG.battlefield==="freehand");
   newGame(needEditor?[]:undefined);
+  if(!needEditor){ MATCH.fieldObs=JSON.parse(JSON.stringify(G.obstacles)); MATCH.mirror=MIRROR_THIS_MATCH; } // the PRISTINE field, deep-copied before any shot can carve it — rounds 2-5 are dealt from this, never from the scarred sheet
+  MATCH.starter=G.turn;
   setAction("move");
   document.getElementById("logBox").innerHTML="";
   log("✏️ "+CFG.theme.toUpperCase()+" battle on "+PAPERS.filter(function(x){return x.id===CFG.paper;})[0].label+". Base footprint is capped and identical for both sides — the fight is won in the middle of the page.");
+  log("✏️ Round 1: fresh sheet. Rounds: 0 to 0. "+playerName(G.turn)+" goes first.");
   if(needEditor){ startEditor(); }
   else if(!SETTINGS.tutorialSeen && CFG.mode==="1p"){ landCoin(); startCoach(); if(CFG.mode==="1p"&&G.turn===1){ setTimeout(cpuTurn,1200); } } // tutorial match: no ceremony, the coach owns the opening — the flip still decided who starts, and the quarter still lands on the paper
   else { showCoinFlip(function(){ if(CFG.mode==="1p"&&G.turn===1){ setTimeout(cpuTurn,650); } else if(CFG.mode==="2p"){ showPass(); } }); } // 2P: the match's ONE handoff popup opens with the first turn, as the flip card closes } // the CPU's first turn starts only once the flip card is gone — never soft-locked behind it
@@ -6852,7 +6896,39 @@ document.getElementById("btnQuit").addEventListener("click", function(){
   leaveMatchBed(); // FEEL PASS: leaving the match hands the ambience back to the lunchroom
   showView("viewSetup");
 });
-document.getElementById("overRematch").addEventListener("click", function(){ document.getElementById("overModal").classList.remove("open"); startMatch(); });
+/* TIER 2 — NEXT ROUND: the same MATCH continues on a fresh sheet.
+   The pristine field as dealt at match start is dealt again (a deep
+   copy — round 2's carving must never reach the snapshot), so
+   craters, wrecks, traces and damage all reset by construction:
+   newGame deals a whole new G. The loser of the round just
+   finished starts (D1); a replayed round keeps the starter flip
+   endRoundDraw already applied. No coin ceremony and no pass
+   popup in later rounds — the quarter simply re-parks, and play
+   resumes at once. The battle log is NOT cleared: it is per
+   match, not per round. */
+function nextRound(replay){
+  if(!MATCH){ startMatch(); return; }
+  closeCoinFlip();
+  clearMatchSave(); // the fresh round writes its own save as it is built
+  if(!replay) MATCH.round++;
+  if(!replay && G && G.roundWinner!=null) MATCH.starter=1-G.roundWinner; // D1: the loser of the round just finished takes the first turn
+  var field = MATCH.fieldObs ? JSON.parse(JSON.stringify(MATCH.fieldObs)) : undefined;
+  ROUND_FIELD_RESTORE = !!MATCH.fieldObs; // the restored field's mirror decision comes from MATCH inside newGame (the mirror trap)
+  newGame(field, true);
+  G.turn = MATCH.starter; // newGame flipped its own coin; the round's starter rule overrules it
+  setAction("move");
+  landCoin(); // the quarter is re-parked by newGame; with no ceremony in later rounds it simply lands
+  log("✏️ Round "+MATCH.round+": fresh sheet. Rounds: "+MATCH.rounds[0]+" to "+MATCH.rounds[1]+". "+playerName(MATCH.starter)+" goes first.");
+  updateHUD(); draw();
+  bedTheme=CFG.theme; startThemedBed(CFG.theme); // the battlefield bed never stopped; re-assert it defensively, the way resumeMatch does
+  if(CFG.mode==="1p" && G.turn===1){ setTimeout(cpuTurn,650); }
+}
+document.getElementById("overRematch").addEventListener("click", function(){
+  document.getElementById("overModal").classList.remove("open");
+  if(overMode==="round") nextRound(false);
+  else if(overMode==="replay") nextRound(true);
+  else startMatch();
+});
 document.getElementById("overShare").addEventListener("click", function(){ doShare(shareResultText(), this); });
 document.getElementById("overSetup").addEventListener("click", function(){ document.getElementById("overModal").classList.remove("open"); leaveMatchBed(); showView("viewSetup"); });
 /* ---- VIEW BOARD (Oct 26, 2026): from the game-over screen, look at the
@@ -6894,15 +6970,16 @@ function howHTML(){
   "<p><b>A turn (Move + Shoot):</b> flick one fighter to <b>move</b>, then flick the <b>same fighter</b> to <b>shoot</b>. Firing a structure, or building, is a whole turn instead. <b>Classic</b> (Variants): move or shoot, one flick. Traces stay and fade; they never collide.</p>"+
   "<p><b>🏭 Production:</b> spend a turn to <b>build a fighter</b> at your base, up to your cap. The disc on the base's <b>back corner</b>: ＋ ready, <b>pips</b> cooling down (one turn), quiet bar at cap. Launch Bay starts you at half; Hardcore builds nothing.</p>"+
   themeRules+
-  "<p><b>🕐 Two clocks.</b> <b>Lunch:</b> one minute per turn from 12:00; 60 turns (Variants 30, 120, custom) ends it — <b>most base damage wins</b>, level draws. The last 10 minutes run red. The clock sits in the top bar, off the paper — no corner of the sheet is fenced off. <b>Stalemate:</b> lose your last fighter and the other side has <b>its fighters + 2</b> of its turns to land a base hit, else a draw — a hit, or building a replacement, clears it. A side that can do nothing at all loses at once.</p>"+
-  "<p class=\"howPage2\"><b>🪙 The quarter:</b> a <b>1985-P</b> flips for first player each match — heads (Washington, left-facing, ponytail with a ribbon bow, 1985 along the bottom, tiny P mint mark), bottom starts; tails (eagle, wings raised, E PLURIBUS UNUM between them), top starts. It then settles in a corner of the paper and lies there all match: movement bumps to a stop on it; shots pass over.</p>"+
+  "<p><b>🏆 First to 3 rounds.</b> Destroying the enemy base takes the <b>round</b>. If neither base falls in <b>30 turns</b>, most base damage takes the round, and a level round is replayed. Each round starts on a fresh sheet, and round wins are tallied in the <b>margin</b> of the paper. First side to <b>3 rounds</b> takes the match: first to 3, and lunch is over. The loser of a round goes first in the next one.</p>"+
+  "<p><b>⏱ Stalemate:</b> lose your last fighter and the other side has <b>its fighters + 2</b> of its turns to land a base hit, else the round is a draw and replays: a hit, or building a replacement, clears it. A side that can do nothing at all loses the round at once. Against the CPU there is a running score on the entrance: <b>match wins and your current win streak</b>.</p>"+
+  "<p class=\"howPage2\"><b>🪙 The quarter:</b> a <b>1985-P</b> flips for first player in round 1; after that, the loser of a round goes first — heads (Washington, left-facing, ponytail with a ribbon bow, 1985 along the bottom, tiny P mint mark), bottom starts; tails (eagle, wings raised, E PLURIBUS UNUM between them), top starts. It then settles in a corner of the paper and lies there for the round: movement bumps to a stop on it; shots pass over.</p>"+
   "<p><b>⚔️ Momentum &amp; Breach:</b> movement flicks toward the enemy base travel up to <b>20% farther</b>; never a penalty backward; shots unboosted — the preview shows the true distance. Each base hit also destroys that base's <b>nearest standing structure</b>.</p>"+
   "<p><b>🪶 Forgiving edges:</b> a move wrecks only on an obstacle's <b>core</b>; clip the outer band and you scrape by. Shots take the whole obstacle.</p>"+
-  "<p><b>🔓⭐ Field prizes:</b> a captured teammate waits off to the side in the enemy half — any fighter whose move crosses the spot <b>frees</b> them, a fresh fighter <b>above your cap</b> (one per side). <b>Two</b> golden <b>stars</b> sit a little off center, one within each side's reach: the first fighter across either shrugs off the first hit that would damage, unhorse or wreck it (one armor at a time). <b>Long games</b> (90+ turns): at <b>halftime</b> claimed stars are replaced up to the pair and each rescued captive is replaced — never more waiting than that.</p>"+
+  "<p><b>🔓⭐ Field prizes:</b> a captured teammate waits off to the side in the enemy half — any fighter whose move crosses the spot <b>frees</b> them, a fresh fighter <b>above your cap</b> (one per side). <b>Two</b> golden <b>stars</b> sit a little off center, one within each side's reach: the first fighter across either shrugs off the first hit that would damage, unhorse or wreck it (one armor at a time). A fresh pair of stars and fresh captives are dealt at the start of every round.</p>"+
   "<p><b>Bases &amp; structures:</b> every base shares one <b>capped footprint</b> in its end zone; battles are won in the middle. Structures stand in front of the base and <b>block like obstacles</b> — ram one and you wreck (knights unhorse); shots destroy them in one hit. Crews of anything destroyed <b>escape unharmed</b>: stick figures on land, escape pods in space.</p>"+
-  "<p><b>💥 The paper keeps the score:</b> whatever gets wrecked stays on the sheet, burnt out and <b>blocking its lane</b> for the rest of the match; moves bump to a stop on it and shots burn out in it. Shots tear <b>craters</b> in the ground, and a flick whose road crosses one gets knocked a little off line. The aim cue draws the bend before you flick.</p>"+
+  "<p><b>💥 The paper keeps the score:</b> whatever gets wrecked stays on the sheet, burnt out and <b>blocking its lane</b> for the rest of the round; moves bump to a stop on it and shots burn out in it. Shots tear <b>craters</b> in the ground, and a flick whose road crosses one gets knocked a little off line. The aim cue draws the bend before you flick.</p>"+
   "<p><b>"+MOVE_ICONS[moveGlyphTheme()]+"/💥 The switch &amp; tools:</b> the Move/Shoot switch sets itself in Move + Shoot; in Classic your pick sticks until flipped — <b>tap the selected fighter again</b> to flip. The aim cue follows: dots move, dashes shoot. Tools are <b>shared</b> — same flicker, same medium both sides: pencil thin and precise, crayon fat and wobbly, pen between. Only color differs.</p>"+
-  "<p><b>🖥 One screen:</b> no scrolling; on wide screens the sheet turns <b>landscape</b> — the clock alone stays upright. <b>2P:</b> a pill in the current player's color sits at their end; their base and disc pulse with it. Plate boards can <b>mirror-flip</b> as one (Variants). Results offer <b>View Board</b> — the final board, look-only. <b>Random</b> rolls a pack of variants; a Rematch keeps it.</p>"+
+  "<p><b>🖥 One screen:</b> no scrolling; on wide screens the sheet turns <b>landscape</b>. <b>2P:</b> a pill in the current player's color sits at their end; their reinforcements disc pulses with it. Plate boards can <b>mirror-flip</b> as one (Variants). Results offer <b>View Board</b> — the final board, look-only. <b>Random</b> rolls a pack of variants; a Rematch keeps it.</p>"+
   "<p><b>This match:</b> turn structure <b>"+CFG.turnStructure+"</b> · control <b>"+CFG.control+"</b> · friendly fire <b>"+CFG.friendly+"</b> · edge <b>"+CFG.edge+"</b> · obstacles <b>"+CFG.obstacle+"</b> · deployment <b>"+CFG.deployment+"</b> · defense <b>"+CFG.defense+"</b> · Siege Momentum <b>"+(CFG.siege?"on":"off")+"</b> · Field prizes <b>"+(CFG.prizes?"on":"off")+"</b>.</p>";
 }
 function openHow(){ document.getElementById("howBody").innerHTML=howHTML(); var hm=document.getElementById("howModal"); hm.classList.remove("howPage2"); document.getElementById("howTab1").classList.add("gold"); document.getElementById("howTab2").classList.remove("gold"); hm.classList.add("open"); }
@@ -6943,6 +7020,7 @@ document.querySelectorAll("[data-close]").forEach(function(b){
 
 /* ---------- Dev Log ---------- */
 document.getElementById("devBody").textContent =
+"Nov 13, 2026 — STRUCTURE PASS, TIER 2: ROUNDS, AND THE LUNCH CLOCK RETIRES (Matthew's rulings, Nov 12, 2026).\n\n1) FIRST TO 3 ROUNDS. A match is now first to 3 round wins (best of 5). Destroying the enemy base takes the ROUND, instantly, the way it used to take the match. Every round starts on a fresh sheet: full bases, full fighters, no craters, no wrecks, a fresh pair of stars and fresh captives, the quarter re-parked. Round 1 still opens with the visible quarter flip; from round 2 on there is no ceremony, and the LOSER of the round just finished goes first. Round wins are tallied as pencil strokes in the notebook margin, in the owner's color: a group per side, and a diagonal strike through the group at 3. The chrome carries a compact badge (Round N and the tally) where the lunch clock used to sit, and the Match Card speaks in rounds too.\n\n2) THE 30-TURN CAP. A round lasts at most 30 turns. At the cap, with both bases standing, most base damage dealt takes the round; level damage means the round is a draw and is REPLAYED on a fresh sheet, no tally awarded, same round number, and the replay's starter alternates. The stalemate clock survives untouched, scoped to the round: its expiry draws the round (a replay), and a side that cannot act at all loses the round. Results come in two shapes now: a round card (Next round, or Replay round, over the finished round's board) and the match card at 3 round wins (Rematch, Share, and the standing in rounds).\n\n3) THE LUNCH CLOCK, THE LUNCH-LENGTH SETTING AND HALFTIME ARE GONE. The analog clock is removed from the chrome, the Lunch length row is removed from Variants (old settings files that still carry the fields load fine; nothing reads them), sudden death is removed, and the halftime prize top-up is removed with it: fresh prizes are dealt each round instead. The story the game tells now is the structure itself: first to 3, and lunch is over. How to Play says exactly that, and Share results speak in rounds (rounds won, and base or castle hits in the final round).\n\n4) THE CPU SHARPENS AS IT LOSES ROUNDS. Escalation equals the number of rounds the CPU has lost this match (0, 1 or 2 in a live match): aim wobble shrinks by 0.05 a level (floor 0.05), its candidate search deepens by 6 a level, its sampled retry hops grow by 1 a level (clamped at 6), it refills from production more eagerly (0.4 / 0.6 / 0.8), and its base-attack intent grows by 8 a level. Being behind on rounds also switches on the old late-lunch base push for the whole round. A Rematch resets it to zero. Nothing about the physics, the sims or the score tables changed: the same flick resolves identically.\n\n5) A SAVED RECORD. A new key of its own (scribbleSiegeRecord) keeps career 1P match wins and the current win streak against the CPU. Only a finished 1P match writes it: a win adds a win and extends the streak, a loss zeroes the streak. 2P matches and quits never touch it. The entrance shows it under the Resume row once there is a win to show, and the 1P match-end screen and Match Card carry the running line.\n\n6) THE SAVE GROWS UP (version 2). The mid-match save now carries the whole match frame: rounds tally, round number, escalation level, round starter, and the pristine field as dealt at match start, so a resumed match can deal its later rounds exactly (a mirrored plate match stays mirrored in round 2: the restore path takes its mirror decision from the saved frame, not a fresh flip). The save guard keys on the match being over, not the round, so quitting BETWEEN rounds saves the intermission and Resume reopens the round-end card itself, never silently losing the match. The save still clears only at match end and at a new match or Rematch; the Resume button names the round; version 1 saves are discarded quietly, as unknown versions always were; the settings key is byte-for-byte untouched throughout.\n\n7) KNIGHTS SCORCHES AND CHURNS. Knights gains the crater sources it was missing: a charge that slams into a rock churns the ground at the rock's foot, and a hit on the castle (charge or arrow) scorches the ground at the impact point. Same craters as every theme: they persist for the round and bend a crossing flick by the same fixed 10 degrees, first crater only.\n\n8) THE DISC PULSE HUGS THE DISC. The 2P at-a-glance cue no longer rings the whole base (it read as an unexplained red circle around the army base): the side to move's reinforcements disc pulses in their color, tight on the disc, all three themes, exactly where the tap lands.\n\n9) THE BOARD GETS ITS ROOM BACK (Matthew, from live hub play: \"The game play on mobile is super tiny. Can we expand that?\"). On the hub the games strip wraps to two or three rows at phone width, and with the in-flow footer it ate the vertical budget the sheet is fitted from, so the plate sat at barely half the screen's width mid-match. While a match is live the strip and the in-flow footer now leave the match view and the document locks its scroll; the entrance keeps the full hub chrome. The offset re-measures to the brand band alone and the sheet fits the reclaimed column (about 58 percent of the screen's width before, about 71 percent after for a plate sheet, more for a drawn sheet). One window still, no scrolling in a match, and every flick still lands inside the invisible border.\n\nNOT CHANGED: Tier 1 texture (ambient motion, themed beds, wrecks blocking lanes, crater deflection at 10 degrees), the fix pass (header offset, pixel tinting, per-theme Move icons, Space turret range 200, sandbags), Production, defense structures and their reload rule, Move + Shoot, Siege Momentum and Breach, prize placement, the quarter, the copyright footer, the two Share controls, and the guarded ambient audio session.\n\n————————————————\n\n" +
 "Nov 12, 2026 (later) — FIX PASS: HEADER, MOVE ICONS, OWNER COLORS, SANDBAGS, TURRET RANGE (all Matthew, from live play tonight).\n\n1) THE HUB HEADER NO LONGER COVERS THE GAME. On the hub page the Real Sparks header sits in flow above the game and painted over it: the entrance logo clipped under the band, and in a match the top chrome sat beneath it. The game now measures whatever sits above it in flow and lifts both full-screen views below the measure, shrinking their heights by the same amount, and the entrance compacts against the height actually left. Any header height is respected, the standalone game measures zero and is unchanged, and no scrolling appears on either.\n\n2) MOVE WEARS THE BATTLEFIELD. The running boy is retired. The Move switch, the How to Play switch line and the battle log flip line now carry a travel glyph per battlefield: a rocket climbing its dotted flight path in Space, a galloping horse in Knights, a little tank in profile in Tanks (tread marks alone blurred into a ladder at switch size, so the silhouette won). The glyph follows the theme in play, entrance pick included, and the Shoot side is untouched.\n\n3) BASES READ IN THEIR OWNER COLOR. Root cause, found by audit: every hue rotation leaned on a canvas filter call that some browsers accept and quietly ignore, so tinted pieces rendered in their drawn colors there: the mothership sprite is blue ink, so both motherships read blue. All tinting is now done pixel by pixel, the method the prisoner sprites already used, so saturated ink rotates to the owner color while paper, graphite and shading keep their drawn values. That one change recolors the drawn-board mothership, turrets, castle accents and Tanks HQ sprite. The plates needed their own pass, because their bases are baked into the drawings (Space: a blue saucer low, a blue-violet one high; Tanks: khaki and rust HQs): each plate is now re-tinted per match inside each base region, rotating the hue actually drawn there to the owner color, with a touch more saturation for the Tanks earth tones so red and blue read at a glance. Knights plate castles were audited and left alone: earth-toned stone, and their flags were already repainted per owner. Shield masking, cracks, flames and wrecks draw over the tint exactly as before.\n\n4) SPACE TURRETS REACH FURTHER (Matthew: turrets should shoot a little further for defense). The Space defense turret goes from 172 to 200, deliberately out-ranging the ships now. One constant in the one range function, so the flick cap, the aim preview, auto-defense, both CPU sims and the Practice Sheet all read the same 200. Ship shot stays 172, ship move stays 198, Momentum untouched; Knights towers and Tanks cannons unchanged.\n\n5) SANDBAGS REDRAWN. The old band was two rows of identical flat ellipses with a hairline outline: pills in a tray. The band is now two stacked rows of plump rounded sacks with pinched seams, tied corners, crown light, ground shadow and a whisper of per-bag variation, drawn by one shared helper for the plate, the drawn board and the prisoner pen. Art only: same anchor, same extent, and armor and collision read nothing from the pixels.\n\nNOT CHANGED: save keys and payloads, the audio session guard, the footer, Tier 1 behavior (motion, beds, wrecks, craters), and every other range in the game.\n\n————————————————\n\n" +
 "Nov 12, 2026 — FEEL PASS, TIER 1 (Matthew, after playing the build: not enough movement, the sounds feel off per battlefield, not enough explosions, battles too flat). Three parts; staging only, nothing published; Tier 2 (rounds structure) is separate later work and is NOT in here — the lunch clock stands exactly as it was.\n\n1) THE LIVING PAPER. Ambient motion on the background and idle layers ONLY: Space gets twinkling stars on a slow drift and faint debris shards floating past; Knights gets torch flames on the standing towers and the castle gates, drifting dust motes, castle pennants and lance pennons stirring; Tanks gets a soft heat shimmer over the field, dust, and a waving flag over each standing HQ in its owner's color. Idle fighters bob a pixel and a half. None of it is state: every flicker is computed from the clock and stable per-piece seeds, and no position, path, collision, sim or preview reads it — aiming, sliding and physics are bit-for-bit the game's own (proven headlessly: the same scripted flick on an empty field rests at the same point, pre-pass build against this one). The draw loop now runs for the length of a match to carry it.\n\n2) THEMED BEDS. One quiet synthesized bed per battlefield takes the ambience chair while a match runs: Space is a low synth drone (two sines and a breath of triangle through a slowly breathing filter) with soft sonar pings; Knights is plucked minstrel strings over a low open fifth; Tanks is distant brass motifs over a low ground hum. TONAL ONLY, per Matthew's standing verdict: every bed voice is an oscillator — no noise buffers, no crackle, no wind anywhere in a bed (the pluck's attack is a gain swell, not a noise burst). The lunchroom bed keeps the entrance and setup screens, returns when a match is left, and its little room events fall silent during play. Beds ride the ambience bus (slider and toggle govern them, off means off, back on mid-match restores the battle's bed), pause with the page, follow a resume, and the guarded ambient audio session handling is byte-for-byte the approach it was. Whether they SOUND right is Matthew's ear verdict, still owed.\n\n3) BATTLE DAMAGE THAT STAYS. Every destruction (and every base hit) opens with a big layered fireball and a scatter of tumbling debris, and the burnt hulk STAYS on the paper for the rest of the match as a lane blocker: moves bump to a stop against it with no extra damage (a knight keeps his saddle), shots burn out in it, the aim line stops at it, the CPU's sims plan around it, and wrecks of plate structures wear the plate's existing wreck overlay plus the new flames. Flames stand tall for the wreck's first two turns, then settle to glowing embers with an occasional last lick. Deaths off the page edge leave NO wreck (nothing remains on the sheet). Movers killed against an obstacle now die AT the impact point, so their fireball and hulk land where the crash happened (a dead piece's position was previously unread, so nothing else moves). Shots also tear CRATERS that persist: asteroid tunnel mouths, blocked-shot scars, and rubble craters where an asteroid is erased (Space); scorched churned ground where an arrow strikes rock (Knights); shell craters where a cannon shell stops, and a crater wherever a mortar lands, hit or miss (Tanks). A flick whose road crosses a crater's bowl is knocked off line by a FIXED ~10 degrees, pivoting at the entry point and bending away from the crater's heart — fully deterministic, no dice; a rim graze runs free, like every forgiving edge here; only the FIRST crater on the road bends a flick. The Aimed cue draws the bend, the travelled trace shows the kink, and the CPU's move sim bends over the same end point. SAVE: craters join the scribbleSiegeMatch payload as their own list and wrecks ride inside the fighter/structure snapshots as ordinary fields, so a mid-match save reloads with every hulk and crater exactly in place; a pre-pass save carries neither field and resumes with both empty, never a crash; the settings key is untouched, match end still clears the save, a new match or Rematch starts with a clean sheet. How to Play gains exactly one short paragraph (The paper keeps the score).\n\nNOT CHANGED: the win condition (base in 3 hits), Production, defense structures and their reload rule, Move + Shoot, Siege Momentum and Breach, prize placement, the quarter, Space ranges (198 move / 172 shot), Knights lances and rules, Tanks classes, the lunch clock, the copyright footer, both Share controls and their payloads. Verified headlessly (Playwright/Chromium, the game's own functions driven directly): matches start and complete in all three themes in 1P and 2P with zero page errors; the ambient frame counter advances while a match idles; wreck blocking proven both ways (a road that ran free before the kill stops at the hulk after it, for moves and for shots, knights included); crater creation proven for asteroid tunnel/block/destroy, rock arrows, cannon stops and mortar hits and misses, and the deflection proven deterministic (same flick, same resting point, twice) at the fixed angle; beds proven per theme (graph builds, the bed handle reports its theme, and ZERO buffer sources are created while a bed runs — oscillators only); save/resume proven with a wreck and a crater on the board (deep-equal restore), with a stripped pre-pass payload (resumes clean), at match end (key cleared) and across a Rematch (clean sheet); settings bytes unchanged throughout; footer byte-exact.\n\n————————————————\n\n" +
 "Oct 31, 2026 — MID-MATCH SAVING (Matthew's decision, under the house save standard). A match in progress now saves itself as it changes, under its own key (scribbleSiegeMatch) — the settings key and every other key are exactly as they were, untouched by this feature. The save carries the whole position: the match setup as played (theme, 1P/2P, CPU difficulty, variants, colors, control scheme), the board as generated (every obstacle with its carved holes and erased state), the parked quarter, both bases and their damage, every fighter and defense structure (position, facing, hits, held armor star, mounted or on foot, wreck state, turret reload stamps), whose turn it is and the turn PHASE — a save taken after the move resumes at the shot step, not back at the turn start — plus the turn count, the stalemate clock, halftime-refresh and production cooldown state, both prize stars and both prisoners, the traces on the sheet, and the battle log. Writes happen on every state change (they all funnel through the HUD update) with a page-hide backstop, all guarded so a failed write never breaks play. Reopen the game and the entrance offers a gold Resume button naming the saved match's theme, mode and turn; tapping it restores the position exactly — a match saved on the CPU's turn hands the turn back to the CPU. The save clears the moment a match ends (base destroyed, lunch-clock decision, or draw) and when a new match or Rematch begins; menus, How to Play and settings never clear it, and quitting to setup leaves the match waiting on the entrance. A save that will not parse, or carries an unknown version, is discarded quietly and the game opens as normal.\n\n————————————————\n\n" +
