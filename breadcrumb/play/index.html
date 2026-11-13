@@ -122,8 +122,11 @@
   /* Breadcrumbs */
   .crumbs{margin:14px 2px 0;}
   .crumbs-label{font-size:11px; letter-spacing:.13em; text-transform:uppercase; font-weight:800; color:var(--ink-soft); margin-bottom:7px;}
-  .crumb-track{display:flex; gap:7px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none;}
+  .crumb-track{display:flex; gap:7px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; scroll-behavior:smooth;
+    -webkit-mask-image:linear-gradient(90deg, transparent, #000 26px, #000 calc(100% - 26px), transparent);
+    mask-image:linear-gradient(90deg, transparent, #000 26px, #000 calc(100% - 26px), transparent);}
   .crumb-track::-webkit-scrollbar{display:none;}
+  .controls .btn.on{background:var(--gold); border-color:var(--gold); color:var(--ink);}
   .crumb{
     flex:0 0 auto; max-width:210px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     border:1.5px solid var(--line); background:var(--card); color:var(--ink);
@@ -230,12 +233,30 @@
   .error-box.show{display:block;}
   .error-box button{margin-top:9px;}
 
-  /* Win panel */
+  /* Win panel: a pop-up moment, not a footnote */
+  .win-backdrop{display:none; position:fixed; inset:0; background:rgba(43,33,26,.48); z-index:59;}
+  .win-backdrop.show{display:block;}
   .win{
     display:none; margin-top:14px; background:linear-gradient(160deg, #FDF8E7, #F6EFCE);
     border:1.5px dashed var(--ink); border-radius:22px; padding:20px 18px; text-align:center; box-shadow:var(--shadow);
   }
-  .win.show{display:block;}
+  .win.show{
+    display:block; position:fixed; z-index:60; top:50%; left:50%;
+    transform:translate(-50%,-50%); width:min(92vw, 470px); max-height:88vh; overflow-y:auto; margin-top:0;
+    animation:winPop .28s ease-out;
+  }
+  @keyframes winPop{from{transform:translate(-50%,-47%) scale(.965); opacity:0;} to{transform:translate(-50%,-50%) scale(1); opacity:1;}}
+  .win-close{
+    position:absolute; top:8px; right:10px; appearance:none; border:0; background:transparent;
+    font-size:24px; line-height:1; color:var(--ink-soft); cursor:pointer; padding:6px 9px;
+  }
+  .win .win-congrats{font-size:15.5px; font-weight:700; color:var(--sage-deep); margin:7px 0 0;}
+  .win .win-fact{font-size:13.5px; color:#5C4D12; margin:9px 0 0; line-height:1.5;}
+  .win .win-fact b{color:var(--ink);}
+  .win-admire{
+    appearance:none; border:0; background:transparent; color:var(--ink-soft); font:inherit;
+    font-size:13px; font-weight:700; text-decoration:underline; text-underline-offset:3px; cursor:pointer; margin-top:12px;
+  }
   .win .x-mark{width:30px; height:30px; margin:0 auto 6px; display:block;}
   .win .arrived-word{font-family:Georgia, serif; font-size:24px; margin:0;}
   .stars{font-size:31px; letter-spacing:6px; color:var(--gold); margin:9px 0 2px; line-height:1;}
@@ -334,7 +355,7 @@
       </div>
     </div>
     <div class="journey-meta">
-      <span class="pill" id="hopPill">0 hops</span>
+      <span class="pill" id="hopPill">0 steps</span>
       <span class="pill gold" id="parPill">Par 0</span>
       <span class="pill plain" id="starPill">Finish for a star</span>
       <span class="pill plain" id="stylePill" hidden>Ranked play</span>
@@ -362,11 +383,13 @@
   </section>
 
   <div class="controls">
+    <button class="btn" type="button" id="dailyBtn">Today's wander</button>
     <button class="btn" type="button" id="undoBtn">Undo</button>
     <button class="btn" type="button" id="restartBtn">Start over</button>
     <button class="btn" type="button" id="levelsBtn">Levels</button>
     <button class="btn" type="button" id="practiceBtn">Practice</button>
     <button class="btn" type="button" id="settingsBtn">Settings</button>
+    <button class="btn" type="button" id="resultBtn" hidden>Your result</button>
   </div>
 
   <section class="practice" id="settingsPanel">
@@ -430,20 +453,25 @@
     </div>
   </main>
 
-  <section class="win" id="winPanel" aria-live="polite">
+  <div class="win-backdrop" id="winBackdrop"></div>
+  <section class="win" id="winPanel" aria-live="polite" role="dialog" aria-modal="true" aria-label="Your result">
+    <button class="win-close" type="button" id="winCloseBtn" aria-label="Close">×</button>
     <svg class="x-mark" viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M4 4 L26 26 M26 4 L4 26" stroke="#BE3A2B" stroke-width="3.4" stroke-linecap="round"/></svg>
     <p class="arrived-word">You arrived.</p>
+    <p class="win-congrats" id="winCongrats"></p>
     <div class="stars" id="winStars"></div>
     <p class="win-meta" id="winMeta"></p>
     <p class="win-trivia" id="winTrivia" hidden></p>
+    <p class="win-fact" id="winFact" hidden></p>
     <div class="share-box" id="shareText"></div>
     <div class="btn-row">
       <button class="btn gold" type="button" id="shareBtn">Share</button>
       <button class="btn" type="button" id="copyBtn">Copy result</button>
       <button class="btn primary" type="button" id="winNextBtn" hidden>Next level</button>
-      <button class="btn" type="button" id="winPracticeBtn">Try the guided practice</button>
+      <button class="btn" type="button" id="winPracticeBtn">Try the levels</button>
     </div>
     <div class="copied-note" id="copiedNote"></div>
+    <button class="win-admire" type="button" id="winAdmireBtn">Admire the article first</button>
   </section>
 
   <section class="practice" id="levelsPanel">
@@ -832,6 +860,7 @@
    "articleTitle","articleExtract","articleAttrib","filterInput","linkCount","noResults","linkList",
    "articleText","viewArticleBtn","viewListBtn","filterRow","linksHead",
    "winPanel","winStars","winMeta","winTrivia","shareText","shareBtn","copyBtn","winPracticeBtn","winNextBtn","copiedNote",
+   "dailyBtn","resultBtn","winBackdrop","winCloseBtn","winCongrats","winFact","winAdmireBtn",
    "levelsPanel","levelsList","levelsProgress","historyLine","exitPracticeBtn","settingsPanel","settingsBtn",
    "coachCard","coachKicker","coachText","coachSkipBtn","coachTodayBtn","coachLevelsBtn",
    "viaPill","banPill","viaNote",
@@ -875,7 +904,7 @@
     els.dateLine.textContent = prettyDate(todayKey());
     els.startName.textContent = pair.start;
     els.targetName.textContent = pair.target;
-    els.hopPill.textContent = hops() + (hops() === 1 ? " hop" : " hops");
+    els.hopPill.textContent = hops() + (hops() === 1 ? " step" : " steps");
     /* Casual play carries no pressure: par and stars are never shown.
        They belong to Ranked, where the comparison is the point. */
     var casual = playStyle() === "casual";
@@ -915,6 +944,11 @@
       ? "Ranked: famous shortcut articles are hidden, and a finish counts as ranked only if ranked style stays on for the whole wander."
       : "Casual: any link goes. Just wander.";
     els.targetCard.classList.toggle("arrived", finished);
+    /* The daily stays front and center: its button wears the gold when
+       today's wander is the one on stage, and a finished wander keeps a
+       way back to its result after the pop-up closes. */
+    els.dailyBtn.classList.toggle("on", mode === "daily");
+    els.resultBtn.hidden = !finished;
     renderCoach();
     if (state.streak && state.streak.count > 0){
       els.streakLine.textContent = state.streak.count + (state.streak.count === 1 ? " day streak" : " day streak");
@@ -954,7 +988,7 @@
     var casualH = playStyle() === "casual";
     var recent = keys.slice(0, 3).map(function(k){
       var h = state.history[k];
-      return casualH ? k + ": " + h.hops + " hops" : k + ": " + h.hops + " hops, " + starString(h.stars);
+      return casualH ? k + ": " + h.hops + " steps" : k + ": " + h.hops + " steps, " + starString(h.stars);
     });
     els.historyLine.textContent = "Recent days: " + recent.join(" · ");
   }
@@ -1006,18 +1040,18 @@
     els.coachLevelsBtn.hidden = !done;
     if (done){
       els.coachText.textContent = playStyle() === "ranked"
-        ? "You arrived in " + h + (h === 1 ? " hop" : " hops") + ", exactly par, so that is 3 stars. The line in the panel below is made for sharing: it gives the day, your hops, and your stars, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now."
-        : "You arrived in " + h + (h === 1 ? " hop" : " hops") + ". The line in the panel below is made for sharing: it gives the day and your hops, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now.";
+        ? "You arrived in " + h + (h === 1 ? " step" : " steps") + ", exactly par, so that is 3 stars. The line in the panel below is made for sharing: it gives the day, your steps, and your stars, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now."
+        : "You arrived in " + h + (h === 1 ? " step" : " steps") + ". The line in the panel below is made for sharing: it gives the day and your steps, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now.";
     } else if (h === 0){
-      els.coachText.textContent = "Welcome to the guided wander. The cards up top show where you start and where you are headed: Coffee to Space Needle. Each article below is the real thing, links and all. Tap a link in the text and you hop to a new article. Starbucks, glowing gently in the text, is a friendly first hop.";
+      els.coachText.textContent = "Welcome to the guided wander. The cards up top show where you start and where you are headed: Coffee to Space Needle. Each article below is the real thing, links and all. Tap a link in the text and you step to a new article. Starbucks, glowing gently in the text, is a friendly first step.";
     } else if (!sug){
       els.coachText.textContent = "Off the short path, and that is fine. Wandering is the game, and there are no wrong turns here. Your path so far sits under the cards, and Undo or any earlier stop takes you back. The target is still Space Needle.";
     } else if (h === 1){
       els.coachText.textContent = playStyle() === "ranked"
-        ? "One hop used. The pills up top count your hops and show par, the shortest possible route. Your breadcrumb path is under them, and tapping any earlier stop rewinds to it. Seattle, glowing below, brings you close."
-        : "One hop used. The pill up top counts your hops. Your breadcrumb path is under it, and tapping any earlier stop rewinds to it. Seattle, glowing below, brings you close.";
+        ? "One step taken. The pills up top count your steps and show par, the shortest possible route. Your breadcrumb path is under them, and tapping any earlier stop rewinds to it. Seattle, glowing below, brings you close."
+        : "One step taken. The pill up top counts your steps. Your breadcrumb path is under it, and tapping any earlier stop rewinds to it. Seattle, glowing below, brings you close.";
     } else {
-      els.coachText.textContent = "Two hops. Space Needle is among this article's links, and your target is always marked in red. Tap it to arrive.";
+      els.coachText.textContent = "Two steps. Space Needle is among this article's links, and your target is always marked in red. Tap it to arrive.";
     }
   }
 
@@ -1360,7 +1394,7 @@
     finished = false;
     viaChimed = false;
     runRanked = playStyle() === "ranked";
-    els.winPanel.classList.remove("show");
+    hideWin();
     persistProgress();
     renderHeader();
     loadCurrent();
@@ -1443,9 +1477,9 @@
     }
     els.winTrivia.hidden = runRanked;
     if (!runRanked){
-      els.winTrivia.textContent = "For the curious: the shortest known route for this wander is " + pair.par + (pair.par === 1 ? " hop." : " hops.");
+      els.winTrivia.textContent = "For the curious: the shortest known route for this wander is " + pair.par + (pair.par === 1 ? " step." : " steps.");
     }
-    var hopWord = hops() + (hops() === 1 ? " hop" : " hops");
+    var hopWord = hops() + (hops() === 1 ? " step" : " steps");
     var label;
     if (mode === "level"){
       els.winMeta.textContent = runRanked
@@ -1477,17 +1511,58 @@
         : hopWord + ". Come back tomorrow for a new wander, or try the levels any time.";
       label = "Breadcrumb " + todayKey();
       els.winNextBtn.hidden = true;
-      /* Once the tour is done, the daily's second button points at the
-         levels; before that it offers the guided practice first. */
-      winAltAction = state.levels[0] ? "levels" : "practice";
-      els.winPracticeBtn.textContent = state.levels[0] ? "Try the levels" : "Try the guided practice";
+      /* A win never pitches the guided practice: the player just proved
+         they can wander. The daily's second button points at the levels. */
+      winAltAction = "levels";
+      els.winPracticeBtn.textContent = "Try the levels";
     }
     els.shareText.textContent = runRanked
       ? label + " · " + hopWord + " · par " + pair.par + " · " + starString(st) + " · ranked"
       : label + " · " + hopWord + " · finished";
     els.copiedNote.textContent = "";
+    /* The congratulations: how the wander measures against par. */
+    if (mode === "practice" && !runRanked){
+      els.winCongrats.textContent = "Tour complete. The whole map is yours now.";
+    } else if (st === 3){
+      els.winCongrats.textContent = "Exactly par, the shortest route there is. Beautifully hunted.";
+    } else if (st === 2){
+      els.winCongrats.textContent = "One step over par. Nearly the shortest route.";
+    } else if (hops() <= pair.par + 3){
+      els.winCongrats.textContent = "A scenic route, and a finish all the same.";
+    } else {
+      els.winCongrats.textContent = "You wandered far and found your way. That is the game.";
+    }
+    fillWinFact(pair);
     els.winPanel.classList.add("show");
-    els.winPanel.scrollIntoView({ behavior:"smooth", block:"nearest" });
+    els.winBackdrop.classList.add("show");
+    els.resultBtn.hidden = false;
+  }
+
+  function hideWin(){
+    els.winPanel.classList.remove("show");
+    els.winBackdrop.classList.remove("show");
+  }
+
+  /* A parting fact about the destination, drawn from its own article. */
+  function fillWinFact(pair){
+    var a = cache[pair.target];
+    var ex = a && a.extract ? a.extract.trim() : "";
+    var fact = "";
+    if (ex.length >= 30){
+      var cut = ex.indexOf(". ");
+      fact = cut >= 30 ? ex.slice(0, cut + 1) : ex.slice(0, 240);
+      if (fact.length > 260){
+        var sp = fact.lastIndexOf(" ", 250);
+        fact = fact.slice(0, sp > 60 ? sp : 250) + "…";
+      }
+    }
+    if (!fact){ els.winFact.hidden = true; els.winFact.textContent = ""; return; }
+    els.winFact.innerHTML = "";
+    var b = document.createElement("b");
+    b.textContent = "About " + pair.target + ": ";
+    els.winFact.appendChild(b);
+    els.winFact.appendChild(document.createTextNode(fact));
+    els.winFact.hidden = false;
   }
 
   function startDaily(){
@@ -1496,7 +1571,7 @@
     currentPath = (d.path && d.path.length) ? d.path.slice() : [PAIRS[d.pairIndex].start];
     finished = !!d.finished && currentPath[currentPath.length-1] === PAIRS[d.pairIndex].target;
     runRanked = !!d.ranked;
-    els.winPanel.classList.remove("show");
+    hideWin();
     els.levelsPanel.classList.remove("show");
     els.settingsPanel.classList.remove("show");
     viaChimed = false;
@@ -1518,7 +1593,7 @@
       finished = false;
       runRanked = playStyle() === "ranked";
     }
-    els.winPanel.classList.remove("show");
+    hideWin();
     els.levelsPanel.classList.remove("show");
     els.settingsPanel.classList.remove("show");
     persistProgress();
@@ -1542,7 +1617,7 @@
       finished = false;
       runRanked = playStyle() === "ranked";
     }
-    els.winPanel.classList.remove("show");
+    hideWin();
     els.levelsPanel.classList.remove("show");
     els.settingsPanel.classList.remove("show");
     persistProgress();
@@ -1630,6 +1705,11 @@
   els.settingsBtn.addEventListener("click", function(){ applyAudioSession(); toggleSettingsPanel(); });
   els.levelsBtn.addEventListener("click", function(){ applyAudioSession(); toggleLevelsPanel(); });
   els.practiceBtn.addEventListener("click", function(){ applyAudioSession(); startPractice(); });
+  els.dailyBtn.addEventListener("click", function(){ applyAudioSession(); startDaily(); });
+  els.resultBtn.addEventListener("click", function(){ applyAudioSession(); if (finished) showWin(); });
+  els.winCloseBtn.addEventListener("click", function(){ applyAudioSession(); hideWin(); });
+  els.winAdmireBtn.addEventListener("click", function(){ applyAudioSession(); hideWin(); });
+  els.winBackdrop.addEventListener("click", function(){ hideWin(); });
   els.winPracticeBtn.addEventListener("click", function(){
     applyAudioSession();
     if (mode === "level"){ toggleLevelsPanel(true); }
