@@ -180,6 +180,20 @@
   }
   .extract{font-size:15.5px; line-height:1.62; color:#37443B; margin:0;}
   .extract:empty{display:none;}
+  .view-switch{margin:2px 0 10px;}
+  .article-text{font-size:16px; line-height:1.68; color:#37443B;}
+  .article-text p{margin:0 0 12px;}
+  .article-text h2, .article-text h3{font-family:Georgia, serif; color:var(--sage-deep); line-height:1.2; margin:20px 0 7px;}
+  .article-text h2{font-size:21px;}
+  .article-text h3{font-size:18px;}
+  .article-text ul, .article-text ol{margin:0 0 12px; padding-left:22px;}
+  .article-text li{margin-bottom:4px;}
+  .article-text .hatnote{font-size:13.5px; font-style:italic; color:var(--ink-soft); margin:0 0 10px;}
+  .article-text blockquote{margin:0 0 12px; padding:2px 0 2px 12px; border-left:3px solid var(--line);}
+  .article-text .loading-note{color:var(--ink-soft); font-style:italic;}
+  button.inl{background:none; border:none; padding:0; margin:0; font:inherit; color:var(--river); font-weight:600; text-decoration:underline; text-underline-offset:2px; cursor:pointer; text-align:left;}
+  button.inl.is-target{color:#BE3A2B;}
+  button.inl.suggested{border-radius:4px; animation:suggestPulse 1.8s ease-in-out infinite;}
   .attrib{margin:12px 0 0; font-size:12px; color:var(--ink-soft); line-height:1.5;}
   .attrib a{color:var(--sage-deep); font-weight:700;}
   .filter-row{margin:16px 0 10px;}
@@ -396,13 +410,18 @@
     </div>
     <div id="articleBody" hidden>
       <h2 id="articleTitle"></h2>
+      <div class="segmented view-switch" role="group" aria-label="Article view">
+        <button type="button" id="viewArticleBtn">Article</button>
+        <button type="button" id="viewListBtn">Link list</button>
+      </div>
       <p class="extract" id="articleExtract"></p>
+      <div class="article-text" id="articleText" hidden></div>
       <p class="attrib" id="articleAttrib"></p>
-      <div class="filter-row">
+      <div class="filter-row" id="filterRow">
         <label class="sr" for="filterInput">Filter links</label>
         <input id="filterInput" type="search" placeholder="Filter links" autocomplete="off">
       </div>
-      <div class="links-head">
+      <div class="links-head" id="linksHead">
         <span class="hintline">Tap a link to wander there.</span>
         <span class="count" id="linkCount"></span>
       </div>
@@ -752,7 +771,7 @@
       levels: {},
       level: null,
       seen: {},
-      settings: { style: "casual", music: "off", sound: true }
+      settings: { style: "casual", music: "off", sound: true, view: "article" }
     };
   }
   function loadState(){
@@ -768,6 +787,7 @@
       if (!s.settings) s.settings = { style: "casual" };
       if (typeof s.settings.sound !== "boolean") s.settings.sound = true;
       if (!s.settings.music) s.settings.music = "off";
+      if (s.settings.view !== "list") s.settings.view = "article";
       return s;
     }catch(e){ return defaultState(); }
   }
@@ -810,6 +830,7 @@
   ["dateLine","streakLine","startName","targetName","targetCard","hopPill","parPill","starPill","stylePill","inviteLine","practiceBanner","modeBannerText",
    "crumbTrack","undoBtn","restartBtn","practiceBtn","levelsBtn","errorBox","errorText","retryBtn","loadingBox","articleBody",
    "articleTitle","articleExtract","articleAttrib","filterInput","linkCount","noResults","linkList",
+   "articleText","viewArticleBtn","viewListBtn","filterRow","linksHead",
    "winPanel","winStars","winMeta","winTrivia","shareText","shareBtn","copyBtn","winPracticeBtn","winNextBtn","copiedNote",
    "levelsPanel","levelsList","levelsProgress","historyLine","exitPracticeBtn","settingsPanel","settingsBtn",
    "coachCard","coachKicker","coachText","coachSkipBtn","coachTodayBtn","coachLevelsBtn",
@@ -962,7 +983,7 @@
         els.coachLevelsBtn.hidden = true;
         els.coachText.textContent = kind === "via"
           ? "This is a waypoint wander. The road to " + lp.target + " carries one promise: pass by way of " + lp.via + " on your way. Reaching the target without it will not finish the level. The pill under the cards keeps track of the promise."
-          : "This is a banned-word wander. One tempting article is off limits the whole way: " + lp.banned + " will not appear in any link list. The shortest roads all avoid it anyway, so the wander is no longer than it ever was.";
+          : "This is a banned-word wander. One tempting article is off limits the whole way: " + lp.banned + " will not appear as a link anywhere. The shortest roads all avoid it anyway, so the wander is no longer than it ever was.";
         return;
       }
       introKind = null;
@@ -988,7 +1009,7 @@
         ? "You arrived in " + h + (h === 1 ? " hop" : " hops") + ", exactly par, so that is 3 stars. The line in the panel below is made for sharing: it gives the day, your hops, and your stars, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now."
         : "You arrived in " + h + (h === 1 ? " hop" : " hops") + ". The line in the panel below is made for sharing: it gives the day and your hops, and never your route. This same wander is Level 1, so it counts there too. Today's wander and the levels are yours now.";
     } else if (h === 0){
-      els.coachText.textContent = "Welcome to the guided wander. The cards up top show where you start and where you are headed: Coffee to Space Needle. Each article below offers its links. Tap one and you hop to a new article. Starbucks, glowing gently down the list, is a friendly first hop.";
+      els.coachText.textContent = "Welcome to the guided wander. The cards up top show where you start and where you are headed: Coffee to Space Needle. Each article below is the real thing, links and all. Tap a link in the text and you hop to a new article. Starbucks, glowing gently in the text, is a friendly first hop.";
     } else if (!sug){
       els.coachText.textContent = "Off the short path, and that is fine. Wandering is the game, and there are no wrong turns here. Your path so far sits under the cards, and Undo or any earlier stop takes you back. The target is still Space Needle.";
     } else if (h === 1){
@@ -1056,6 +1077,132 @@
     return step(base, 3);
   }
 
+  /* ---------- Full article view ----------
+     The article read whole, links living in the text where the hunt
+     happens. The link list stays one tap away (the View switch), so
+     every outgoing link remains reachable and pars stay exact. */
+  var htmlCache = {};
+  function viewMode(){ return (state.settings && state.settings.view === "list") ? "list" : "article"; }
+  function fetchArticleText(title){
+    if (htmlCache[title]) return Promise.resolve(htmlCache[title]);
+    var url = API + "?action=parse&format=json&formatversion=2&origin=*&redirects=1"
+      + "&prop=text&disableeditsection=1&page=" + encodeURIComponent(title);
+    return fetch(url).then(function(r){
+      if (!r.ok) throw new Error("http " + r.status);
+      return r.json();
+    }).then(function(data){
+      if (!data || !data.parse || typeof data.parse.text !== "string") throw new Error("noparse");
+      var got = { title: data.parse.title, html: data.parse.text };
+      htmlCache[got.title] = got;
+      htmlCache[title] = got;
+      return got;
+    });
+  }
+  function isCleanTitle(t){
+    if (!t) return false;
+    var low = t.toLowerCase();
+    if (low.indexOf("(disambiguation)") !== -1) return false;
+    if (/^(list of|lists of|index of|outline of|timeline of|glossary of)/.test(low)) return false;
+    if (t.indexOf(":") !== -1) return false;
+    if (/^\d{3,4}$/.test(t)) return false;
+    return true;
+  }
+  function buildArticleBody(htmlText){
+    var doc = new DOMParser().parseFromString(htmlText, "text/html");
+    var root = doc.querySelector(".mw-parser-output") || doc.body;
+    var junk = ["table", ".navbox", ".reflist", ".references", "ol.references", ".mw-editsection",
+      "sup", "img", "figure", ".thumb", ".infobox", ".sidebar", ".metadata", ".ambox", ".noprint",
+      ".mw-empty-elt", "#toc", ".toc", "script", "style", "link", "iframe", "video", "audio",
+      "embed", "object", "source", "track", "meta", ".shortdescription", ".mw-indicators",
+      ".printfooter", ".catlinks", ".portal", ".gallery", ".mw-references-wrap", ".refbegin",
+      ".div-col", ".reflist-columns"];
+    junk.forEach(function(sel){
+      try{ root.querySelectorAll(sel).forEach(function(n){ n.remove(); }); }catch(e){ /* a bad selector skips, never breaks */ }
+    });
+    /* Nothing in the reading view may fetch: no src of any kind, and no
+       inline style that points at an image. */
+    root.querySelectorAll("*").forEach(function(n){
+      if (n.hasAttribute("src")) n.removeAttribute("src");
+      if (n.hasAttribute("srcset")) n.removeAttribute("srcset");
+      if (n.hasAttribute("poster")) n.removeAttribute("poster");
+      var st = n.getAttribute && n.getAttribute("style");
+      if (st && st.indexOf("url(") !== -1) n.removeAttribute("style");
+    });
+    var pair = activePair();
+    var sug = tourSuggestion();
+    root.querySelectorAll("a").forEach(function(a){
+      var href = a.getAttribute("href") || "";
+      var title = null;
+      if (href.indexOf("/wiki/") === 0 && !a.classList.contains("new")){
+        var raw = href.slice(6).split("#")[0];
+        try{ raw = decodeURIComponent(raw); }catch(e){ /* keep the raw form */ }
+        raw = raw.replace(/_/g, " ");
+        if (isCleanTitle(raw) && !isBanned(raw)) title = raw;
+      }
+      if (title){
+        var b = doc.createElement("button");
+        b.type = "button";
+        b.className = "inl" + (title === pair.target ? " is-target" : "") + (sug && title === sug ? " suggested" : "");
+        b.setAttribute("data-t", title);
+        b.textContent = a.textContent;
+        b.addEventListener("click", function(){ applyAudioSession(); tapSound(); navigateTo(title); });
+        a.replaceWith(b);
+      } else {
+        a.replaceWith.apply(a, Array.prototype.slice.call(a.childNodes));
+      }
+    });
+    root.querySelectorAll("p, li, div").forEach(function(n){
+      if (!n.textContent.trim() && !n.querySelector("button")) n.remove();
+    });
+    var wrap = document.createElement("div");
+    Array.prototype.slice.call(root.childNodes).forEach(function(n){ wrap.appendChild(document.importNode(n, true)); });
+    /* Buttons built inside the parsed document keep their listeners only
+       if moved, not cloned: rebind clicks after importing. */
+    wrap.querySelectorAll("button.inl").forEach(function(b){
+      var t = b.getAttribute("data-t");
+      b.addEventListener("click", function(){ applyAudioSession(); tapSound(); navigateTo(t); });
+    });
+    return wrap;
+  }
+  function renderArticleText(article){
+    els.articleText.innerHTML = "";
+    var note = document.createElement("p");
+    note.className = "loading-note";
+    note.textContent = "Unrolling the article…";
+    els.articleText.appendChild(note);
+    fetchArticleText(article.title).then(function(got){
+      var cur = currentArticle();
+      if (!cur || cur.title !== article.title) return; /* the wander moved on */
+      if (viewMode() !== "article") return;
+      els.articleText.replaceChildren(buildArticleBody(got.html));
+      var sug = els.articleText.querySelector("button.inl.suggested");
+      if (sug) setTimeout(function(){ try{ sug.scrollIntoView({ block: "center", behavior: "smooth" }); }catch(e){} }, 350);
+    }).catch(function(){
+      var cur = currentArticle();
+      if (!cur || cur.title !== article.title) return;
+      /* No article text (offline hiccup, odd page): the list carries on. */
+      applyViewLayout("list");
+    });
+  }
+  function applyViewLayout(v){
+    var art = v === "article";
+    els.articleText.hidden = !art;
+    els.articleExtract.style.display = art ? "none" : "";
+    els.filterRow.style.display = art ? "none" : "";
+    els.linksHead.style.display = art ? "none" : "";
+    els.linkList.style.display = art ? "none" : "";
+    els.noResults.style.display = "none";
+    els.viewArticleBtn.classList.toggle("on", art);
+    els.viewListBtn.classList.toggle("on", !art);
+  }
+  function setView(v){
+    if (!state.settings) state.settings = { style: "casual" };
+    state.settings.view = (v === "list") ? "list" : "article";
+    saveState();
+    var a = currentArticle();
+    if (a) renderArticle(a);
+  }
+
   function showLoading(){
     els.loadingBox.style.display = "block";
     els.articleBody.hidden = true;
@@ -1079,12 +1226,14 @@
     span.textContent = "Article text from Wikipedia, available under CC BY-SA. ";
     var a = document.createElement("a");
     a.href = href; a.target = "_blank"; a.rel = "noopener";
-    a.textContent = "Read the full article";
+    a.textContent = viewMode() === "article" ? "View on Wikipedia" : "Read the full article";
     els.articleAttrib.appendChild(span);
     els.articleAttrib.appendChild(a);
 
     els.filterInput.value = "";
     renderLinks(article, "");
+    applyViewLayout(viewMode());
+    if (viewMode() === "article") renderArticleText(article);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1519,7 +1668,8 @@
     if (finished) showWin();
     if (els.levelsPanel.classList.contains("show")) renderLevelsList();
     var a = currentArticle();
-    if (a) renderLinks(a, els.filterInput.value);
+    if (a && viewMode() === "article") renderArticle(a);
+    else if (a) renderLinks(a, els.filterInput.value);
   }
   function renderSoundControls(){
     if (!els.soundOnBtn) return;
@@ -1553,6 +1703,8 @@
   els.musicBothBtn.addEventListener("click", function(){ applyAudioSession(); setMusic("both"); });
   els.styleCasualBtn.addEventListener("click", function(){ applyAudioSession(); setStyle("casual"); });
   els.styleRankedBtn.addEventListener("click", function(){ applyAudioSession(); setStyle("ranked"); });
+  els.viewArticleBtn.addEventListener("click", function(){ applyAudioSession(); setView("article"); });
+  els.viewListBtn.addEventListener("click", function(){ applyAudioSession(); setView("list"); });
   els.copyBtn.addEventListener("click", function(){
     applyAudioSession();
     /* Even a plain copy carries the link home, so pasting promotes the game. */
@@ -1608,6 +1760,8 @@
     getStyle: playStyle,
     getRunRanked: function(){ return runRanked; },
     gameUrl: GAME_URL,
+    getView: viewMode,
+    setView: function(v){ setView(v); },
     getMusicSetting: musicSetting,
     getMusicPiece: function(){ return musicPlaying ? musicPiece : null; },
     getSoundOn: soundOn,
