@@ -4963,7 +4963,8 @@ var NARRATION_CLIPS = [
           ["igloo", "I"], ["insect", "I"], ["inch", "I"],
           ["nest", "N"], ["nose", "N"], ["nut", "N"],
           ["octopus", "O"], ["orange", "O"], ["otter", "O"],
-          ["umbrella", "U"], ["up", "U"], ["under", "U"]
+          ["umbrella", "U"], ["up", "U"], ["under", "U"],
+          ["rat", "R"], ["red", "R"], ["run", "R"]
         ];
         var HUD_WORDS_HARD = [
           ["giraffe", "G"], ["zebra", "Z"], ["queen", "Q"], ["umbrella", "U"], ["tiger", "T"],
@@ -4971,7 +4972,7 @@ var NARRATION_CLIPS = [
           ["whale", "W"], ["orange", "O"], ["vase", "V"], ["yo-yo", "Y"],
           ["igloo", "I"], ["panda", "P"], ["snake", "S"], ["mango", "M"], ["cactus", "C"], ["donut", "D"], ["eagle", "E"]
         ];
-        var HUD_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "M", "N", "O", "P", "S", "T", "U"];
+        var HUD_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "M", "N", "O", "P", "R", "S", "T", "U"];
         var HUD_COUNT_OBJECTS = [
           { name: "star", plural: "stars", svg: STAR_SVG },
           { name: "heart", plural: "hearts", svg: shapeSVG("heart", "#e14b73") },
@@ -5174,9 +5175,16 @@ var NARRATION_CLIPS = [
              animal tails (the science rotation, alongside animal
              structures), and citizenship, rules and communities (the
              shared school bank, in the same style as story parts).
+             The Nov 13, 2026 school topics join this same school slot:
+             North America geography (Canada and Mexico, the United
+             States' neighbours) and plant structures and functions
+             (the science rotation, alongside animal structures).
+             Theme and plot deepen the story parts bank served by the
+             language flex below, and multiplication as a comparison
+             ("times as many") joins the maths variety flex below.
              Demo grades 2-5 use this same plan; Hudson and demo
              Kindergarten/1st use hudsonPlan and never see these kinds. */
-          plan.push(pickOf(["senses", "opinion", "adjectives", "structures", "maps", "figurative", "tails", "citizenship"]));
+          plan.push(pickOf(["senses", "opinion", "adjectives", "structures", "maps", "figurative", "tails", "citizenship", "geography", "plants"]));
           /* Core maths anchor: one of compare / place-value / addition /
              standard form in every round. (The two older anchors now share
              this one slot, so all four still turn up regularly alongside
@@ -5192,11 +5200,11 @@ var NARRATION_CLIPS = [
           if (flexRoll < 0.34) {
             plan.push(pickOf(["vocab", "spelling", "grammar", "reading", "story", "figurative"]));
           } else if (L <= 3) {
-            plan.push(pickOf(["division", "estimation", "addition", "compare", "place-value", "standard-form", "mult", "word", "money", "missing"]));
+            plan.push(pickOf(["division", "estimation", "addition", "compare", "place-value", "standard-form", "mult", "word", "mult-compare", "money", "missing"]));
           } else if (L <= 5) {
-            plan.push(pickOf(["division", "estimation", "compare", "place-value", "mult", "word", "fraction-compare", "fraction-of", "word2", "sequence", "addition", "standard-form", "money", "time", "missing", "multiples", "perimeter", "fraction-add"]));
+            plan.push(pickOf(["division", "estimation", "compare", "place-value", "mult", "word", "mult-compare", "fraction-compare", "fraction-of", "word2", "sequence", "addition", "standard-form", "money", "time", "missing", "multiples", "perimeter", "fraction-add"]));
           } else {
-            plan.push(pickOf(["division", "estimation", "mult", "word", "fraction-compare", "fraction-of", "word2", "sequence", "compare", "place-value", "money", "time", "missing", "multiples", "perimeter", "fraction-add"]));
+            plan.push(pickOf(["division", "estimation", "mult", "word", "mult-compare", "fraction-compare", "fraction-of", "word2", "sequence", "compare", "place-value", "money", "time", "missing", "multiples", "perimeter", "fraction-add"]));
           }
           return shuffled(plan.slice(0, 5));
         }
@@ -5513,7 +5521,12 @@ var NARRATION_CLIPS = [
            (some with a short story passage to read first), and wired
            into the same language rotation as reading in hazelPlan, so
            Hazel and the demo grades 2-5 meet them the same way they
-           meet reading questions. Hudson's rounds never include them. */
+           meet reading questions. Hudson's rounds never include them.
+           Deepened Nov 13, 2026 (Glidden Friday Email) with theme and
+           plot: theme as the lesson or message of a story, plot as the
+           important events that drive it in order, telling the two
+           apart, and spotting each in short passages. The new entries
+           ride this same bank and rotation. */
         var STORY_PARTS_BANK = [
           { q: "Who are the characters in a story?", a: "The people or animals the story is about", d: ["The place where the story happens", "The very end of the story"] },
           { q: "What is the setting of a story?", a: "Where and when the story happens", d: ["Who is in the story", "What happens at the very end"] },
@@ -5526,7 +5539,19 @@ var NARRATION_CLIPS = [
           { p: "At the start of the story, Zara put on her rain boots and grabbed her umbrella. Dark clouds were rolling in.", q: "What happens at the beginning of this story?", a: "Zara gets ready to go out in the rain", d: ["Zara comes back home and dries off", "Zara builds a snowman in the garden"] },
           { p: "Ben planted a bean seed and watered it every day. In the middle of the story, a green sprout popped up, but a hungry rabbit started nibbling its leaves.", q: "What happens in the middle of this story?", a: "A rabbit nibbles the new sprout", d: ["Ben plants the bean seed", "Ben picks tall beans for dinner"] },
           { p: "Mia lost her favourite mitten on the way to school. She looked in her bag and under her desk. At the end of the story, her friend Sam found it on the playground and gave it back.", q: "What happens at the end of this story?", a: "Sam finds the mitten and gives it back", d: ["Mia loses her mitten", "Mia looks under her desk"] },
-          { p: "Three little goats lived by a grassy hill. One day they decided to cross the bridge to find sweeter grass on the other side.", q: "What is the setting of this story?", a: "By a grassy hill with a bridge", d: ["Inside a busy airport", "Deep under the sea"] }
+          { p: "Three little goats lived by a grassy hill. One day they decided to cross the bridge to find sweeter grass on the other side.", q: "What is the setting of this story?", a: "By a grassy hill with a bridge", d: ["Inside a busy airport", "Deep under the sea"] },
+          { q: "What is the theme of a story?", a: "The lesson or message the story teaches", d: ["The place where the story happens", "The names of the characters"] },
+          { q: "What is the plot of a story?", a: "The important events that happen in the story, in order", d: ["The lesson the story teaches", "The pictures on the cover"] },
+          { q: "How are the theme and the plot of a story different?", a: "The plot is what happens; the theme is the lesson it teaches", d: ["The plot is the lesson; the theme is what happens", "They are two words for exactly the same thing"] },
+          { q: "Which of these could be the theme of a story?", a: "Being kind to others makes the world a better place", d: ["A girl finds a lost puppy in the park", "The story happens on a rainy day"] },
+          { q: "Which of these tells part of a story's plot?", a: "First Sam missed the bus, then he ran all the way to school", d: ["Friends should always help each other", "It is important never to give up"] },
+          { q: "Which question helps you find a story's theme?", a: "What lesson did the character learn?", d: ["What happened first in the story?", "Where does the story take place?"] },
+          { q: "How can you work out a story's theme?", a: "Think about what the characters learn and how they change", d: ["Read only the very last page", "Count how many pages the book has"] },
+          { q: "Why do the events in a plot matter?", a: "They drive the story forward and lead to how it ends", d: ["They tell you the author's name", "They are always the funniest part of the book"] },
+          { p: "Cleo the cat was stuck high in a tall tree, too scared to climb down. Her friend Bruno barked and barked until their owner came out with a ladder, and together they got Cleo down safely.", q: "What is the theme of this story?", a: "Friends help each other in times of trouble", d: ["Cats should never climb trees", "Every garden should have a ladder"] },
+          { p: "Cleo the cat was stuck high in a tall tree, too scared to climb down. Her friend Bruno barked and barked until their owner came out with a ladder, and together they got Cleo down safely.", q: "Which event is part of the plot of this story?", a: "Bruno barked until their owner came with a ladder", d: ["Cleo decided she loved climbing trees", "Bruno took a long nap in the garden"] },
+          { p: "Every day, tiny Pip the seed sat in the dark soil and wished he could be a tall flower. He drank the rain and stretched toward the sun, even when growing felt slow and hard. One spring morning, Pip opened his petals for the very first time.", q: "What is the theme of this story?", a: "Be patient and keep trying - good things take time to grow", d: ["Seeds need water and sunlight", "Spring is the best season of the year"] },
+          { p: "Jonah shared his umbrella with a classmate walking home in the rain, even though it meant his own shoulder got wet. The next day, that classmate shared her snack with him at lunch.", q: "What theme does this story teach?", a: "Kindness often comes back to you", d: ["Always carry an umbrella", "Rainy days make people hungry"] }
         ];
         /* Figurative language and tone, from Aubrey Glidden's Friday
            Email, Nov 6, 2026 ("discussed figurative language and
@@ -5618,6 +5643,59 @@ var NARRATION_CLIPS = [
           { p: "During clean-up time, Sam wipes the table he shares, puts the shared crayons back, and thanks his table partner for helping.", q: "What is Sam showing?", a: "Good citizenship - caring for shared things and respecting others", d: ["That he wants to finish first", "That the crayons belong to him"] },
           { q: "What should you do if you think a rule is unfair?", a: "Talk respectfully to a teacher or grown-up about it", d: ["Break it whenever you like", "Tell everyone to stop following all the rules"] }
         ];
+        /* Canada, Mexico and North America geography, from Glidden's
+           Friday Email, Nov 13, 2026: Canada is the country north of
+           the United States, Mexico is the country south of it, and
+           the United States sits between them - with the capital
+           cities (Ottawa and Mexico City), the languages spoken, and
+           compass directions for the northern and southern neighbours.
+           Wired into Hazel's school slot in hazelPlan alongside the
+           Maps bank, so the demo grades 2-5 meet it the same way.
+           Hudson's rounds and demo Kindergarten/1st never include it. */
+        var NORTH_AMERICA_BANK = [
+          { q: "Which country is directly north of the United States?", a: "Canada", d: ["Mexico", "Brazil"] },
+          { q: "Which country is directly south of the United States?", a: "Mexico", d: ["Canada", "Cuba"] },
+          { q: "The United States sits between which two countries?", a: "Canada to the north and Mexico to the south", d: ["Canada to the south and Mexico to the north", "France and Spain"] },
+          { q: "What is the capital city of Canada?", a: "Ottawa", d: ["Toronto", "Mexico City"] },
+          { q: "What is the capital city of Mexico?", a: "Mexico City", d: ["Ottawa", "Washington, D.C."] },
+          { q: "What is the capital city of the United States?", a: "Washington, D.C.", d: ["Ottawa", "New York City"] },
+          { q: "Canada, the United States and Mexico are all part of which continent?", a: "North America", d: ["South America", "Europe"] },
+          { q: "Most people in Mexico speak which language?", a: "Spanish", d: ["French", "Portuguese"] },
+          { q: "Canada has two official languages. What are they?", a: "English and French", d: ["English and Spanish", "French and Spanish"] },
+          { q: "If you travel north from the United States, which country do you reach?", a: "Canada", d: ["Mexico", "Australia"] },
+          { q: "If you travel south from the United States, which country do you reach?", a: "Mexico", d: ["Canada", "England"] },
+          { q: "On a map of North America, where is Mexico?", a: "Below the United States, to the south", d: ["Above the United States, to the north", "Inside the United States"] },
+          { q: "On a map of North America, where is Canada?", a: "Above the United States, to the north", d: ["Below the United States, to the south", "Under the ocean"] },
+          { q: "Of Canada, the United States and Mexico, which country takes up the most space on the map?", a: "Canada", d: ["Mexico", "The United States"] },
+          { q: "You fly from the United States to Ottawa for a visit. Which country are you visiting?", a: "Canada", d: ["Mexico", "The United States"] }
+        ];
+        /* Plant structures and functions, from Glidden's Friday
+           Email, Nov 13, 2026: the parts of a plant - roots, stem,
+           leaves, flower and seeds - and the job each part does
+           (roots take in water, the stem holds the plant up and
+           carries water, leaves make food from sunlight, flowers
+           make seeds, and seeds grow into new plants). The existing
+           Structures bank is animal-only, so plants get their own
+           bank here, wired into Hazel's school (science) slot in
+           hazelPlan alongside Animal Structures, so the demo grades
+           2-5 meet it the same way. No new activity type is added
+           for Hudson. */
+        var PLANT_BANK = [
+          { q: "In science, plants have structures too. What is a plant structure?", a: "A part of a plant, like its roots or its leaves", d: ["A place where a plant lives", "A kind of animal that eats plants"] },
+          { q: "What job do a plant's roots do?", a: "They take in water from the soil and hold the plant in place", d: ["They make the plant's seeds", "They catch sunlight for the plant"] },
+          { q: "What does a plant's stem do?", a: "It holds the plant up and carries water to the leaves", d: ["It takes in water from the soil", "It grows into a new plant"] },
+          { q: "What do a plant's leaves do?", a: "They use sunlight to make food for the plant", d: ["They hold the plant in the ground", "They carry water up from the roots"] },
+          { q: "What is the job of a plant's flower?", a: "It makes seeds", d: ["It takes in water", "It holds the plant up"] },
+          { q: "What can a plant's seeds do?", a: "Grow into new plants", d: ["Make food from sunlight", "Carry water up the stem"] },
+          { q: "Which plant structure takes in water from the soil?", a: "The roots", d: ["The flower", "The leaves"] },
+          { q: "Which plant structure makes food for the plant using sunlight?", a: "The leaves", d: ["The roots", "The stem"] },
+          { q: "A tall sunflower stands straight even on a windy day. Which structure is doing that job?", a: "Its stem", d: ["Its flower", "Its seeds"] },
+          { q: "A seed lands on the soil and gets water and sunlight. What can happen next?", a: "It can sprout and grow into a new plant", d: ["It can turn into a stone", "It can grow wings and fly away"] },
+          { q: "Water travels from a plant's roots up to its leaves. Which structure does it travel through?", a: "The stem", d: ["The flower", "The seed"] },
+          { q: "Bees visit flowers and spread pollen. Why does that matter to the plant?", a: "It helps the flower make seeds, so new plants can grow", d: ["It turns the leaves green", "It makes the roots grow deeper"] },
+          { q: "Which list names only parts (structures) of a plant?", a: "Roots, stem, leaves, flower and seeds", d: ["Roots, feathers, leaves and beak", "Stem, tail, flower and fur"] },
+          { q: "Leaves are a plant's food-making structure. What do leaves need to make food?", a: "Sunlight, along with air and water", d: ["Darkness all day long", "Snow and ice"] }
+        ];
         var SCHOOL_BANKS = {
           story: { bank: STORY_PARTS_BANK, cat: "Story Parts" },
           senses: { bank: SENSES_BANK, cat: "Our Five Senses" },
@@ -5628,7 +5706,9 @@ var NARRATION_CLIPS = [
           "fire-safety": { bank: FIRE_SAFETY_BANK, cat: "Fire Safety" },
           figurative: { bank: FIGURATIVE_BANK, cat: "Figurative Language" },
           tails: { bank: TAILS_BANK, cat: "Animal Tails" },
-          citizenship: { bank: CITIZENSHIP_BANK, cat: "Citizenship" }
+          citizenship: { bank: CITIZENSHIP_BANK, cat: "Citizenship" },
+          geography: { bank: NORTH_AMERICA_BANK, cat: "North America" },
+          plants: { bank: PLANT_BANK, cat: "Plant Structures" }
         };
         function makeHazelQuestion(kind, L) {
           L = L || 1;
@@ -5898,6 +5978,43 @@ var NARRATION_CLIPS = [
             var txtFA = "What is " + n1FA + "/" + dFA + " + " + n2FA + "/" + dFA + "?";
             return { kind: "fraction-add", category: "Fractions", answer: ansFA, text: txtFA, spoken: "What is " + n1FA + " over " + dFA + " plus " + n2FA + " over " + dFA + "?", options: strOpts(ansFA, dsFA.slice(0, 2)) };
           }
+          if (kind === "mult-compare") {
+            /* Multiplication as a comparison, from Glidden's Friday
+               Email, Nov 13, 2026: reading a multiplication sentence
+               as "times as many" (4 \u00D7 3 means 4 times as many as 3)
+               and solving simple comparison word problems, including
+               reading one back (a total that is K times as many means
+               the smaller group is the total shared into K equal
+               parts). Numbers scale with level like the other maths
+               generators. Wired into the maths-variety flex pools in
+               hazelPlan, so Hazel and the demo grades 2-5 meet it the
+               same way; Hudson and demo Kindergarten/1st never do. */
+            var pairsMC = [["Nora", "Ethan", "stickers"], ["Priya", "Marcus", "marbles"], ["Elena", "Jonah", "seashells"], ["Ruby", "Owen", "crayons"], ["Tessa", "Leo", "books"], ["Maya", "Felix", "baseball cards"]];
+            var multMC = L <= 2 ? 2 + Math.floor(Math.random() * 3) : 2 + Math.floor(Math.random() * (L >= 6 ? 11 : 8));
+            var baseMC = 2 + Math.floor(Math.random() * (L <= 2 ? 6 : 11));
+            if (baseMC === multMC) baseMC += 1; /* keep the "swapped numbers" distractor genuinely wrong */
+            var modeMC = Math.random();
+            if (modeMC < 0.38) {
+              var ansMC = multMC + " times as many as " + baseMC;
+              var txtMC = "Which sentence means the same as " + multMC + " \u00D7 " + baseMC + "?";
+              return { kind: "mult-compare", category: "Times as Many", answer: ansMC, text: txtMC,
+                spoken: "Which sentence means the same as " + multMC + " times " + baseMC + "?",
+                options: strOpts(ansMC, [baseMC + " times as many as " + multMC, multMC + " more than " + baseMC]) };
+            }
+            if (modeMC < 0.76) {
+              if (Math.random() < 0.3) {
+                var txtMCj = "A small jug holds " + baseMC + " cups of water. A big jug holds " + multMC + " times as much water. How many cups of water does the big jug hold?";
+                return { kind: "mult-compare", category: "Times as Many", answer: multMC * baseMC, text: txtMCj, spoken: txtMCj, options: makeOptions(multMC * baseMC, [baseMC, -baseMC, multMC, -multMC, 1, -1, 10, -10]) };
+              }
+              var prMC = pickOf(pairsMC);
+              var txtMC2 = prMC[0] + " has " + baseMC + " " + prMC[2] + ". " + prMC[1] + " has " + multMC + " times as many " + prMC[2] + " as " + prMC[0] + ". How many " + prMC[2] + " does " + prMC[1] + " have?";
+              return { kind: "mult-compare", category: "Times as Many", answer: multMC * baseMC, text: txtMC2, spoken: txtMC2, options: makeOptions(multMC * baseMC, [baseMC, -baseMC, multMC, -multMC, 1, -1, 10, -10]) };
+            }
+            var prMC3 = pickOf(pairsMC);
+            var totMC = multMC * baseMC;
+            var txtMC3 = prMC3[1] + " has " + totMC + " " + prMC3[2] + ". That is " + multMC + " times as many as " + prMC3[0] + " has. How many " + prMC3[2] + " does " + prMC3[0] + " have?";
+            return { kind: "mult-compare", category: "Times as Many", answer: baseMC, text: txtMC3, spoken: txtMC3, options: makeOptions(baseMC, [multMC, -multMC, 1, -1, 2, -2, totMC]) };
+          }
           if (kind === "word") {
             var f = hazelFactors(L), a = f[0], b = f[1];
             var stories = [
@@ -5996,10 +6113,11 @@ var NARRATION_CLIPS = [
           "reading": "Reading", "science": "Science", "space": "Space", "nature": "Nature & Animals",
           "senses": "Our Five Senses", "opinion": "Opinion Writing", "adjectives": "Adjectives",
           "structures": "Animal Structures", "maps": "Maps", "fire-safety": "Fire Safety", "story": "Story Parts",
-          "figurative": "Figurative Language", "tails": "Animal Tails", "citizenship": "Citizenship"
+          "figurative": "Figurative Language", "tails": "Animal Tails", "citizenship": "Citizenship",
+          "mult-compare": "Times as Many", "geography": "North America", "plants": "Plant Structures"
         };
         window.__hhWonder = { space: SPACE_BANK, science: SCIENCE_BANK, nature: NATURE_BANK, plan: hazelPlan, make: makeHazelQuestion };
-        window.__hhSchool = { senses: SENSES_BANK, opinion: OPINION_BANK, adjectives: ADJECTIVE_BANK, structures: STRUCTURE_BANK, maps: MAP_BANK, fireSafety: FIRE_SAFETY_BANK, story: STORY_PARTS_BANK, figurative: FIGURATIVE_BANK, figurativeLow: FIGURATIVE_LOW, figurativeHigh: FIGURATIVE_HIGH, tails: TAILS_BANK, citizenship: CITIZENSHIP_BANK };
+        window.__hhSchool = { senses: SENSES_BANK, opinion: OPINION_BANK, adjectives: ADJECTIVE_BANK, structures: STRUCTURE_BANK, maps: MAP_BANK, fireSafety: FIRE_SAFETY_BANK, story: STORY_PARTS_BANK, figurative: FIGURATIVE_BANK, figurativeLow: FIGURATIVE_LOW, figurativeHigh: FIGURATIVE_HIGH, tails: TAILS_BANK, citizenship: CITIZENSHIP_BANK, geography: NORTH_AMERICA_BANK, plants: PLANT_BANK };
         /* ---------- No-repeat question memory ----------
            Every served question gets a stable signature (its type plus its
            exact content: numbers, word, passage). Signatures are saved per
