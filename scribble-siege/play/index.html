@@ -1113,7 +1113,12 @@ function saveSettings(){ try{ localStorage.setItem("scribbleSiegeSettings", JSON
    and the entrance offers it back as a Resume. The settings key above is
    never read or written by anything in this block. The snapshot carries
    the full match setup (CFG exactly as played), the generated board as
-   placed (obstacles with their carve / hole / erased state), the parked
+   placed (obstacles with their carve / hole / erased state), the FEEL
+   PASS battle damage (shot-torn craters, as their own list; wrecks ride
+   inside the fighter / structure snapshots as ordinary fields, so a
+   resumed match keeps every burnt-out lane blocker exactly in place —
+   saves written before the feel pass simply carry no craters field and
+   no wreck fields, and resume with both empty), the parked
    quarter, both bases, every fighter and defense structure with its
    live state, whose turn it is AND the turn phase (a save taken after
    the move resumes at the shot step), the turn count and lunch length
@@ -1173,6 +1178,7 @@ function buildMatchSave(){
       bases:JSON.parse(JSON.stringify(G.bases||[])),
       obstacles:(G.obstacles||[]).map(_ssSnapThing),
       traces:(G.traces||[]).map(_ssSnapThing),
+      craters:JSON.parse(JSON.stringify(G.craters||[])),
       reserve:(G.reserve||[0,0]).slice(), prodCd:(G.prodCd||[0,0]).slice(),
       turnCount:G.turnCount||0, prizeRefreshDone:!!G.prizeRefreshDone,
       baseDamage:(G.baseDamage||[0,0]).slice(), sdNote:G.sdNote||null,
@@ -1238,7 +1244,7 @@ function resumeMatch(){
       fastPhase:sg.fastPhase||"move", movedId:(sg.movedId==null?null:sg.movedId),
       stickyAction:sg.stickyAction||"move",
       units:sg.units, turrets:sg.turrets, bases:sg.bases,
-      obstacles:sg.obstacles||[], traces:sg.traces||[],
+      obstacles:sg.obstacles||[], traces:sg.traces||[], craters:sg.craters||[],
       particles:[], stickmen:[], pods:[], selected:(sg.selected==null?null:sg.selected),
       over:false, winner:null, draw:false,
       reserve:sg.reserve||[0,0], editor:null, anim:null, mortarAnim:null,
@@ -1268,6 +1274,7 @@ function resumeMatch(){
     setAction(G.action||"move", true);
     updateHUD(); draw(); fitBoard();
     log("▶ Match resumed — right where it left off.");
+    bedTheme=CFG.theme; startThemedBed(CFG.theme); // FEEL PASS: a resumed match gets its battlefield bed back
     saveMatch();
     if(CFG.mode==="1p" && G.turn===1 && !G.editor){ setTimeout(cpuTurn, 900); } // a match saved on the CPU's turn hands the turn back to the CPU
   }catch(e){
@@ -1506,15 +1513,123 @@ function ambEvent(){
 function startAmbScheduler(){
   if(ambSched) return;
   ambSched = setInterval(function(){
-    if(!AC || !SETTINGS.ambience || document.hidden) return;
+    if(!AC || !SETTINGS.ambience || document.hidden || bedTheme) return; // FEEL PASS: the lunchroom's little events fall silent while a battle runs — the themed bed is the ambience in there
     if(Math.random()<0.55) ambEvent();
   }, 4200);
 }
+/* ============================================================
+   THEMED BEDS (FEEL PASS Tier 1, Nov 12, 2026 — Matthew: "the
+   sounds feel off" per battlefield). One quiet synthesized bed
+   per battlefield, taking the ambience chair while a match runs;
+   the lunchroom bed keeps the entrance and setup screens exactly
+   as before, and returns when the match is left. TONAL ONLY, by
+   Matthew's standing verdict across projects: every voice here is
+   an oscillator — a synth drone, plucked-string tones, brass
+   swells. No noise buffers, no crackle, no wind, no wash: noise
+   reads as hiss to him and every noise-based bed has been
+   rejected. The beds ride the ambience bus, so the Ambience
+   slider and toggle govern them exactly like the room; they sit
+   well under the play sounds; they start and stop with the match
+   and pause politely with the page. The guarded session handling
+   is untouched — every voice is built on the same AC the guarded
+   session resumes, and starting a bed declares the session like
+   every other sound here.
+   ============================================================ */
+var bedNodes=null, bedTimer=null, bedTheme=null;
+function bedOsc(type, freq, gainVal, dest){
+  var o=AC.createOscillator(); o.type=type; o.frequency.value=freq;
+  var g=AC.createGain(); g.gain.value=gainVal;
+  o.connect(g); g.connect(dest||bedNodes.gain); o.start();
+  bedNodes.oscs.push(o); return o;
+}
+function bedPluck(freq, t0, gainVal, dur){
+  // a plucked string, synthesized: a triangle and its octave through
+  // a lowpass whose cutoff falls as the note dies — NO noise burst
+  // (a real Karplus-Strong pluck starts from noise; that is exactly
+  // what the tonal rule forbids, so the attack is a fast gain swell)
+  if(!bedNodes) return;
+  var o=AC.createOscillator(); o.type="triangle"; o.frequency.value=freq;
+  var o2=AC.createOscillator(); o2.type="sine"; o2.frequency.value=freq*2.01;
+  var f=AC.createBiquadFilter(); f.type="lowpass"; f.Q.value=0.8;
+  f.frequency.setValueAtTime(2400, t0); f.frequency.exponentialRampToValueAtTime(420, t0+dur);
+  var g=AC.createGain(); g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gainVal, t0+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  var g2=AC.createGain(); g2.gain.value=0.35;
+  o.connect(f); o2.connect(g2); g2.connect(f); f.connect(g); g.connect(bedNodes.gain);
+  o.start(t0); o.stop(t0+dur+0.05); o2.start(t0); o2.stop(t0+dur+0.05);
+}
+function bedBrass(freq, t0, gainVal, dur){
+  // distant brass: detuned saws softened by a low lowpass, swelling
+  // in and out slowly — a trumpet heard from the next field over
+  if(!bedNodes) return;
+  var o=AC.createOscillator(); o.type="sawtooth"; o.frequency.value=freq;
+  var o2=AC.createOscillator(); o2.type="sawtooth"; o2.frequency.value=freq*1.004;
+  var f=AC.createBiquadFilter(); f.type="lowpass"; f.frequency.value=640; f.Q.value=0.6;
+  var g=AC.createGain(); g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(gainVal, t0+dur*0.35);
+  g.gain.setValueAtTime(gainVal, t0+dur*0.7);
+  g.gain.linearRampToValueAtTime(0.0001, t0+dur);
+  o.connect(f); o2.connect(f); f.connect(g); g.connect(bedNodes.gain);
+  o.start(t0); o.stop(t0+dur+0.05); o2.start(t0); o2.stop(t0+dur+0.05);
+}
+function bedPing(freq, t0, gainVal){
+  // one soft sonar ping: a sine that blooms and rings out
+  if(!bedNodes) return;
+  var o=AC.createOscillator(); o.type="sine"; o.frequency.value=freq;
+  var g=AC.createGain(); g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gainVal, t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+1.4);
+  o.connect(g); g.connect(bedNodes.gain);
+  o.start(t0); o.stop(t0+1.5);
+}
+function startThemedBed(theme){
+  if(!AC || !SETTINGS.ambience) return;
+  declareAudioSession();
+  stopThemedBed(); stopAmbience(); // the room tone steps aside while a battle runs
+  bedTheme=theme;
+  var g=AC.createGain(); g.gain.value=0.9; g.connect(ambGain||masterGain);
+  bedNodes={gain:g, oscs:[]};
+  if(theme==="space"){
+    // a low synth drone: two sines and a breath of triangle, breathing through a slow filter
+    var f=AC.createBiquadFilter(); f.type="lowpass"; f.frequency.value=200; f.connect(g);
+    bedOsc("sine", 55, 0.055, f); bedOsc("sine", 82.41, 0.038, f); bedOsc("triangle", 110.3, 0.016, f);
+    var lfo=AC.createOscillator(); lfo.frequency.value=0.07; var lg=AC.createGain(); lg.gain.value=34;
+    lfo.connect(lg); lg.connect(f.frequency); lfo.start(); bedNodes.oscs.push(lfo);
+  } else if(theme==="knights"){
+    bedOsc("sine", 73.42, 0.020); bedOsc("sine", 110, 0.013); // a low open fifth (D2 + A2) under the plucked strings
+  } else if(theme==="tanks"){
+    var f2=AC.createBiquadFilter(); f2.type="lowpass"; f2.frequency.value=300; f2.connect(g);
+    bedOsc("sine", 58.27, 0.034, f2); bedOsc("sine", 87.31, 0.02, f2); // Bb1 + F2: a low ground hum under the brass
+  }
+  var tick=function(){
+    if(!bedNodes || document.hidden) return;
+    var t0=AC.currentTime+0.05;
+    if(bedTheme==="space"){ if(Math.random()<0.8){ var scale=[880,1046.5,1174.7,1318.5,1568]; bedPing(scale[Math.floor(Math.random()*scale.length)], t0, 0.028); } }
+    else if(bedTheme==="knights"){ var notes=[146.83,174.61,196,220,261.63,293.66]; var n=1+Math.floor(Math.random()*3);
+      for(var i=0;i<n;i++) bedPluck(notes[Math.floor(Math.random()*notes.length)], t0+i*(0.34+Math.random()*0.2), 0.05, 1.5); }
+    else if(bedTheme==="tanks"){ var motifs=[[130.81,164.81,196],[196,164.81,130.81],[146.83,196,220],[174.61,146.83,116.54]];
+      var m=motifs[Math.floor(Math.random()*motifs.length)]; for(var j=0;j<m.length;j++) bedBrass(m[j], t0+j*0.42, 0.030, 0.85); }
+  };
+  tick();
+  bedTimer=setInterval(tick, theme==="space"?3600 : theme==="knights"?4600 : 6800);
+  try{ window.__SS_BED={theme:theme, oscillators:bedNodes.oscs.length}; }catch(e){}
+}
+function stopThemedBed(){
+  if(bedTimer){ clearInterval(bedTimer); bedTimer=null; }
+  if(bedNodes){ var bn=bedNodes; bedNodes=null;
+    try{ bn.gain.gain.setTargetAtTime(0.0001, AC?AC.currentTime:0, 0.08); }catch(e){}
+    setTimeout(function(){ bn.oscs.forEach(function(o){ try{o.stop();}catch(e){} }); try{bn.gain.disconnect();}catch(e){} }, 350);
+  }
+  try{ window.__SS_BED=null; }catch(e){}
+}
+function startContextBed(){ if(bedTheme) startThemedBed(bedTheme); else startAmbience(); } // whichever bed belongs to the screen the player is on
+function leaveMatchBed(){ bedTheme=null; stopThemedBed(); if(SETTINGS.ambience && AC) startAmbience(); } // back to the entrance: the lunchroom returns
 /* Pause the room politely when the tab/app is backgrounded. */
 document.addEventListener("visibilitychange", function(){
   if(!AC) return;
-  if(document.hidden){ stopAmbience(); }
-  else if(SETTINGS.ambience){ startAmbience(); }
+  if(document.hidden){ stopAmbience(); stopThemedBed(); } // bedTheme is kept: the battle's bed resumes with the page
+  else if(SETTINGS.ambience){ startContextBed(); }
 });
 /* ---- The spectator kids around the table: a little crowd of voices ---- */
 function kidVoice(f0, f1, dur, gain, delay, dest){
@@ -2139,7 +2254,7 @@ function newGame(obstacles){
     turrets:[makeTurrets(0), makeTurrets(1)],
     bases:[{hp:baseMaxHp(), armor: CFG.theme==="tanks"},{hp:baseMaxHp(), armor: CFG.theme==="tanks"}],
     obstacles: obstacles||makeObstacles(CFG.battlefield==="random"?"random":CFG.battlefield),
-    traces:[], particles:[], stickmen:[], pods:[], selected:null, over:false, winner:null,
+    traces:[], craters:[], particles:[], stickmen:[], pods:[], selected:null, over:false, winner:null,
     reserve:[CFG.fighterCount-Math.ceil(CFG.fighterCount/2), CFG.fighterCount-Math.ceil(CFG.fighterCount/2)], // only Launch Bay spends these
     editor:null, anim:null, shake:0, flashShield:-1, lastRoll:null, clock:null, draw:false,
     prodCd:[0,0],        // production cooldown, in the producer's own turns (set to 2 on a launch, ticked down at the end of each of that side's turns — so exactly the next turn is blocked)
@@ -2629,6 +2744,84 @@ function barrierAt(pt, pad){
   pad=pad||0;
   if(G && G.coin && G.coin.landed && Math.hypot(pt.x-G.coin.x, pt.y-G.coin.y) < G.coin.r+pad) return "coin";
   return null;
+}
+/* ============================================================
+   FEEL PASS — BATTLE DAMAGE THAT STAYS (Tier 1, Nov 12, 2026 —
+   Matthew: "not enough explosions; every hit should change the
+   board"). Two kinds of persistent damage, both match-scoped state
+   (a later round structure can clear them per round; today a new
+   match / Rematch starts with a clean sheet):
+   WRECKS — a destroyed fighter or structure stays ON the paper,
+   burnt out, and BLOCKS its lane: moves bump to a stop against it
+   (no extra damage — the wreck is an obstacle, not a trap) and
+   shots burn out in it. The wreck state rides on the thing itself
+   (wreck / wreckTurn / wreckRot / wreckR are ordinary fields, so
+   the mid-match save carries them for free). Flames stand tall
+   for the first two turns, then settle to embers; the hulk never
+   leaves. Things destroyed OFF the paper (page-edge deaths) set
+   noWreck first — there is nothing left on the sheet to block.
+   CRATERS — shots tear persistent marks: asteroid impacts and
+   rubble where an asteroid was erased (Space), scorched churned
+   ground where arrows strike rock (Knights), shell craters where
+   cannon shells stop and wherever a mortar lands, hit or miss
+   (Tanks). A flick whose path crosses a crater's bowl is knocked
+   off line by a FIXED angle (about 10 degrees), bent away from
+   the crater's heart, pivoting where the path enters — fully
+   deterministic, no dice — and the Aimed cue draws the same bend,
+   so it reads as fair. Rim grazes run free, like every forgiving
+   edge in this game. The CPU's simulations read the same state.
+   ============================================================ */
+var CRATER_R=17, CRATER_DEFLECT=0.175; // crater bowl radius; the fixed bend, ~10 degrees
+function fxCount(k){ try{ var f=(window.__SS_FX=window.__SS_FX||{frames:0,wrecks:0,craters:0,deflects:0}); f[k]=(f[k]||0)+1; }catch(e){} }
+function wreckAt(pt, pad){
+  if(!G) return null;
+  pad=pad||0;
+  for(var p=0;p<2;p++){
+    var lists=[G.units[p], G.turrets[p]];
+    for(var li=0;li<2;li++){ var L=lists[li]; if(!L) continue;
+      for(var i=0;i<L.length;i++){ var t=L[i];
+        if(t.wreck && !t.alive && Math.hypot(pt.x-t.x, pt.y-t.y) < (t.wreckR||22)+pad) return t; } }
+  }
+  return null;
+}
+function addCrater(x, y, r){
+  if(!G) return;
+  r=r||CRATER_R;
+  if(x<10||x>FW-10||y<10||y>FH-10) return; // a crater lives on the paper, never half off it
+  for(var i=0;i<G.craters.length;i++){ if(Math.hypot(G.craters[i].x-x, G.craters[i].y-y) < r*0.9) return; } // one mark per spot — a second hit deepens nothing
+  G.craters.push({x:x, y:y, r:r});
+  fxCount("craters"); saveMatch();
+}
+function segCircleEntry(S, E, cx, cy, r){
+  var dx=E.x-S.x, dy=E.y-S.y, L2=dx*dx+dy*dy; if(L2<1) return null;
+  var fx=S.x-cx, fy=S.y-cy;
+  if(fx*fx+fy*fy < r*r) return null; // the flick STARTS in the bowl (a rescue spawn, a shove): no kink — it just drives out
+  var b=2*(fx*dx+fy*dy), cc=fx*fx+fy*fy-r*r, disc=b*b-4*L2*cc; if(disc<0) return null;
+  var t=(-b-Math.sqrt(disc))/(2*L2); if(t<=0.02||t>=1) return null;
+  return {x:S.x+dx*t, y:S.y+dy*t, t:t};
+}
+function craterDeflect(u, S, E){
+  if(!G || !G.craters || !G.craters.length) return null;
+  var best=null;
+  for(var i=0;i<G.craters.length;i++){ var c=G.craters[i];
+    var en=segCircleEntry(S, E, c.x, c.y, c.r+4); if(!en) continue;
+    var seg=distPtSeg(c.x, c.y, S.x, S.y, E.x, E.y); if(seg.d > c.r*0.72) continue; // rim graze: runs free
+    if(!best || en.t<best.en.t) best={c:c, en:en};
+  }
+  if(!best) return null;
+  var P=best.en, rem=Math.hypot(E.x-P.x, E.y-P.y); if(rem<4) return null;
+  var dx=E.x-S.x, dy=E.y-S.y, L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+  // try the fixed bend both ways; keep the one whose road passes
+  // FARTHER from the crater's heart — the rim shoves you outward
+  function bent(sign){
+    var a=CRATER_DEFLECT*sign, ca=Math.cos(a), sa=Math.sin(a);
+    var ndx=dx*ca-dy*sa, ndy=dx*sa+dy*ca;
+    return {x:P.x+ndx*rem, y:P.y+ndy*rem};
+  }
+  var ePlus=bent(1), eMinus=bent(-1);
+  var dPlus=distPtSeg(best.c.x, best.c.y, P.x, P.y, ePlus.x, ePlus.y).d;
+  var dMinus=distPtSeg(best.c.x, best.c.y, P.x, P.y, eMinus.x, eMinus.y).d;
+  return {crater:best.c, kink:P, end: dPlus>=dMinus ? ePlus : eMinus};
 }
 /* The quarter settles in a CORNER of the paper (Oct 27, 2026, later —
    Matthew: mid-field it was furniture in everyone's way). The corners
@@ -3806,7 +3999,7 @@ function drawJoustLance(c, t, col){
     c.translate(7,-5); c.rotate(Math.max(-0.96, Math.min(0.96, tilt)));
     // pennon near the tip, in the owner's color (hangs below the shaft)
     c.fillStyle=col; c.strokeStyle="rgba(43,43,51,.8)"; c.lineWidth=1.2;
-    c.beginPath(); c.moveTo(40,1); c.lineTo(56,0.5); c.lineTo(48,11); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(40,1); c.lineTo(56,0.5); c.lineTo(48, 11 + Math.sin(Date.now()/240 + t.x*0.7)*1.8); c.closePath(); c.fill(); c.stroke(); // FEEL PASS: the pennon's tip stirs as he rides — paint only, the lance's geometry is unchanged
     // couched shaft along the facing axis: butt (-28,1) through the grip (0,0) to the steel's base (65,0)
     c.strokeStyle="#6e4520"; c.lineWidth=5.2;
     c.beginPath(); c.moveTo(-28,1); c.lineTo(65,0); c.stroke();
@@ -4218,13 +4411,14 @@ function drawCastleFlags(c,p){
     var standing = f.tower>=0 ? !!(G.turrets[p][f.tower] && G.turrets[p][f.tower].alive) : (G.bases[p].hp>0);
     if(!standing) return;
     c.save(); c.translate(px, yT); c.scale(dir,1);
+    var wob=Math.sin(Date.now()/430 + fi*1.9 + p*2.6)*Hh*0.05; // FEEL PASS: the pennant stirs — the same wavy cloth, breathing on the clock (paint only; the flag's pole, span and owner color are untouched)
     c.beginPath();
     c.moveTo(1.5, Hh*0.06);
-    c.quadraticCurveTo(L*0.45, -Hh*0.06, L*0.78, Hh*0.14);
-    c.lineTo(L+1, Hh*0.30);
-    c.lineTo(L*0.82, Hh*0.52);
-    c.lineTo(L+1, Hh*0.74);
-    c.quadraticCurveTo(L*0.42, Hh*0.98, 1.5, Hh*0.86);
+    c.quadraticCurveTo(L*0.45, -Hh*0.06+wob, L*0.78, Hh*0.14+wob*0.6);
+    c.lineTo(L+1, Hh*0.30+wob*0.6);
+    c.lineTo(L*0.82, Hh*0.52+wob*0.4);
+    c.lineTo(L+1, Hh*0.74+wob*0.4);
+    c.quadraticCurveTo(L*0.42, Hh*0.98+wob*0.5, 1.5, Hh*0.86);
     c.closePath();
     c.fillStyle=col; c.fill();
     c.strokeStyle="rgba(43,43,51,0.55)"; c.lineWidth=1.6; c.stroke();
@@ -4440,6 +4634,16 @@ function spawnEscape(x,y,n){
     SFX.pop(); setTimeout(function(){ SFX.pop(); },130);
   } else spawnStickmen(x,y,n);
 }
+function spawnFireball(x,y,big){
+  /* FEEL PASS (Tier 1): the big fireball every destruction opens
+     with — a layered crayon fire globe that swells and settles,
+     plus a scatter of tumbling debris chunks. Pure particles:
+     transient like every burst here, never saved, never a target. */
+  if(!G) return;
+  G.particles.push({fire:true, x:x, y:y, vx:0, vy:-0.3, t:0, max:big?30:24, r:big?48:33});
+  for(var i=0;i<(big?12:8);i++){ var a=Math.random()*6.29, s=0.8+Math.random()*2.6;
+    G.particles.push({debris:true, x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1.2, t:0, max:30+Math.random()*14, r:2+Math.random()*2.6, col:["#3a352e","#574a38","#e2492f","#e9a13b"][i%4]}); }
+}
 function spawnBoom(x,y,big,style){
   /* TANK CLASS EFFECTS (Oct 29, 2026): on the Tanks board the burst
      wears the firing class's shape — G._fxStyle is stamped by
@@ -4464,6 +4668,163 @@ function spawnBoom(x,y,big,style){
     G.particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:0,max:26+Math.random()*22,r:2+Math.random()*(big?6:3.4),col:["#e2492f","#e9a13b","#f7e08a","#555"][i%4]}); }
   G.shake=Math.min(14,(big?12:6));
 }
+/* ============================================================
+   FEEL PASS — THE LIVING PAPER (Tier 1, Nov 12, 2026). Ambient
+   motion lives on the background and idle layers ONLY: it is pure
+   paint, computed from the clock and stable per-piece seeds, and
+   it never touches a position, a path, a collision or a preview —
+   aiming, sliding and physics read exactly the state they always
+   read. Space: twinkling stars, a slow drift, faint debris
+   floating by. Knights: torch flames on the towers and the castle
+   gate, dust motes on the air, castle pennants and lance pennons
+   stirring. Tanks: a heat shimmer over the field, dust, and a
+   waving flag over each HQ. Idle fighters bob a pixel and a half;
+   the piece being aimed holds still. The draw loop now runs for
+   the length of a match (see the tail of draw()) — most match
+   states already kept it running for the production pulse.
+   ============================================================ */
+function bobPhase(u){ var s=0; for(var i=0;i<u.id.length;i++) s+=u.id.charCodeAt(i); return s*0.9; }
+function wreckSeed(t){ var s=0; for(var i=0;i<t.id.length;i++) s+=t.id.charCodeAt(i)*(i+3); return s; }
+function drawAmbientBG(c, now){
+  if(!G || !CFG) return;
+  fxCount("frames");
+  if(CFG.theme==="space"){
+    for(var i=0;i<70;i++){ // twinkling stars over the paper, drifting very slowly
+      var bx=sr(i*3.1)*FW, by=sr(i*7.7+2)*FH;
+      var tw=0.5+0.5*Math.sin(now/700 + i*1.93);
+      var dx=Math.sin(now/11000 + i)*7, dy=Math.cos(now/13000 + i*2.0)*5;
+      c.save(); c.globalAlpha=0.13+0.38*tw;
+      c.fillStyle= i%5===0 ? "#ffe9a8" : "#dfe9ff";
+      var r= i%7===0 ? 2.1 : 1.25;
+      c.beginPath(); c.arc(bx+dx, by+dy, r, 0, 6.29); c.fill();
+      if(i%9===0){ c.strokeStyle="rgba(230,238,255,0.45)"; c.lineWidth=1;
+        c.beginPath(); c.moveTo(bx+dx-r*2.4,by+dy); c.lineTo(bx+dx+r*2.4,by+dy); c.moveTo(bx+dx,by+dy-r*2.4); c.lineTo(bx+dx,by+dy+r*2.4); c.stroke(); }
+      c.restore();
+    }
+    for(var d2=0;d2<6;d2++){ // faint debris shards floating past, far under the fight
+      var px2=(sr(d2*13.7+5)*FW + now*0.004*(1+d2*0.3))%(FW+40)-20, py2=sr(d2*5.3+9)*FH + Math.sin(now/6000+d2*2.1)*8;
+      c.save(); c.translate(px2,py2); c.rotate(now/24000 + d2*1.3); c.globalAlpha=0.15;
+      c.fillStyle="#8d8fa3"; c.beginPath(); c.moveTo(-6,-3); c.lineTo(5,-5); c.lineTo(7,3); c.lineTo(-3,5); c.closePath(); c.fill(); c.restore();
+    }
+  } else if(CFG.theme==="tanks"){
+    c.save(); c.lineWidth=5; c.lineCap="round"; // heat shimmer: soft wavy bands breathing over the field
+    for(var b2=0;b2<3;b2++){ var yy=FH*(0.36+b2*0.14);
+      c.strokeStyle="rgba(255,246,220,"+(0.05+0.02*Math.sin(now/900+b2))+")";
+      c.beginPath(); for(var xx=40;xx<=FW-40;xx+=38){ var yo=Math.sin(now/620 + xx*0.02 + b2*2.2)*3.2; xx===40?c.moveTo(xx,yy+yo):c.lineTo(xx,yy+yo); } c.stroke(); }
+    c.restore();
+  }
+  // Knights' background stays calm paper — its life is in the foreground pass
+}
+function drawAmbientFG(c, now){
+  if(!G || !CFG) return;
+  if(CFG.theme!=="space"){ // dust motes drifting on the air (Knights + Tanks)
+    for(var i=0;i<14;i++){
+      var mx=(sr(i*3.9+1)*FW + now*0.006*(1+(i%3)*0.4))%(FW+16)-8;
+      var my=sr(i*8.3+4)*FH + Math.sin(now/5200 + i*1.7)*9;
+      c.save(); c.globalAlpha=0.10+0.08*Math.sin(now/800+i*2.0); c.fillStyle="#a68d5b";
+      c.beginPath(); c.arc(mx,my,1.5+(i%3)*0.5,0,6.29); c.fill(); c.restore();
+    }
+  }
+  if(CFG.theme==="knights"){ // torch flames on every standing tower and at the castle gate — drawFlame already flickers on the clock
+    for(var p=0;p<2;p++){
+      G.turrets[p].forEach(function(t){ if(t.alive && t.kind==="tower"){ c.save(); c.globalAlpha=0.9; drawFlame(c, t.x+(t.r||24)*0.4, t.y-(t.r||24)-6, 0.5, t.x%13); c.restore(); } });
+      if(G.bases[p].hp>0){ var bc=baseCenter(p);
+        c.save(); c.globalAlpha=0.85;
+        drawFlame(c, bc.x-baseFootW()*0.30, bc.y-baseFootH()/2-4, 0.55, p*3+1);
+        drawFlame(c, bc.x+baseFootW()*0.30, bc.y-baseFootH()/2-4, 0.55, p*5+2);
+        c.restore(); }
+    }
+  }
+  if(CFG.theme==="tanks"){ // a flag over each standing HQ, waving in the owner's color
+    for(var p2=0;p2<2;p2++){ if(G.bases[p2].hp<=0) continue;
+      var bc2=baseCenter(p2), col=PLAYER_COLORS[playerCfg(p2).color].hex;
+      var fx=bc2.x+baseFootW()*0.34, fy=bc2.y-baseFootH()/2, wv=Math.sin(now/300+p2*2);
+      c.save(); c.strokeStyle="#4c4235"; c.lineWidth=2; c.beginPath(); c.moveTo(fx,fy+4); c.lineTo(fx,fy-30); c.stroke();
+      c.fillStyle=col; c.beginPath(); c.moveTo(fx,fy-30);
+      c.quadraticCurveTo(fx+9, fy-31+wv*2.4, fx+18, fy-27+Math.sin(now/300+p2*2+1)*2.8);
+      c.quadraticCurveTo(fx+9, fy-24+Math.sin(now/300+p2*2+2)*2.2, fx, fy-21); c.closePath(); c.fill();
+      c.strokeStyle="rgba(43,43,51,0.5)"; c.lineWidth=1; c.stroke(); c.restore();
+    }
+  }
+}
+function drawCraters(c){
+  if(!G || !G.craters) return;
+  G.craters.forEach(function(cr, idx){
+    if(CFG.theme==="knights"){ // scorched, churned earth where the arrow struck
+      c.save(); c.translate(cr.x, cr.y);
+      c.fillStyle="rgba(74,58,40,0.32)"; c.beginPath(); c.arc(0,0,cr.r,0,6.29); c.fill();
+      c.strokeStyle="rgba(60,48,34,0.55)"; c.lineWidth=1.7;
+      for(var i=0;i<4;i++){ c.beginPath(); c.arc((sr(idx*13+i*3)-0.5)*cr.r, (sr(idx*17+i*5)-0.5)*cr.r*0.7, cr.r*(0.25+sr(idx+i)*0.25), sr(idx+i*7)*3, sr(idx+i*7)*3+2.2); c.stroke(); }
+      c.restore();
+      scorch(c, cr.x, cr.y, cr.r*0.9, idx*7+3);
+    } else if(CFG.theme==="tanks"){ // a shell crater: dark bowl, thrown-up rim lit on one side
+      c.save(); c.translate(cr.x, cr.y);
+      c.fillStyle="rgba(56,46,34,0.5)"; c.beginPath(); c.ellipse(0,0,cr.r,cr.r*0.78,0,0,6.29); c.fill();
+      c.strokeStyle="rgba(30,26,20,0.65)"; c.lineWidth=2; c.beginPath(); c.ellipse(0,0,cr.r,cr.r*0.78,0,0,6.29); c.stroke();
+      c.strokeStyle="rgba(214,192,150,0.5)"; c.lineWidth=1.6; c.beginPath(); c.ellipse(0,1.5,cr.r*1.12,cr.r*0.88,0, 3.4, 5.6); c.stroke();
+      c.restore();
+    } else { // space: a dark bowl torn in the rock (or the paper), pale rim where the light catches
+      c.save(); c.translate(cr.x, cr.y);
+      c.fillStyle="rgba(38,36,44,0.55)"; c.beginPath(); c.arc(0,0,cr.r,0,6.29); c.fill();
+      c.fillStyle="rgba(20,19,26,0.5)"; c.beginPath(); c.arc(-cr.r*0.15,-cr.r*0.1,cr.r*0.62,0,6.29); c.fill();
+      c.strokeStyle="rgba(226,220,205,0.55)"; c.lineWidth=1.8; c.beginPath(); c.arc(0,0,cr.r, 3.6, 5.9); c.stroke();
+      c.strokeStyle="rgba(120,116,128,0.6)"; c.lineWidth=1.4; c.beginPath(); c.arc(0,0,cr.r*0.8, 0.4, 2.4); c.stroke();
+      c.restore();
+    }
+  });
+}
+function drawWrecks(c){
+  if(!G) return;
+  for(var p=0;p<2;p++){
+    var things=(G.turrets[p]||[]).concat(G.units[p]||[]);
+    for(var i=0;i<things.length;i++){ var t=things[i];
+      if(!t.wreck || t.alive) continue;
+      var ci=playerCfg(t.owner).color, sd=wreckSeed(t);
+      var plateHulk = plateCfg() && t.turret; // plate structures wear the plate's own wreck overlay (drawPlateState) — flames and embers below still apply
+      if(!plateHulk){
+        scorch(c, t.x, t.y, (t.wreckR||22)*1.15, sd); // the burnt patch it lies in
+        var drawnW=false;
+        c.save(); c.globalAlpha=0.92;
+        if(t.kind==="ship"){ var fs2=fighterSprite(ci); if(fs2){ var fl2=FIGHTER_LEN[MATCH_STYLE]||56; drawnW=drawArt(c, fs2, t.x, t.y, fl2*((fs2.naturalWidth||fs2.width)/(fs2.naturalHeight||fs2.height)), fl2, t.wreckRot); } }
+        else if(t.kind==="knight"){ var km2=sheetSprite(t.mounted?KNIGHT_ART.mounted:KNIGHT_ART.foot, ci, t.mounted?"km":"kf"); if(km2){ var kw3=t.mounted?86:48; drawnW=drawArt(c, km2, t.x, t.y, kw3, kw3*(km2.naturalHeight/km2.naturalWidth), t.wreckRot); } }
+        else if(t.kind==="tank"){ var tm2=sheetSprite(t.cls==="heavy"?TANK_ART.heavy:TANK_ART.light, ci, t.cls==="heavy"?"th":"tl"); if(tm2){ var tl2=t.cls==="heavy"?80:68; drawnW=drawArt(c, tm2, t.x, t.y, tl2*(tm2.naturalWidth/tm2.naturalHeight), tl2, t.wreckRot); } }
+        else if(t.kind==="tower"){ var tw2=pieceFor("tower", null); if(tw2) drawnW=drawArt(c, tw2, t.x, t.y, 64*(tw2.naturalWidth/tw2.naturalHeight), 64, t.wreckRot*0.4); }
+        else if(t.kind==="cannon"){ var cn2=pieceFor("cannon", null); if(cn2) drawnW=drawArt(c, cn2, t.x, t.y, 60, 60*(cn2.naturalHeight||cn2.height)/(cn2.naturalWidth||cn2.width), t.wreckRot); }
+        else if(t.kind==="turret"){ var tu2=pieceFor("turret", ci, 215); if(tu2) drawnW=drawArt(c, tu2, t.x, t.y, 54, 54*(tu2.naturalHeight||tu2.height)/(tu2.naturalWidth||tu2.width), t.wreckRot); }
+        c.restore();
+        if(!drawnW){ // rubble while a drawing loads: a jagged dark heap
+          c.save(); c.translate(t.x, t.y); c.fillStyle="rgba(52,47,42,0.85)"; c.strokeStyle="rgba(30,27,24,0.9)"; c.lineWidth=1.8;
+          c.beginPath(); var rr=(t.wreckR||22);
+          for(var vi2=0;vi2<7;vi2++){ var va=vi2/7*6.29, vr2=rr*(0.55+sr(sd+vi2*3)*0.5); var vx=Math.cos(va)*vr2, vy=Math.sin(va)*vr2*0.8; vi2?c.lineTo(vx,vy):c.moveTo(vx,vy); }
+          c.closePath(); c.fill(); c.stroke(); c.restore();
+        }
+        // charring over the hulk, and the crossed-out strokes the game already speaks
+        c.save(); c.translate(t.x, t.y);
+        c.fillStyle="rgba(43,38,33,0.30)"; c.beginPath(); c.arc(0,0,(t.wreckR||22),0,6.29); c.fill();
+        c.strokeStyle="rgba(43,43,51,0.75)"; c.lineWidth=2.4; c.lineCap="round";
+        var cr2=(t.wreckR||22)*0.8;
+        c.beginPath(); c.moveTo(-cr2,-cr2*0.7); c.lineTo(cr2,cr2*0.7); c.moveTo(cr2,-cr2*0.7); c.lineTo(-cr2,cr2*0.7); c.stroke();
+        c.restore();
+      }
+      /* the fire: tall flames for the wreck's first two turns, then
+         embers that glow and sigh for the rest of the match — the
+         hulk itself never leaves the paper */
+      var age=G.turnCount-(t.wreckTurn||0);
+      if(age<2){
+        drawFlame(c, t.x-6, t.y-8, 0.85, sd);
+        drawFlame(c, t.x+8, t.y-3, 0.6, sd+2);
+      } else {
+        c.save(); var pu3=0.5+0.5*Math.sin(Date.now()/640 + sd);
+        c.fillStyle="rgba(226,73,47,"+(0.35+0.3*pu3)+")";
+        c.beginPath(); c.arc(t.x-5, t.y+2, 2.4, 0, 6.29); c.fill();
+        c.fillStyle="rgba(233,161,59,"+(0.3+0.3*(1-pu3))+")";
+        c.beginPath(); c.arc(t.x+6, t.y-2, 1.9, 0, 6.29); c.arc(t.x+1, t.y+6, 1.5, 0, 6.29); c.fill();
+        c.restore();
+        if((Math.floor(Date.now()/1500)+sd)%3===0) drawFlame(c, t.x+2, t.y-4, 0.32, sd+5); // now and then, one last little lick of flame
+      }
+    }
+  }
+}
 function draw(){
   if(!G) return;
   drawPaperLayer(); // the full-bleed paper backdrop (signature-gated: a no-op unless theme, mirror, stage size or artwork readiness changed)
@@ -4472,16 +4833,26 @@ function draw(){
   if(PRES_ROT){ ctx.translate(FH,0); ctx.rotate(Math.PI/2); } // landscape presentation: the whole sheet turns 90° CW — everything drawn below is in board coordinates
   if(plateCfg()){ drawPlate(ctx); drawPlateState(ctx); }
   else { drawPaper(ctx); drawBaseZones(ctx); G.obstacles.forEach(function(o){ drawObstacle(ctx,o); }); }
+  drawAmbientBG(ctx, Date.now()); // FEEL PASS: the living background (twinkling stars / heat shimmer) — pure paint, under everything that plays
+  drawCraters(ctx); // FEEL PASS: the torn ground, lying under the pieces that must cross it
   if(G.coin && G.coin.landed) drawQuarter(ctx, G.coin); // the flip's quarter, lying on the paper under the traces — shots cross over it, moves bump into it
   G.traces.forEach(function(t){ drawTrace(ctx,t); });
   drawBase(ctx,0); drawBase(ctx,1);
   if(CFG.prizes) drawPrizes(ctx);
+  drawWrecks(ctx); // FEEL PASS: the burnt hulks stay on the paper, under the living pieces
   for(var p=0;p<2;p++){ G.turrets[p].forEach(function(t){ if(t.alive) drawThing(ctx,t); }); }
   for(var p2=0;p2<2;p2++){ G.units[p2].forEach(function(u){ if(!u.alive) return;
     if(u.trudge && u.trudgeUntil && Date.now()<u.trudgeUntil){ // AUTO-WALK: the trudge — the state position is already final; only the drawing slides from where the step began
       var pr=Math.min(1,(Date.now()-u.trudge.t0)/430);
       ctx.save(); ctx.translate((u.trudge.fx-u.x)*(1-pr), (u.trudge.fy-u.y)*(1-pr)); drawThing(ctx,u); ctx.restore();
-    } else drawThing(ctx,u);
+    } else {
+      // FEEL PASS: idle pieces bob, a pixel and a half at most — a
+      // drawing-only lift; the piece's position, its picking and its
+      // physics never see it, and the piece being aimed holds still
+      var bobY=(input.thing===u && input.down) ? 0 : Math.sin(Date.now()/880 + bobPhase(u))*1.4;
+      if(bobY>0.2||bobY<-0.2){ ctx.save(); ctx.translate(0, bobY); drawThing(ctx,u); ctx.restore(); }
+      else drawThing(ctx,u);
+    }
   }); }
   drawProdButton(ctx,0); drawProdButton(ctx,1); // reinforcements, requested at the base itself
   if(CFG.mode==="2p" && !G.over){ // 2P at-a-glance cue, in the side to move's color: a soft pulsing outline on their base and its reinforcements disc (drawn in board space, so it turns with the sheet and always hugs the right base)
@@ -4512,6 +4883,7 @@ function draw(){
     ctx.fillStyle="rgba(255,255,255,.65)"; ctx.beginPath(); ctx.arc(mgx-1.6, mgy-mh-1.6, 1.4, 0, 6.29); ctx.fill();
     ctx.restore();
   }
+  drawAmbientFG(ctx, Date.now()); // FEEL PASS: foreground life — dust motes, torch flames, the Tanks HQ flag — over the board, under the bursts
   // particles
   G.particles=G.particles.filter(function(pt){ return pt.t<pt.max; });
   G.particles.forEach(function(pt){ pt.x+=pt.vx; pt.y+=pt.vy; pt.t++;
@@ -4522,6 +4894,15 @@ function draw(){
       for(var mi=0;mi<5;mi++){ var ma=pt.ang+(mi-2)*0.42;
         ctx.beginPath(); ctx.moveTo(pt.x,pt.y); ctx.lineTo(pt.x+Math.cos(ma)*pt.r*mg, pt.y+Math.sin(ma)*pt.r*mg); ctx.stroke(); }
       ctx.fillStyle="#fff3b0"; ctx.beginPath(); ctx.arc(pt.x,pt.y,7*mg+2,0,6.29); ctx.fill();
+    } else if(pt.fire){ // FEEL PASS: the fireball — layered crayon fire, swelling fast then settling as it fades
+      var fg2=Math.min(1, pt.t/5);
+      ctx.fillStyle="#e2492f"; ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r*fg2*(1+0.08*Math.sin(pt.t*1.7)), 0, 6.29); ctx.fill();
+      ctx.fillStyle="#e9a13b"; ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r*0.68*fg2, 0, 6.29); ctx.fill();
+      ctx.fillStyle="#fff3b0"; ctx.beginPath(); ctx.arc(pt.x, pt.y-pt.r*0.12, pt.r*0.36*fg2, 0, 6.29); ctx.fill();
+    } else if(pt.debris){ // FEEL PASS: scattered wreckage — dark chunks tumbling down the page under a touch of gravity
+      pt.vy+=0.07;
+      ctx.translate(pt.x, pt.y); ctx.rotate(pt.t*0.3+pt.r); ctx.fillStyle=pt.col;
+      ctx.fillRect(-pt.r, -pt.r*0.6, pt.r*2, pt.r*1.2);
     } else if(pt.puff){ // HEAVY MORTAR landing: a ROUND cartoon explosion — concentric crayon puff rings and a cream cloud heart, growing then fading
       var pgrow=0.3+0.7*Math.min(1, pt.t/7);
       ctx.fillStyle="rgba(247,224,138,0.5)"; ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.r*0.52*pgrow,0,6.29); ctx.fill();
@@ -4590,7 +4971,7 @@ function draw(){
     pips.forEach(function(pp){ ctx.beginPath(); ctx.arc(pp[0],pp[1],3.4,0,6.29); ctx.fill(); });
     ctx.restore(); }
   ctx.restore();
-  if(G.anim || G.mortarAnim || input.previewLand || trudgeActive() || G.particles.length || G.stickmen.length || G.pods.length || G.shake>0 || (G.bases[0].hp===1||G.bases[1].hp===1) || turretHaloOn() || prodPulseOn() || prizeFading() || (CFG.mode==="2p" && !G.over)){
+  if(G.anim || G.mortarAnim || input.previewLand || trudgeActive() || G.particles.length || G.stickmen.length || G.pods.length || G.shake>0 || (G.bases[0].hp===1||G.bases[1].hp===1) || turretHaloOn() || prodPulseOn() || prizeFading() || (CFG.mode==="2p" && !G.over) || (G && !G.over)){ // FEEL PASS: the last term keeps the sheet alive for the length of a match — the ambient layers above animate on the clock
     cancelAnimationFrame(rafId); rafId=requestAnimationFrame(draw);
   }
 }
@@ -4795,6 +5176,7 @@ function damageBase(owner, byPlayer, opts){
   else if(G.bases[owner].hp===1){ SFX.boom(false); log("🔥 Hit! "+playerName(owner)+"'s base is BURNING. One more hit ends it!"); }
   var bc=baseCenter(owner);
   spawnBoom(bc.x, bc.y, G.bases[owner].hp<=0);
+  spawnFireball(bc.x, bc.y, G.bases[owner].hp<=0); // FEEL PASS: every base hit opens with the fireball too — the killing blow gets the big one
   if(G.bases[owner].hp<=0){
     SFX.boom(true); spawnEscape(bc.x, bc.y, 6);
     log("🎉 "+playerName(owner)+"'s base BLOWS UP! "+(CFG.theme==="space"?"The whole crew ejects in tiny escape pods and bobs away, unharmed.":"The crew escapes, waving their arms. Nobody is hurt — it's paper."));
@@ -4822,8 +5204,22 @@ function breachHit(defOwner){
 }
 function killThing(t, why){
   if(!t.alive) return;
+  var _nw=!!t.noWreck; delete t.noWreck; // FEEL PASS: the off-paper flag is consumed HERE, first thing — if armor eats this death instead, the flag must not linger on a living fighter and suppress the wreck of a later, real death
   if(armorAbsorb(t)){ t.__armorSaved=true; return; } // FIELD PRIZES: armor eats even a wreck — the caller places the survivor (resolveMove) or it simply stands (shot/ram targets)
   t.alive=false; spawnBoom(t.x,t.y,false); SFX.boom(false);
+  /* FEEL PASS: the destruction leaves a WRECK on the paper — a big
+     fireball at the spot, then the burnt hulk stays and blocks its
+     lane for the rest of the match (see wreckAt / resolveMove /
+     resolveShot). Deaths off the paper (page edges) flag noWreck
+     first: nothing remains on the sheet. The fields are ordinary
+     state, so the mid-match save carries the wreck as it lies. */
+  spawnFireball(t.x, t.y, !!t.turret);
+  if(!_nw){
+    t.wreck=true; t.wreckTurn=G?G.turnCount:0;
+    t.wreckRot=(t.angle||0)+(t.kind==="knight"?1.25:0.45); // toppled where it fell
+    t.wreckR=t.turret ? (t.r||24) : (t.kind==="tank" ? (t.cls==="heavy"?27:24) : 22);
+    fxCount("wrecks"); saveMatch();
+  }
   if(t.turret){ spawnEscape(t.x,t.y,3); log("💥 "+thingLabel(t)+" destroyed! "+(CFG.theme==="space"?"Its crew pops out in tiny escape pods and drifts away, unharmed.":"Its little crew legs it off the paper, unharmed.")); }
   else log("💥 "+thingLabel(t)+" ("+playerName(t.owner)+") is crossed out! "+(why||""));
   checkStalemate();
@@ -4936,7 +5332,9 @@ function endMatch(winner){
 function resolveMove(u, end, vec){
   u.__armorSaved=false; // per-move flag: set by killThing when this fighter's armor eats a wreck during THIS move
   end=momentumEnd(u, end); // SIEGE MOMENTUM: movement toward the enemy base travels farther (never shots — this is the move resolver)
-  var pts=sampleLine({x:u.x,y:u.y}, end, 5);
+  var _cd=craterDeflect(u, {x:u.x,y:u.y}, end); // FEEL PASS: a crater whose bowl the road crosses bends the REST of the flick at the entry point (fixed angle, away from the heart — see craterDeflect); the trace below is built through the kink so the bend shows on the paper
+  if(_cd){ end=_cd.end; fxCount("deflects"); log("🕳 A crater knocks the flick off line!"); }
+  var pts=_cd ? sampleLine({x:u.x,y:u.y}, _cd.kink, 5).concat(sampleLine(_cd.kink, end, 5).slice(1)) : sampleLine({x:u.x,y:u.y}, end, 5);
   var shooterMedium=playerCfg(u.owner).medium;
   var travel=pts;
   // Terrain slowdown: TANKS ONLY — climbing a hill costs a quarter of the
@@ -4974,6 +5372,11 @@ function resolveMove(u, end, vec){
     // never tests them).
     var bar=barrierAt(pt, 4);
     if(bar){ stopAt=s; hitSomething={type:"barrier", what:bar, pt:pt}; break; }
+    // FEEL PASS — a WRECK blocks its lane: the move bumps to a stop
+    // against the burnt hulk, exactly as at the quarter (a stop, never
+    // a second death). The CPU's simMoveOutcome tests the same wreckAt.
+    var wr=wreckAt(pt, 2);
+    if(wr){ stopAt=s; hitSomething={type:"wreck", unit:wr, pt:pt}; break; }
     // obstacles — a FOREST never stops a knight: he rides straight through
     // (the scan keeps going, so an enemy, a rock or the castle on the far
     // side — or inside the trees — still resolves exactly as on open
@@ -5031,6 +5434,12 @@ function resolveMove(u, end, vec){
         // charge where it touches — the knight stays in the saddle.
         u.x=travel[Math.max(0,stopAt-1)].x; u.y=travel[Math.max(0,stopAt-1)].y;
         log("🪙 Clunk — the charge bumps to a stop against the quarter lying on the paper. It blocks the way, nothing more.");
+      } else if(hitSomething.type==="wreck"){
+        // a BUMP, like the quarter: the charge stops at the burnt
+        // hulk and the knight keeps his saddle — a wreck blocks the
+        // lane, it does not punish the rider
+        u.x=travel[Math.max(0,stopAt-1)].x; u.y=travel[Math.max(0,stopAt-1)].y;
+        log("🔥 The charge stops at a burning wreck. It blocks the lane.");
       } else if(hitSomething.type==="turret"){
         // Defense structures are OBSTACLES, friend or foe: the charge stops and
         // unhorses, exactly as with a rock. Only shots/arrows knock them down.
@@ -5048,7 +5457,7 @@ function resolveMove(u, end, vec){
     // leaving him at the clamped edge point); anything else stops
     // him at the edge. A knight never rests outside the field.
     if(u.alive && (u.x<=2||u.x>=FW-2||u.y<=2||u.y>=FH-2)){
-      if(CFG.edge==="off"){ killThing(u,"Charged clean off the page!");
+      if(CFG.edge==="off"){ u.noWreck=true; killThing(u,"Charged clean off the page!"); // off the paper entirely: no hulk stays behind to block anything
         if(u.__armorSaved){ u.__armorSaved=false; u.x=Math.max(16,Math.min(FW-16,u.x)); u.y=Math.max(16,Math.min(FH-16,u.y)); } }
       else { u.x=Math.max(16,Math.min(FW-16,u.x)); u.y=Math.max(16,Math.min(FH-16,u.y)); }
     }
@@ -5060,8 +5469,8 @@ function resolveMove(u, end, vec){
   if(hitSomething){
     if(hitSomething.type==="obstacle"){ haptic(20);
       if(u.kind==="tank"&&hitSomething.ob.type==="hill"){ u.x=finalPt.x; u.y=finalPt.y; log("⛰ On the hilltop! Cannon fire from here clears low cover."); }
-      else if(u.kind==="tank"&&hitSomething.ob.type==="ruin"){ killThing(u,"Drove straight into a ruined building."); }
-      else killThing(u,"Flew straight into a "+hitSomething.ob.type+".");
+      else if(u.kind==="tank"&&hitSomething.ob.type==="ruin"){ u.x=finalPt.x; u.y=finalPt.y; killThing(u,"Drove straight into a ruined building."); } // FEEL PASS: the wreck (and its fireball) belongs at the impact point, so the mover is placed there before it dies — here and in every mover-death branch below
+      else { u.x=finalPt.x; u.y=finalPt.y; killThing(u,"Flew straight into a "+hitSomething.ob.type+"."); }
     } else if(hitSomething.type==="shield"){
       // THE ZAP: destroyed at the point of entry (the trace already ends
       // there), crew out in escape pods. NO base hit is recorded and the
@@ -5070,7 +5479,7 @@ function resolveMove(u, end, vec){
       spawnEscape(u.x, u.y, 3);
       killThing(u, hitSomething.owner===u.owner ? "Flew into its OWN forcefield — zapped at the bubble's rim! The shield doesn't even flicker." : "Flew into the enemy forcefield — zapped at the bubble's rim! No base hit — the shield doesn't even flicker.");
     } else if(hitSomething.type==="base"){
-      if(u.kind==="ship"){ killThing(u,"Crashed into the enemy mothership. Heroic, but crossed out."); }
+      if(u.kind==="ship"){ u.x=finalPt.x; u.y=finalPt.y; killThing(u,"Crashed into the enemy mothership. Heroic, but crossed out."); }
       else { u.x=travel[Math.max(0,stopAt-3)].x; u.y=travel[Math.max(0,stopAt-3)].y; log("Tanks don't ram bases — shoot it!"); }
     } else if(hitSomething.type==="unit"){
       var foe2=hitSomething.unit;
@@ -5078,25 +5487,32 @@ function resolveMove(u, end, vec){
       else if(u.kind==="tank"&&foe2.kind==="tank"){
         var uw=u.cls==="heavy"?2:1, fw2=foe2.cls==="heavy"?2:1;
         if(uw>fw2){ killThing(foe2,"Flattened by a heavier tank!"); u.x=end.x; u.y=end.y; log("🚜 Heavier tank wins the ram — it rolls on!"); }
-        else if(fw2>uw){ killThing(u,"Ram a Heavy in a Light tank? Wrecked."); }
-        else { killThing(foe2,"Same-class collision!"); killThing(u,"Same-class collision!"); }
-      } else if(u.kind==="ship"||foe2.kind==="ship"){ killThing(foe2,"Collision!"); killThing(u,"Collision! Both ships are crossed out."); }
+        else if(fw2>uw){ u.x=finalPt.x; u.y=finalPt.y; killThing(u,"Ram a Heavy in a Light tank? Wrecked."); }
+        else { killThing(foe2,"Same-class collision!"); u.x=finalPt.x; u.y=finalPt.y; killThing(u,"Same-class collision!"); }
+      } else if(u.kind==="ship"||foe2.kind==="ship"){ killThing(foe2,"Collision!"); u.x=finalPt.x; u.y=finalPt.y; killThing(u,"Collision! Both ships are crossed out."); }
       else { u.x=finalPt.x; u.y=finalPt.y; }
     } else if(hitSomething.type==="turret"){
       // Defense structures are OBSTACLES, friend or foe: flying/driving into one
       // wrecks the fighter (the heavier-tank-wins rule does NOT apply to
       // structures). The structure itself stands — only shots destroy it.
+      u.x=finalPt.x; u.y=finalPt.y;
       killThing(u,"Smashed into a "+thingLabel(hitSomething.unit).toLowerCase()+" standing guard in front of the base. Structures are obstacles — shoot them down, don't ram them.");
     } else if(hitSomething.type==="barrier"){
       // A BUMP, not a wreck: tabletop furniture stops the move where it
       // touches — and nothing else happens. No damage, ever.
       u.x=travel[Math.max(0,stopAt-1)].x; u.y=travel[Math.max(0,stopAt-1)].y;
       log("🪙 Bump! The "+(u.kind==="tank"?"tank":"ship")+" stops against the quarter lying on the paper — it blocks movement, nothing more, and shots fly right over it.");
-    } else if(hitSomething.type==="wall"){ killThing(u,"Splat. The wall has no door there."); }
+    } else if(hitSomething.type==="wreck"){
+      // A BUMP, not a second wreck: the mover stops against the burnt
+      // hulk and stays in one piece — the wreck blocks the lane, that
+      // is the whole of its menace
+      u.x=travel[Math.max(0,stopAt-1)].x; u.y=travel[Math.max(0,stopAt-1)].y;
+      log("🔥 Stopped by a burning wreck. It blocks the lane.");
+    } else if(hitSomething.type==="wall"){ u.x=finalPt.x; u.y=finalPt.y; killThing(u,"Splat. The wall has no door there."); }
   } else {
     // edge handling at final point
     if(finalPt.x<=2||finalPt.x>=FW-2||finalPt.y<=2||finalPt.y>=FH-2){
-      if(CFG.edge==="off"){ killThing(u,"Flew off the page!");
+      if(CFG.edge==="off"){ u.noWreck=true; killThing(u,"Flew off the page!"); // off the paper entirely: no hulk stays behind to block anything
         if(!u.__armorSaved){ draw(); return; }
         // armor ate the page-edge death too: the fighter stays on the paper, at the clamped edge point
         u.__armorSaved=false; u.x=Math.max(16,Math.min(FW-16,finalPt.x)); u.y=Math.max(16,Math.min(FH-16,finalPt.y)); }
@@ -5145,6 +5561,7 @@ function firstShotStop(shooter, end){
   for(var s=1;s<pts.length;s++){
     var pt=pts[s];
     if(baseHitAt(pt, 1-shooter.owner)) return pt;
+    if(wreckAt(pt, 2)) return pt; // FEEL PASS: the aim line stops at a wreck, exactly where the shell will burn out
     var ob=obstacleAt(pt, 2);
     if(ob && (ob.type==="ruin"||ob.type==="hill")){
       if(shooter.kind==="tank" && ob.type==="hill" && obsContains(ob, shooter, 0)){ /* your own hilltop never blocks your own cannon */ }
@@ -5193,6 +5610,7 @@ function resolveShot(shooter, end, vec){
       if(window.G!==gm) return;
       G.mortarAnim=null;
       var R=40; G._fxStyle="mortar"; spawnBoom(end.x,end.y,true); SFX.mortarBoom();
+      addCrater(end.x, end.y, 20); // FEEL PASS: a mortar shell ALWAYS tears its crater where it lands — hit or miss, the ground keeps the mark
       for(var p=0;p<2;p++) G.units[p].forEach(function(o){ if(o.alive&&Math.hypot(o.x-end.x,o.y-end.y)<R+16){ hitFighter(o, owner, {mortar:true}); } });
       for(var p2=0;p2<2;p2++) G.turrets[p2].forEach(function(t){ if(t.alive&&Math.hypot(t.x-end.x,t.y-end.y)<R+12) killThing(t,"Mortar landed right on it!"); });
       if(baseHitAt(end,1-owner)||Math.hypot(end.x-baseCenter(1-owner).x,end.y-baseCenter(1-owner).y)<R+baseFootW()/2) damageBase(1-owner, owner, {mortar:true});
@@ -5233,6 +5651,11 @@ function resolveShot(shooter, end, vec){
     if(stopped) break;
     // wall (non-base line)
     if(wallBlocks(start,pt,1-owner)){ stopped=true; log("Thunk — the wall eats the shot."); break; }
+    // FEEL PASS — a wreck eats the shot: shells, arrows and bolts burn
+    // out in the hulk and go no farther (the Heavy Mortar is exempt —
+    // it arcs over everything and resolves at its landing point)
+    var wr2=wreckAt(pt, 2);
+    if(wr2){ stopped=true; log("🔥 The shot burns out in the wreckage."); break; }
     // obstacles
     var ob=obstacleAt(pt,2);
     if(ob){
@@ -5246,22 +5669,23 @@ function resolveShot(shooter, end, vec){
           else { G.lastRoll={x:pt.x,y:pt.y,n:1}; setTimeout(function(){G.lastRoll=null;draw();},1600);
             log("🍀 LUCKY! Rolled a 1 — the arrow threads the forest!"); }
         }
-      } else if(CFG.theme==="knights"&&ob.type==="rock"){ stopped=true; log("Arrow stops at the rock."); break; }
+      } else if(CFG.theme==="knights"&&ob.type==="rock"){ addCrater(pt.x, pt.y, 14); stopped=true; log("Arrow stops at the rock."); break; } // FEEL PASS: the impact churns a scorched mark into the ground at the rock's foot — a flick crossing it bends (craterDeflect)
       else if(CFG.theme==="tanks"&&(ob.type==="ruin"||ob.type==="hill")){
         if(shooter.kind==="tank"&&ob.type==="hill"&&obsContains(ob,shooter,0)){ /* your own hilltop never blocks your own cannon — the shot starts on it */ }
         else if(shooter.kind==="tank"&&onHill(shooter)&&ob.type==="ruin"){ /* high ground fires over low cover */ }
-        else { stopped=true; log(ob.type==="hill"?"The shell smacks into the hill.":"The shell is blocked by the ruined building."); break; }
+        else { addCrater(pt.x, pt.y, 15); stopped=true; log(ob.type==="hill"?"The shell smacks into the hill.":"The shell is blocked by the ruined building."); break; } // FEEL PASS: the stopped shell tears its crater where it hit
       }
       else { // space asteroids / generic
         if(CFG.obstacle==="tunnel"){
           if(!carved.has(ob)){ carved.add(ob); ob.carved=Math.min(1,(ob.carved||0)+0.5);
+            if(ob.type==="asteroid") addCrater(pt.x, pt.y, 15); // FEEL PASS: the tunnel mouth is a crater torn in the rock — its rim bends a crossing flick like any crater
             if(plateCfg()){ // on the plate the hole is carved where the shot entered, nudged toward the rock's heart — and it is a real gap in the collision geometry
               ob.holes=ob.holes||[]; ob.holes.push({x:pt.x+(ob.x-pt.x)*0.35, y:pt.y+(ob.y-pt.y)*0.35, r:Math.max(15, ob.r*0.42)});
             }
-            if(ob.carved>=1 && ob.r<=40){ if(plateCfg()){ ob.erased=true; } else { G.obstacles.splice(G.obstacles.indexOf(ob),1); } log("🕳 Shot tunnels through and the small asteroid is erased!"); }
+            if(ob.carved>=1 && ob.r<=40){ if(plateCfg()){ ob.erased=true; } else { G.obstacles.splice(G.obstacles.indexOf(ob),1); } addCrater(ob.x, ob.y, 16); log("🕳 Shot tunnels through and the small asteroid is erased!"); } // FEEL PASS: the erased rock leaves its rubble crater behind on the paper
             else log("🕳 Shot tunnels through the asteroid, carving a hole — and keeps going!"); }
-        } else if(CFG.obstacle==="block"){ stopped=true; log("Shot blocked by the "+ob.type+"."); break; }
-        else if(CFG.obstacle==="destroy"){ if(plateCfg()){ ob.erased=true; } else { G.obstacles.splice(G.obstacles.indexOf(ob),1); } spawnBoom(ob.x,ob.y,false); log("💥 Shot destroys the "+ob.type+"!"); stopped=true; break; }
+        } else if(CFG.obstacle==="block"){ if(ob.type==="asteroid") addCrater(pt.x, pt.y, 15); stopped=true; log("Shot blocked by the "+ob.type+"."); break; } // FEEL PASS: a blocked shot still scars the rock's face with a crater
+        else if(CFG.obstacle==="destroy"){ if(plateCfg()){ ob.erased=true; } else { G.obstacles.splice(G.obstacles.indexOf(ob),1); } if(ob.type==="asteroid") addCrater(ob.x, ob.y, Math.min(24,(ob.r||40)*0.5)); spawnBoom(ob.x,ob.y,false); log("💥 Shot destroys the "+ob.type+"!"); stopped=true; break; } // FEEL PASS: the destroyed rock leaves its rubble crater behind
       }
     }
     // fighters & turrets along the path (all intersections count — one hit each)
@@ -5532,6 +5956,7 @@ document.getElementById("pickHeavy").addEventListener("click", function(){
    Mirrors the real resolvers' first-intersection rules without mutating state. */
 function simMoveOutcome(u, end){
   end=momentumEnd(u, end); // mirror the real resolver: Momentum boosts the CPU's planned flicks exactly as it boosts yours
+  var _cd2=craterDeflect(u, {x:u.x,y:u.y}, end); if(_cd2) end=_cd2.end; // FEEL PASS: the sim plans over the same deterministic crater bend the resolver applies (end-point approximation — the resolver's kink and the sim's straightened line agree on the outcome that matters)
   var pts=sampleLine({x:u.x,y:u.y}, end, 5);
   for(var s=1;s<pts.length;s++){
     var pt=pts[s];
@@ -5544,6 +5969,7 @@ function simMoveOutcome(u, end){
     if(u.kind==="knight" && !u.mounted && baseHitAt(pt, u.owner)) return {kind:"remount", t:pt.t};
     if(wallBlocks({x:u.x,y:u.y}, pt, 1-u.owner)) return {kind: u.kind==="knight"?"stop":"death", t:pt.t};
     if(barrierAt(pt, 6)) return {kind:"stop", t:pt.t}; // movement-only furniture (the landed quarter): a bump in the sim too, never a death — simulation and resolver agree
+    if(wreckAt(pt, 2)) return {kind:"stop", t:pt.t}; // FEEL PASS: a wreck blocks the lane in the sim too — a bump, never a death, exactly as the resolver rules it
     var ob=moveObstacleAt(pt, 6, u); // forests don't stop knights in the sim either — ride through, no phantom stops
     if(ob){
       if(u.kind==="tank" && ob.type==="hill") return {kind:"hill", t:pt.t};
@@ -5597,6 +6023,7 @@ function simShotOutcome(shooter, end){
       }
     }
     if(wallBlocks(start,pt,1-owner)) return {kind:"blocked"};
+    if(wreckAt(pt, 2)) return {kind:"blocked"}; // FEEL PASS: the sim knows a wreck eats the shot, so the CPU never plans a line through one
     var ob=obstacleAt(pt,2);
     if(ob){
       if(CFG.theme==="knights"&&ob.type==="forest"){ if(!carved.has(ob)) return {kind:"risky"}; }
@@ -5822,7 +6249,10 @@ setupPointer(cv, {
       if(L>1){ var pvEnd={x:t.x+dx/L*cl, y:t.y+dy/L*cl};
         var pvAct3=effectiveAction(t);
         input.previewLand=null;
-        if(pvAct3==="move"){ pvEnd=momentumEnd(t, pvEnd); input.preview=[{x:t.x,y:t.y},pvEnd]; } // the preview shows the TRUE travel distance, Momentum boost included — never the unboosted one
+        if(pvAct3==="move"){ pvEnd=momentumEnd(t, pvEnd); // the preview shows the TRUE travel distance, Momentum boost included — never the unboosted one
+          var _pcd=craterDeflect(t, {x:t.x,y:t.y}, pvEnd); // FEEL PASS: the cue draws the crater bend too — the dotted line kinks at the crater's rim, so the deflection is telegraphed before the flick, never a surprise
+          if(_pcd) input.preview=[{x:t.x,y:t.y}, _pcd.kink, _pcd.end];
+          else input.preview=[{x:t.x,y:t.y},pvEnd]; }
         else if(CFG.theme==="tanks" && t.kind==="tank" && t.cls==="heavy" && !t.turret){
           /* HEAVY MORTAR aim: the smooth arc itself + a landing ring — visibly clearing every blocker on the ground */
           input.preview=mortarArcPoints({x:t.x,y:t.y}, pvEnd, 26); input.previewLand=pvEnd;
@@ -6103,16 +6533,18 @@ function startMatch(){
   else if(!SETTINGS.tutorialSeen && CFG.mode==="1p"){ landCoin(); startCoach(); if(CFG.mode==="1p"&&G.turn===1){ setTimeout(cpuTurn,1200); } } // tutorial match: no ceremony, the coach owns the opening — the flip still decided who starts, and the quarter still lands on the paper
   else { showCoinFlip(function(){ if(CFG.mode==="1p"&&G.turn===1){ setTimeout(cpuTurn,650); } else if(CFG.mode==="2p"){ showPass(); } }); } // 2P: the match's ONE handoff popup opens with the first turn, as the flip card closes } // the CPU's first turn starts only once the flip card is gone — never soft-locked behind it
   updateHUD(); draw();
+  bedTheme=CFG.theme; startThemedBed(CFG.theme); // FEEL PASS: the battlefield's own bed takes the ambience chair for the match (startThemedBed itself no-ops until audio is live and ambience is on — bedTheme is remembered either way)
 }
 document.getElementById("btnQuit").addEventListener("click", function(){
   closeCoinFlip(); // never leave a flip card (or its timers) hanging over the setup screen
   var bar=document.getElementById("editorBar"); if(bar) bar.remove();
   coachActive=false; document.getElementById("coach").style.display="none";
+  leaveMatchBed(); // FEEL PASS: leaving the match hands the ambience back to the lunchroom
   showView("viewSetup");
 });
 document.getElementById("overRematch").addEventListener("click", function(){ document.getElementById("overModal").classList.remove("open"); startMatch(); });
 document.getElementById("overShare").addEventListener("click", function(){ doShare(shareResultText(), this); });
-document.getElementById("overSetup").addEventListener("click", function(){ document.getElementById("overModal").classList.remove("open"); showView("viewSetup"); });
+document.getElementById("overSetup").addEventListener("click", function(){ document.getElementById("overModal").classList.remove("open"); leaveMatchBed(); showView("viewSetup"); });
 /* ---- VIEW BOARD (Oct 26, 2026): from the game-over screen, look at the
    final board exactly as the match ended — every trace, damage stage,
    wreck and survivor in place — then come back to the results. Read-only
@@ -6158,6 +6590,7 @@ function howHTML(){
   "<p><b>🪶 Forgiving edges:</b> a move wrecks only on an obstacle's <b>core</b>; clip the outer band and you scrape by. Shots take the whole obstacle.</p>"+
   "<p><b>🔓⭐ Field prizes:</b> a captured teammate waits off to the side in the enemy half — any fighter whose move crosses the spot <b>frees</b> them, a fresh fighter <b>above your cap</b> (one per side). <b>Two</b> golden <b>stars</b> sit a little off center, one within each side's reach: the first fighter across either shrugs off the first hit that would damage, unhorse or wreck it (one armor at a time). <b>Long games</b> (90+ turns): at <b>halftime</b> claimed stars are replaced up to the pair and each rescued captive is replaced — never more waiting than that.</p>"+
   "<p><b>Bases &amp; structures:</b> every base shares one <b>capped footprint</b> in its end zone; battles are won in the middle. Structures stand in front of the base and <b>block like obstacles</b> — ram one and you wreck (knights unhorse); shots destroy them in one hit. Crews of anything destroyed <b>escape unharmed</b>: stick figures on land, escape pods in space.</p>"+
+  "<p><b>💥 The paper keeps the score:</b> whatever gets wrecked stays on the sheet, burnt out and <b>blocking its lane</b> for the rest of the match; moves bump to a stop on it and shots burn out in it. Shots tear <b>craters</b> in the ground, and a flick whose road crosses one gets knocked a little off line. The aim cue draws the bend before you flick.</p>"+
   "<p><b>🏃/💥 The switch &amp; tools:</b> the Move/Shoot switch sets itself in Move + Shoot; in Classic your pick sticks until flipped — <b>tap the selected fighter again</b> to flip. The aim cue follows: dots move, dashes shoot. Tools are <b>shared</b> — same flicker, same medium both sides: pencil thin and precise, crayon fat and wobbly, pen between. Only color differs.</p>"+
   "<p><b>🖥 One screen:</b> no scrolling; on wide screens the sheet turns <b>landscape</b> — the clock alone stays upright. <b>2P:</b> a pill in the current player's color sits at their end; their base and disc pulse with it. Plate boards can <b>mirror-flip</b> as one (Variants). Results offer <b>View Board</b> — the final board, look-only. <b>Random</b> rolls a pack of variants; a Rematch keeps it.</p>"+
   "<p><b>This match:</b> turn structure <b>"+CFG.turnStructure+"</b> · control <b>"+CFG.control+"</b> · friendly fire <b>"+CFG.friendly+"</b> · edge <b>"+CFG.edge+"</b> · obstacles <b>"+CFG.obstacle+"</b> · deployment <b>"+CFG.deployment+"</b> · defense <b>"+CFG.defense+"</b> · Siege Momentum <b>"+(CFG.siege?"on":"off")+"</b> · Field prizes <b>"+(CFG.prizes?"on":"off")+"</b>.</p>";
@@ -6189,8 +6622,8 @@ function applyVolumes(){
     audioInit(); applyVolumes();
   });
 });
-document.getElementById("ambOn").addEventListener("click", function(){ SETTINGS.ambience=true; audioInit(); startAmbience(); syncSettingsUI(); applyVolumes(); });
-document.getElementById("ambOff").addEventListener("click", function(){ SETTINGS.ambience=false; stopAmbience(); syncSettingsUI(); applyVolumes(); });
+document.getElementById("ambOn").addEventListener("click", function(){ SETTINGS.ambience=true; audioInit(); startContextBed(); syncSettingsUI(); applyVolumes(); }); // FEEL PASS: whichever bed belongs to this screen — the room's, or the battle's
+document.getElementById("ambOff").addEventListener("click", function(){ SETTINGS.ambience=false; stopAmbience(); stopThemedBed(); syncSettingsUI(); applyVolumes(); }); // FEEL PASS: off means off for both beds (bedTheme is kept, so turning it back on mid-match restores the battle's bed)
 document.getElementById("musOn").addEventListener("click", function(){ SETTINGS.musicOn=true; audioInit(); syncSettingsUI(); applyVolumes(); });
 document.getElementById("musOff").addEventListener("click", function(){ SETTINGS.musicOn=false; syncSettingsUI(); applyVolumes(); });
 function openSettings(){ syncSettingsUI(); document.getElementById("setModal").classList.add("open"); }
@@ -6200,6 +6633,7 @@ document.querySelectorAll("[data-close]").forEach(function(b){
 
 /* ---------- Dev Log ---------- */
 document.getElementById("devBody").textContent =
+"Nov 12, 2026 — FEEL PASS, TIER 1 (Matthew, after playing the build: not enough movement, the sounds feel off per battlefield, not enough explosions, battles too flat). Three parts; staging only, nothing published; Tier 2 (rounds structure) is separate later work and is NOT in here — the lunch clock stands exactly as it was.\n\n1) THE LIVING PAPER. Ambient motion on the background and idle layers ONLY: Space gets twinkling stars on a slow drift and faint debris shards floating past; Knights gets torch flames on the standing towers and the castle gates, drifting dust motes, castle pennants and lance pennons stirring; Tanks gets a soft heat shimmer over the field, dust, and a waving flag over each standing HQ in its owner's color. Idle fighters bob a pixel and a half. None of it is state: every flicker is computed from the clock and stable per-piece seeds, and no position, path, collision, sim or preview reads it — aiming, sliding and physics are bit-for-bit the game's own (proven headlessly: the same scripted flick on an empty field rests at the same point, pre-pass build against this one). The draw loop now runs for the length of a match to carry it.\n\n2) THEMED BEDS. One quiet synthesized bed per battlefield takes the ambience chair while a match runs: Space is a low synth drone (two sines and a breath of triangle through a slowly breathing filter) with soft sonar pings; Knights is plucked minstrel strings over a low open fifth; Tanks is distant brass motifs over a low ground hum. TONAL ONLY, per Matthew's standing verdict: every bed voice is an oscillator — no noise buffers, no crackle, no wind anywhere in a bed (the pluck's attack is a gain swell, not a noise burst). The lunchroom bed keeps the entrance and setup screens, returns when a match is left, and its little room events fall silent during play. Beds ride the ambience bus (slider and toggle govern them, off means off, back on mid-match restores the battle's bed), pause with the page, follow a resume, and the guarded ambient audio session handling is byte-for-byte the approach it was. Whether they SOUND right is Matthew's ear verdict, still owed.\n\n3) BATTLE DAMAGE THAT STAYS. Every destruction (and every base hit) opens with a big layered fireball and a scatter of tumbling debris, and the burnt hulk STAYS on the paper for the rest of the match as a lane blocker: moves bump to a stop against it with no extra damage (a knight keeps his saddle), shots burn out in it, the aim line stops at it, the CPU's sims plan around it, and wrecks of plate structures wear the plate's existing wreck overlay plus the new flames. Flames stand tall for the wreck's first two turns, then settle to glowing embers with an occasional last lick. Deaths off the page edge leave NO wreck (nothing remains on the sheet). Movers killed against an obstacle now die AT the impact point, so their fireball and hulk land where the crash happened (a dead piece's position was previously unread, so nothing else moves). Shots also tear CRATERS that persist: asteroid tunnel mouths, blocked-shot scars, and rubble craters where an asteroid is erased (Space); scorched churned ground where an arrow strikes rock (Knights); shell craters where a cannon shell stops, and a crater wherever a mortar lands, hit or miss (Tanks). A flick whose road crosses a crater's bowl is knocked off line by a FIXED ~10 degrees, pivoting at the entry point and bending away from the crater's heart — fully deterministic, no dice; a rim graze runs free, like every forgiving edge here; only the FIRST crater on the road bends a flick. The Aimed cue draws the bend, the travelled trace shows the kink, and the CPU's move sim bends over the same end point. SAVE: craters join the scribbleSiegeMatch payload as their own list and wrecks ride inside the fighter/structure snapshots as ordinary fields, so a mid-match save reloads with every hulk and crater exactly in place; a pre-pass save carries neither field and resumes with both empty, never a crash; the settings key is untouched, match end still clears the save, a new match or Rematch starts with a clean sheet. How to Play gains exactly one short paragraph (The paper keeps the score).\n\nNOT CHANGED: the win condition (base in 3 hits), Production, defense structures and their reload rule, Move + Shoot, Siege Momentum and Breach, prize placement, the quarter, Space ranges (198 move / 172 shot), Knights lances and rules, Tanks classes, the lunch clock, the copyright footer, both Share controls and their payloads. Verified headlessly (Playwright/Chromium, the game's own functions driven directly): matches start and complete in all three themes in 1P and 2P with zero page errors; the ambient frame counter advances while a match idles; wreck blocking proven both ways (a road that ran free before the kill stops at the hulk after it, for moves and for shots, knights included); crater creation proven for asteroid tunnel/block/destroy, rock arrows, cannon stops and mortar hits and misses, and the deflection proven deterministic (same flick, same resting point, twice) at the fixed angle; beds proven per theme (graph builds, the bed handle reports its theme, and ZERO buffer sources are created while a bed runs — oscillators only); save/resume proven with a wreck and a crater on the board (deep-equal restore), with a stripped pre-pass payload (resumes clean), at match end (key cleared) and across a Rematch (clean sheet); settings bytes unchanged throughout; footer byte-exact.\n\n————————————————\n\n" +
 "Oct 31, 2026 — MID-MATCH SAVING (Matthew's decision, under the house save standard). A match in progress now saves itself as it changes, under its own key (scribbleSiegeMatch) — the settings key and every other key are exactly as they were, untouched by this feature. The save carries the whole position: the match setup as played (theme, 1P/2P, CPU difficulty, variants, colors, control scheme), the board as generated (every obstacle with its carved holes and erased state), the parked quarter, both bases and their damage, every fighter and defense structure (position, facing, hits, held armor star, mounted or on foot, wreck state, turret reload stamps), whose turn it is and the turn PHASE — a save taken after the move resumes at the shot step, not back at the turn start — plus the turn count, the stalemate clock, halftime-refresh and production cooldown state, both prize stars and both prisoners, the traces on the sheet, and the battle log. Writes happen on every state change (they all funnel through the HUD update) with a page-hide backstop, all guarded so a failed write never breaks play. Reopen the game and the entrance offers a gold Resume button naming the saved match's theme, mode and turn; tapping it restores the position exactly — a match saved on the CPU's turn hands the turn back to the CPU. The save clears the moment a match ends (base destroyed, lunch-clock decision, or draw) and when a new match or Rematch begins; menus, How to Play and settings never clear it, and quitting to setup leaves the match waiting on the entrance. A save that will not parse, or carries an unknown version, is discarded quietly and the game opens as normal.\n\n————————————————\n\n" +
 "Oct 31, 2026 — SHARING, PER THE REAL SPARKS STANDARD (Game Manager program, Matthew's direction). One quiet Share button (share icon plus the word Share) in exactly two places: the results modal and the entrance menu. A tap calls navigator.share with the title, one short first-person result line as a plain fact (theme, outcome, and base or castle hits for 1P; theme, winner, and score for 2P; no em-dashes in the payload), and the play URL as its own field from the single PLAY_URL constant (https://games.realsparks.net/scribble-siege/play/). Browsers without the native sheet copy the same text plus the link and confirm with a brief Copied: the tapped button's label changes AND a fixed Copied pill shows on screen, so the confirmation is visible even from the menu (the menu panel now stays open until the confirmation has displayed, then closes). No per-network button rows, no SDKs, no pop-ups, no gates, and no Share control anywhere over live gameplay: an earlier draft also carried a Share in the in-game menu and that third control is REMOVED in this fix pass. The footer gains the standard social row: itch.io, YouTube, LinkedIn, icons only, in that order, opening in a new tab with aria-labels and 44px tap areas. Verified by driving this build in a real browser with stubbed share and clipboard: exact payloads asserted for a 1P win, a 1P clock/draw finish, a 2P result, and the menu Share; the no-share path asserted for clipboard contents and for the Copied confirmation being visibly rendered from both the results modal and the menu; footer order, URLs, new-tab targets, aria-labels and tap sizes checked; Rematch and Change setup still work from the results modal; zero page errors. Staged only, not published: Game Manager coordinates the publish.\n\n————————————————\n\n"+
 "Oct 30, 2026 — TWO STARS, PRISONERS TO THE SIDE, FAIR RANDOM SPOTS (Matthew: the star bonus in Space always seems to favor one team — have two of them, a little to the side instead of dead center so each team gets a chance to get one; move the prisoners off to the side a little on each level; randomize the starting locations if it can stay fair). Field Prizes placement only — pickup effects, rescue behavior, the invisible play border and every other rule are unchanged.\n\n1) TWO ARMOR STARS. The single dead-center golden star is now a PAIR, on every theme and level. The pair is placed with exact 180-degree rotational symmetry about the board center in the play frame (the base-to-base axis), so the fairness is identical on portrait and landscape sheets: star B is always the exact rotation of star A. Each star sits a little to the SIDE of center — a lateral step of 96–152px plus a forward step of 44–96px — and neither ever sits on the center point or at the midline center. Either team may claim either star; each star still grants exactly one hit of armor, and a fighter may hold only one armor at a time (an already-armored fighter crossing a waiting star leaves it waiting for someone else — it is not consumed). No ring or circle is drawn around a star spot, as before. The CPU now routes a fighter toward whichever waiting star it can reach.\n\n2) PRISONERS OFF TO THE SIDE. On every theme/level both captive spots shift laterally toward the sides, away from the board's central column, while staying in the enemy half at exactly mirrored positions. Rescue behavior is untouched: Space frees a standard fighter, Knights a MOUNTED knight, Tanks a Light Cannon Tank, above the cap as always.\n\n3) FAIR RANDOMIZATION. At every match start, Rematches included, the star pair's offset distance and lateral direction vary within the bands above and the prisoners' lateral offset varies within its band (lateral fraction 0.17–0.30 or 0.70–0.83 of the sheet, depth 0.29–0.42 into the enemy half) — but symmetry is ALWAYS exact, so distances from both bases stay equal by construction and the randomization cannot favor a team. Spots keep the existing full-footprint clearance from bases, obstacles, structures, spawns, shield bubbles, the quarter and each other, and the blocked-spot relocation rules still apply — now symmetrically: a pair spot qualifies only when its rotated/mirrored twin also qualifies, so relocation never breaks the symmetry. One shared board, as always: both players and the CPU read the same G.stars / G.prisoners.\n\n4) HALFTIME REFRESH, ADAPTED. In 90+ turn matches with prizes on, the one-time halftime top-up now restores missing stars back up to the pair: if one star was taken it is restored at the exact rotation of the star still waiting (its twin's original spot, relocated minimally only if blocked); if both were taken, a fresh re-randomized symmetric pair is placed; if both still wait, nothing changes. Never more than two waiting. The prisoner refresh is exactly as locked — only a side whose captive was already rescued gets a new one.\n\nVerified by driving the game's own placement, pickup and end-of-turn code headlessly: screenshots of fresh matches in all three themes show two stars set symmetrically off-center and both prisoners visibly off to the side; a 40-match multi-seed probe across the three themes (plate boards, Random fields, drawn fallback boards and the side-by-side layout) confirmed exact rotational symmetry of the star pair and mirrored prisoners in every seed, positions varying between seeds (40 distinct star spots), and no spot ever under a base, obstacle or the quarter or outside the invisible play border; pickup probes in each theme showed each star can be claimed by either side and grants one-hit armor (a second hit is not absorbed), that an armored fighter leaves a waiting star in place, and that rescues still field the right fighter; and Long Lunch halftime checks restored a taken star to a whole pair (and a fresh pair when both were taken), never exceeding two waiting, and left an untouched pair unmoved. How to Play wording updated minimally to match (two stars a little off center; captives off to the side). Packaging: the GitHub staging snapshot was regenerated from this source (68 asset modules, decode- and sha256-verified as before; manifests and root icons unchanged in kind).\n\n————————————————\n\n" +
