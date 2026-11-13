@@ -88,7 +88,7 @@ input[type=range]{width:100%;height:36px;accent-color:var(--accent);}
    the turn controls live in one compact bar under it, and everything
    wordy (battle log, match card) moved into the ☰ Menu. No scrolling
    while a match is up, at any size. ---------- */
-#viewGame{position:fixed;inset:0;z-index:40;flex-direction:column;padding:10px;height:100vh;height:100svh;height:100dvh;background:#7a6a53 radial-gradient(circle at 20% 10%, #8a7a5f, #6b5c46);}
+#viewGame{position:fixed;inset:0;top:var(--ss-top,0px);z-index:40;flex-direction:column;padding:10px;height:calc(100vh - var(--ss-top,0px));height:calc(100svh - var(--ss-top,0px));height:calc(100dvh - var(--ss-top,0px));background:#7a6a53 radial-gradient(circle at 20% 10%, #8a7a5f, #6b5c46);}
 #gameLayout{flex:1 1 auto;min-height:0;display:flex;}
 #boardCol{flex:1 1 auto;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;}
 #turnBar{background:var(--panel);border:2.5px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 rgba(0,0,0,.25);padding:10px 12px;margin-top:8px;}
@@ -192,7 +192,7 @@ table.spec td{border:1.5px solid var(--line);padding:5px 8px;vertical-align:top;
   #viewSetup .btn.big{min-height:50px; font-size:18px; padding:8px 20px;}
   #viewSetup footer, footer{padding:4px 8px 6px; font-size:12px;}
   /* practice sheet sized by height so it never outgrows a short screen */
-  #viewPractice #canvasWrap2{max-width:none; width:calc((100dvh - 140px)*0.79); margin:0 auto;}
+  #viewPractice #canvasWrap2{max-width:none; width:calc((var(--ss-avail,100dvh) - 140px)*0.79); margin:0 auto;}
 }
 /* landscape packing, round 2: denser columns so every panel truly fits */
 @media (orientation: landscape){
@@ -429,8 +429,8 @@ body.onEntrance{background:#faeed6;overscroll-behavior:none;overflow:hidden;}
 body.onEntrance .wrap{max-width:none;margin:0;padding:0;}
 body.onEntrance footer{display:none;}
 #viewSetup{
-  position:fixed;inset:0;z-index:30;overflow:hidden;
-  height:100vh;height:100svh;height:100dvh;
+  position:fixed;inset:0;top:var(--ss-top,0px);z-index:30;overflow:hidden;
+  height:calc(100vh - var(--ss-top,0px));height:calc(100svh - var(--ss-top,0px));height:calc(100dvh - var(--ss-top,0px));
   padding:calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
   background-color:#faeed6;
   background-image:
@@ -703,8 +703,83 @@ footer{ color:#6d675a; font-size:12.5px; letter-spacing:.2px; background:transpa
   #viewSetup .entActions{margin-top:5px;}
 }
 
+/* ================================================================
+   HUB HEADER TIERS (Nov 12, 2026 fix pass): when something sits
+   above the game in flow (the hub's transplanted header), the
+   entrance must compact against the height actually left under it,
+   not the raw viewport height the tiers above key on. The measurer
+   in the script sets ss-av780 / ss-av700 / ss-avshort on <html> from
+   the MEASURED remaining height; these blocks repeat the two
+   portrait tiers against that measure (logo caps computed from
+   --ss-avail instead of svh) and add one deeper landscape tier for
+   a phone turned sideways under a header. The classes are only ever
+   set when a header is present, so the standalone game sizes itself
+   by the viewport tiers exactly as before. */
+html.ss-av780 #viewSetup{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:calc(6px + env(safe-area-inset-bottom));}
+html.ss-av780 #viewSetup .entLogo{width:min(292px,78vw,calc(var(--ss-avail,100svh)*0.38));}
+html.ss-av780 #viewSetup .entCard{padding-top:4px;gap:0;}
+html.ss-av780 #viewSetup .entCard h2{font-size:17px;margin:5px 0 3px;}
+html.ss-av780 #viewSetup .entCard h2:first-of-type{margin-top:0;}
+html.ss-av780 #viewSetup .themeCard{padding:6px 4px;}
+html.ss-av780 #viewSetup .themeCard .big{font-size:17px;}
+html.ss-av780 #viewSetup .themeCard b{font-size:13px;}
+html.ss-av780 #viewSetup .chip{min-height:38px;line-height:20px;padding:5px 11px;font-size:14.5px;}
+html.ss-av780 #viewSetup label.lbl{margin:4px 0 2px;font-size:13px;}
+html.ss-av780 #viewSetup input[type=text].nameInput{min-height:36px;margin:1px 0 4px;}
+html.ss-av780 #viewSetup select{min-height:38px;font-size:15px;}
+html.ss-av780 #viewSetup .btn.big{min-height:47px;font-size:16.5px;padding:8px 14px;}
+html.ss-av780 #viewSetup .entActions{margin-top:7px;}
+html.ss-av700 #viewSetup .entLogo{width:min(248px,72vw,calc(var(--ss-avail,100svh)*0.34));}
+html.ss-av700 #viewSetup .entCard h2{font-size:16px;margin:3px 0 2px;}
+html.ss-av700 #viewSetup .themeCard{padding:4px 3px;}
+html.ss-av700 #viewSetup .themeCard .big{font-size:15px;}
+html.ss-av700 #viewSetup .themeCard b{font-size:12.5px;}
+html.ss-av700 #viewSetup .chip{min-height:34px;line-height:18px;padding:3px 10px;font-size:14px;}
+html.ss-av700 #viewSetup label.lbl{margin:2px 0 1px;font-size:12.5px;}
+html.ss-av700 #viewSetup input[type=text].nameInput{min-height:32px;margin:0 0 3px;font-size:15px;}
+html.ss-av700 #viewSetup select{min-height:34px;font-size:15px;}
+html.ss-av700 #viewSetup .swatch{width:34px;height:34px;}
+html.ss-av700 #viewSetup .btn.big{min-height:43px;font-size:16px;padding:6px 12px;}
+html.ss-av700 #viewSetup #btnMenuTop{min-height:38px;padding:4px 10px;font-size:14px;}
+html.ss-av700 #viewSetup .entActions{margin-top:5px;}
+html.ss-avshort #viewSetup{padding-top:calc(4px + env(safe-area-inset-top));padding-bottom:calc(4px + env(safe-area-inset-bottom));}
+html.ss-avshort #viewSetup .entLogo{width:min(96px,20vw,calc(var(--ss-avail,100svh)*0.36));}
+html.ss-avshort #viewSetup .entWrap{gap:5px;}
+html.ss-avshort #viewGame #turnBar{padding:5px 7px;}
+html.ss-avshort #viewGame #turnBar .seg button{min-height:36px;}
+html.ss-avshort #viewGame #turnBar .row{margin-top:4px !important;}
+/* the landscape shell sizes .wrap at 100dvh; with a header above it the
+   document would stand exactly the header's height too tall and scroll in a
+   match. Shrink the shell by the measured offset (hub builds only: the
+   ss-offset class exists only when something actually sits above). */
+@media (orientation: landscape){ html.ss-offset .wrap{height:calc(100vh - var(--ss-top,0px));height:calc(100svh - var(--ss-top,0px));height:calc(100dvh - var(--ss-top,0px));} }
+html.ss-avshort #viewSetup .entCard{gap:0;padding-top:2px;}
+html.ss-avshort #viewSetup .entCard h2{font-size:14px;margin:2px 0 1px;}
+html.ss-avshort #viewSetup .themeCard{padding:3px 3px;}
+html.ss-avshort #viewSetup .themeCard .big{font-size:14px;}
+html.ss-avshort #viewSetup .themeCard b{font-size:11.5px;}
+html.ss-avshort #viewSetup .chip{min-height:28px;line-height:16px;padding:2px 8px;font-size:12.5px;}
+html.ss-avshort #viewSetup select{min-height:30px;font-size:13.5px;}
+html.ss-avshort #viewSetup input[type=text].nameInput{min-height:28px;font-size:13.5px;margin:0 0 2px;}
+html.ss-avshort #viewSetup label.lbl{margin:1px 0 0;font-size:11.5px;}
+html.ss-avshort #viewSetup .btn.big{min-height:36px;font-size:14.5px;padding:5px 10px;}
+html.ss-avshort #viewSetup #btnMenuTop{min-height:34px;padding:3px 9px;font-size:13px;}
+html.ss-avshort #viewSetup .entActions{margin-top:4px;}
+html.ss-avshort #viewGame{padding:6px;}
+html.ss-avshort #viewGame #clockCv{width:36px;height:36px;}
+html.ss-avshort #viewGame .hudbar{margin-bottom:5px;}
+html.ss-avshort #viewGame .hudbar .btn.small{min-height:36px;}
+html.ss-avshort #viewGame #turnBar{padding:6px 8px;margin-top:5px;}
+html.ss-avshort #viewGame #turnBar .seg button{min-height:40px;font-size:15px;padding:5px 2px;}
+
 /* ---------- Real Sparks sharing + footer social row (Oct 31, 2026) ---------- */
 .shareIco{width:18px;height:18px;flex:0 0 auto;}
+/* per-battlefield Move glyphs (Nov 12, 2026 fix pass): drawn in
+   currentColor, so the switch's blue Move side wears it white and the
+   quiet side wears it in ink, exactly like the labels beside them. */
+.moveIco{width:24px;height:24px;display:inline-block;}
+#actionSeg .moveIco{width:25px;height:25px;vertical-align:-7px;margin-right:6px;}
+#howBody .moveIco{width:19px;height:19px;vertical-align:-4px;}
 #shareToast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,16px);background:var(--ink,#2b2b33);color:#fdf6dd;font-size:15px;font-weight:700;padding:10px 22px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;z-index:200;}
 #shareToast.show{opacity:1;transform:translate(-50%,0);}
 .socialRow{display:flex;justify-content:center;align-items:center;gap:12px;padding:10px 8px 2px;}
@@ -816,7 +891,7 @@ footer{ color:#6d675a; font-size:12.5px; letter-spacing:.2px; background:transpa
     <div id="turnBar">
       <div id="actionSegWrap">
         <div class="seg" id="actionSeg" role="group" aria-label="Move or Shoot — pick one, it stays picked">
-          <button data-act="move" class="on" aria-pressed="true">🏃 MOVE</button>
+          <button data-act="move" class="on" aria-pressed="true"><span id="moveIcoSlot" aria-hidden="true"></span>MOVE</button>
           <button data-act="shoot" aria-pressed="false">💥 SHOOT</button>
         </div>
       </div>
@@ -1010,6 +1085,57 @@ footer{ color:#6d675a; font-size:12.5px; letter-spacing:.2px; background:transpa
 <script src="assets/tanks-plate.js"></script>
 <script>
 "use strict";
+/* ---------- HUB HEADER CLEARANCE (Nov 12, 2026 fix pass: Matthew's
+   iPhone screenshot — on the hub page the Real Sparks header band
+   sits ON TOP of the game). The hub transplants its nav in flow at
+   the top of <body>, ahead of the game's .wrap, and paints it at
+   z-index 50; the game's two full-screen views are fixed to the
+   viewport at z-index 30/40, so the band covered the top of the
+   entrance (logo clipped) and, in a match, the top chrome. The game
+   now MEASURES whatever in-flow content sits above .wrap and lifts
+   both views below it through the --ss-top property (their heights
+   shrink by the same amount, so nothing scrolls and nothing hides).
+   The measure is generic: any header, any height, present or
+   future, is respected, the Game Manager's nav edits included; with
+   nothing above .wrap it measures 0 and the standalone game is
+   exactly what it was. The ss-av* classes mirror the entrance's
+   compaction tiers against the height actually left, and are only
+   ever set when something was measured above the game. */
+function ssMeasureAbove(){
+  try{
+    var top=0, wrap=document.querySelector(".wrap");
+    if(wrap){
+      var el=wrap.previousElementSibling;
+      while(el){
+        var cs=getComputedStyle(el);
+        if(cs.display!=="none" && cs.visibility!=="hidden" && cs.position!=="fixed" && cs.position!=="absolute"){
+          top+=el.getBoundingClientRect().height + (parseFloat(cs.marginTop)||0) + (parseFloat(cs.marginBottom)||0);
+        }
+        el=el.previousElementSibling;
+      }
+    }
+    top=Math.max(0, Math.round(top));
+    var vh=window.innerHeight;
+    if(window.visualViewport && window.visualViewport.height) vh=window.visualViewport.height;
+    var avail=Math.max(0, Math.round(vh-top));
+    var root=document.documentElement;
+    root.style.setProperty("--ss-top", top+"px");
+    root.style.setProperty("--ss-avail", avail+"px");
+    var port=window.innerWidth<=window.innerHeight;
+    root.classList.toggle("ss-av780", top>0 && port && avail<=780);
+    root.classList.toggle("ss-av700", top>0 && port && avail<=700);
+    root.classList.toggle("ss-avshort", top>0 && !port && avail<=330);
+    root.classList.toggle("ss-offset", top>0);
+    window.__SS_TOP=top;
+  }catch(e){}
+}
+ssMeasureAbove();
+window.addEventListener("resize", ssMeasureAbove);
+window.addEventListener("orientationchange", ssMeasureAbove);
+window.addEventListener("load", ssMeasureAbove);
+if(window.visualViewport) window.visualViewport.addEventListener("resize", ssMeasureAbove);
+if(window.ResizeObserver){ try{ new ResizeObserver(ssMeasureAbove).observe(document.body); }catch(e){} }
+setTimeout(ssMeasureAbove, 120); setTimeout(ssMeasureAbove, 700);
 /* ============================================================
    SCRIBBLE SIEGE — Build 1 (Oct 26, 2026)
    Paper flick-combat: Space / Knights / Tanks.
@@ -1275,6 +1401,7 @@ function resumeMatch(){
     updateHUD(); draw(); fitBoard();
     log("▶ Match resumed — right where it left off.");
     bedTheme=CFG.theme; startThemedBed(CFG.theme); // FEEL PASS: a resumed match gets its battlefield bed back
+    applyMoveIcon(); // FIX PASS: and its own battlefield Move glyph
     saveMatch();
     if(CFG.mode==="1p" && G.turn===1 && !G.editor){ setTimeout(cpuTurn, 900); } // a match saved on the CPU's turn hands the turn back to the CPU
   }catch(e){
@@ -1805,7 +1932,7 @@ function selRow(label, key, opts){
   wrap.appendChild(s);
   return wrap;
 }
-function refreshUI(){ renderHome(); syncRollSummary(); if(document.getElementById("varModal").classList.contains("open")) renderVariants(); }
+function refreshUI(){ renderHome(); syncRollSummary(); applyMoveIcon(); if(document.getElementById("varModal").classList.contains("open")) renderVariants(); }
 
 function renderHome(){
   // THEME
@@ -3074,7 +3201,7 @@ function fitBoard(){
      (760x960) still span the full width inside the border at
      phone sizes on their own, so the layer serves plates only. */
   var aw=col.clientWidth-4, ah=col.clientHeight-4;
-  if(aw<60 || ah<60) return;
+  if(aw<24 || ah<24) return; // FIX PASS: was 60 — with the hub header eating the landscape stage, the board column can legitimately sit under 60px; bailing there left the canvas at its CSS width:100% size, hundreds of px tall and overflowing the stage. A tiny fitted board beats an unfitted overflowing one.
   var s=Math.min(aw/dispW(), ah/dispH());
   if(!isFinite(s) || s<=0) return;
   cv.style.width=Math.floor(dispW()*s)+"px";
@@ -3582,6 +3709,43 @@ function prizeSprite(key, colorIdx){
     prizeTintCache[ck]=cv2; return cv2;
   }catch(e){ return base; }
 }
+/* PIXEL TINTING (Nov 12, 2026 fix pass). Every hue rotation in the game
+   used to lean on ctx.filter = "hue-rotate(...)", which some browsers
+   (Safari and in-app webviews among them) accept silently and then
+   ignore: the tint simply never happened there, so tinted pieces
+   rendered in their drawn colors for everyone — both motherships in
+   the sprite's blue ink, whatever the owners' colors were. Rotations
+   are now done pixel by pixel (the method prizeSprite already used):
+   saturated ink rotates in hue; paper, graphite and pale shading keep
+   their drawn values, so the hand-drawn texture survives intact.
+   colorIdx 7 (black) gets the old grayscale + darken treatment in
+   pixels instead of the filter. */
+function pxTintCanvas(cv2, colorIdx, baseHue){
+  var g=cv2.getContext("2d");
+  try{
+    var id=g.getImageData(0,0,cv2.width,cv2.height), d=id.data;
+    var deg = colorIdx===7 ? 0 : (((HUES[colorIdx]-baseHue)%360)+360)%360;
+    for(var i=0;i<d.length;i+=4){
+      if(d[i+3]<200) continue;
+      if(colorIdx===7){
+        var gy=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+        d[i]=(d[i]*0.1+gy*0.9)*0.72; d[i+1]=(d[i+1]*0.1+gy*0.9)*0.72; d[i+2]=(d[i+2]*0.1+gy*0.9)*0.72;
+        continue;
+      }
+      var r=d[i]/255, gg=d[i+1]/255, b=d[i+2]/255;
+      var mx=Math.max(r,gg,b), mn=Math.min(r,gg,b), df=mx-mn, l=(mx+mn)/2;
+      if(df<0.03) continue;
+      var sat=l>0.5 ? df/(2-mx-mn) : df/(mx+mn);
+      if(sat<0.15 || l<0.06 || l>0.98) continue;
+      var h; if(mx===r) h=((gg-b)/df)%6; else if(mx===gg) h=(b-r)/df+2; else h=(r-gg)/df+4; h*=60; if(h<0) h+=360;
+      var nh=(h+deg)%360;
+      var cc=(1-Math.abs(2*l-1))*sat, xx=cc*(1-Math.abs(((nh/60)%2)-1)), m=l-cc/2, rr=0, g2=0, bb=0;
+      if(nh<60){ rr=cc; g2=xx; } else if(nh<120){ rr=xx; g2=cc; } else if(nh<180){ g2=cc; bb=xx; } else if(nh<240){ g2=xx; bb=cc; } else if(nh<300){ rr=xx; bb=cc; } else { rr=cc; bb=xx; }
+      d[i]=(rr+m)*255; d[i+1]=(g2+m)*255; d[i+2]=(bb+m)*255;
+    }
+    g.putImageData(id,0,0);
+  }catch(e){}
+}
 var sheetTintCache={};
 function sheetSprite(store, colorIdx, storeKey){
   var direct=FIGHTER_DIRECT[colorIdx];
@@ -3591,9 +3755,8 @@ function sheetSprite(store, colorIdx, storeKey){
   if(sheetTintCache[key]) return sheetTintCache[key];
   var cv2=document.createElement("canvas"); cv2.width=base.naturalWidth; cv2.height=base.naturalHeight;
   var g=cv2.getContext("2d");
-  try{ g.filter = colorIdx===7 ? "grayscale(0.9) brightness(0.72)" : "hue-rotate(325deg)"; }catch(e){}
   g.drawImage(base,0,0);
-  try{ g.filter="none"; }catch(e){}
+  pxTintCanvas(cv2, colorIdx, 5); // red base (hue 5): pink is +325, black is the grayscale pass
   sheetTintCache[key]=cv2; return cv2;
 }
 var MATCH_STYLE="triangles"; // the active match's style, resolved at match start
@@ -3610,9 +3773,8 @@ function fighterSprite(colorIdx){
   if(fighterTintCache[key]) return fighterTintCache[key];
   var cv2=document.createElement("canvas"); cv2.width=base.naturalWidth; cv2.height=base.naturalHeight;
   var g=cv2.getContext("2d");
-  try{ g.filter = colorIdx===7 ? "grayscale(0.9) brightness(0.72)" : "hue-rotate(325deg)"; }catch(e){}
   g.drawImage(base,0,0);
-  try{ g.filter="none"; }catch(e){}
+  pxTintCanvas(cv2, colorIdx, 5); // red base (hue 5): pink is +325, black is the grayscale pass
   fighterTintCache[key]=cv2; return cv2;
 }
 function resolveFighterStyle(){
@@ -3635,12 +3797,8 @@ function artTinted(name, colorIdx, baseHue){
   if(tintCache[key]) return tintCache[key];
   var cv2=document.createElement("canvas"); cv2.width=im.naturalWidth; cv2.height=im.naturalHeight;
   var g=cv2.getContext("2d");
-  try{
-    if(colorIdx===7) g.filter="grayscale(0.9) brightness(0.72)";
-    else { var d=((HUES[colorIdx]-baseHue)%360+360)%360; if(d>180) d-=360; g.filter="hue-rotate("+d+"deg)"; }
-  }catch(e){}
   g.drawImage(im,0,0);
-  try{ g.filter="none"; }catch(e){}
+  pxTintCanvas(cv2, colorIdx, baseHue);
   tintCache[key]=cv2; return cv2;
 }
 function pieceFor(name, colorIdx, baseHue){
@@ -3944,11 +4102,7 @@ function drawPrizes(c){
     } else { // a captured crew in a small pen
       c.fillStyle="rgba(239,233,220,0.45)";
       c.beginPath(); c.rect(-16,-11,32,23); c.fill();
-      c.strokeStyle="#8a6f3c";
-      c.beginPath(); // sandbag slats
-      [-11,-3.5,4,12].forEach(function(by){ c.moveTo(-16,by); c.lineTo(16,by); });
-      [-16,-5.5,5.5,16].forEach(function(bx){ c.moveTo(bx,-11); c.lineTo(bx,12); });
-      c.stroke();
+      c.save(); c.translate(0,7); drawSandbagBand(c, 10, 11.5, 7.5, 5, 5, 4); c.restore(); // the pen is a little wall of the same sacks
       c.fillStyle="#2b2b33"; // two crew heads, waiting
       c.beginPath(); c.arc(-5,2,2.6,0,6.29); c.fill();
       c.beginPath(); c.arc(5,3,2.6,0,6.29); c.fill();
@@ -4258,15 +4412,103 @@ function baseArtFor(p){
   var ci=playerCfg(p).color;
   return artTinted("mothership", ci, 220); // one drawing, hue-shifted per player color (purple included)
 }
+/* OWNER-COLOR PLATES (Nov 12, 2026 fix pass: Matthew found both
+   motherships reading blue, and the Tanks HQs reading as neither
+   side). The plate drawings bake their bases in fixed colors: on the
+   Space plate a blue saucer sits low and a blue-violet one high,
+   whatever the owners picked, and the Tanks HQs are khaki and rust.
+   The plate is therefore re-tinted per match, in image space: inside
+   each base's region, saturated ink rotates from the hue actually
+   drawn there (measured off the pixels, never assumed) to the owner's
+   color, with the same pixel method the sprites use; an owner playing
+   black gets the grayscale pass instead. Paper, graphite and pale
+   shading keep their drawn values, and every state overlay (shield
+   masking, cracks, flames, wrecks, the code-drawn sandbag band) draws
+   on top exactly as before. Knights is deliberately not tinted: its
+   castles are earth-toned stone (measured) and their flags are
+   already repainted per owner by drawCastleFlags. The tinted plate
+   is cached per theme and color pair, and mirroring flips it with
+   the geometry, exactly as the raw plate already flipped. */
+var plateTintCache={};
+function plateRegionRotate(g, W, H, region, colorIdx, satBoost){
+  var x0=Math.max(0,Math.floor((region.x-region.rx)*W)), x1=Math.min(W,Math.ceil((region.x+region.rx)*W));
+  var y0=Math.max(0,Math.floor((region.y-region.ry)*H)), y1=Math.min(H,Math.ceil((region.y+region.ry)*H));
+  if(x1<=x0||y1<=y0) return;
+  var id=g.getImageData(x0,y0,x1-x0,y1-y0), d=id.data, rowW=x1-x0;
+  function hslOf(idx){
+    var r=d[idx]/255, gg=d[idx+1]/255, b=d[idx+2]/255;
+    var mx=Math.max(r,gg,b), mn=Math.min(r,gg,b), df=mx-mn, l=(mx+mn)/2;
+    var sat=(df<0.001)?0:(l>0.5?df/(2-mx-mn):df/(mx+mn));
+    var h=0; if(df>=0.001){ if(mx===r) h=((gg-b)/df)%6; else if(mx===gg) h=(b-r)/df+2; else h=(r-gg)/df+4; h*=60; if(h<0) h+=360; }
+    return [h,sat,l];
+  }
+  function inHueBand(idx){
+    if(d[idx+3]<200) return null;
+    var hsl=hslOf(idx);
+    if(hsl[1]<0.18||hsl[2]<0.08||hsl[2]>0.97) return null;
+    return hsl;
+  }
+  // the drawn hue of this seat: circular mean over its saturated ink
+  var sx=0, sy=0, i, j, idx;
+  for(j=y0;j<y1;j++) for(i=x0;i<x1;i++){
+    var dx=(i/W-region.x)/region.rx, dy=(j/H-region.y)/region.ry; if(dx*dx+dy*dy>1) continue;
+    idx=((j-y0)*rowW+(i-x0))*4;
+    var hh=inHueBand(idx); if(!hh) continue;
+    var rad=hh[0]*Math.PI/180; sx+=Math.cos(rad); sy+=Math.sin(rad);
+  }
+  if(!sx&&!sy) return;
+  var baked=Math.atan2(sy,sx)*180/Math.PI; if(baked<0) baked+=360;
+  var deg = colorIdx===7 ? 0 : (((HUES[colorIdx]-baked)%360)+360)%360;
+  if(colorIdx!==7 && deg<2) return; // already the owner's color: leave the drawing alone
+  for(j=y0;j<y1;j++) for(i=x0;i<x1;i++){
+    var dx2=(i/W-region.x)/region.rx, dy2=(j/H-region.y)/region.ry; if(dx2*dx2+dy2*dy2>1) continue;
+    idx=((j-y0)*rowW+(i-x0))*4;
+    if(colorIdx===7){
+      if(!inHueBand(idx)) continue;
+      var gy=0.299*d[idx]+0.587*d[idx+1]+0.114*d[idx+2];
+      d[idx]=(d[idx]*0.1+gy*0.9)*0.72; d[idx+1]=(d[idx+1]*0.1+gy*0.9)*0.72; d[idx+2]=(d[idx+2]*0.1+gy*0.9)*0.72;
+      continue;
+    }
+    var hsl2=inHueBand(idx); if(!hsl2) continue;
+    var nh=(hsl2[0]+deg)%360, ns=Math.min(0.82, hsl2[1]*satBoost), nl=hsl2[2];
+    var cc=(1-Math.abs(2*nl-1))*ns, xx=cc*(1-Math.abs(((nh/60)%2)-1)), m=nl-cc/2, rr=0, g2=0, bb=0;
+    if(nh<60){ rr=cc; g2=xx; } else if(nh<120){ rr=xx; g2=cc; } else if(nh<180){ g2=cc; bb=xx; } else if(nh<240){ g2=xx; bb=cc; } else if(nh<300){ rr=xx; bb=cc; } else { rr=cc; bb=xx; }
+    d[idx]=(rr+m)*255; d[idx+1]=(g2+m)*255; d[idx+2]=(bb+m)*255;
+  }
+  g.putImageData(id,x0,y0);
+}
+function plateImageFor(theme){
+  var img=PLATE_IMGS[theme]||PLATE_IMG;
+  if(!img || !img.complete || !img.naturalWidth) return img;
+  if(theme!=="space" && theme!=="tanks") return img;
+  if(!window.G || !CFG || !CFG.p1) return img;
+  var ci0=playerCfg(0).color, ci1=playerCfg(1).color;
+  var key=theme+"|"+ci0+"|"+ci1;
+  if(plateTintCache[key]) return plateTintCache[key];
+  try{
+    var cv2=document.createElement("canvas"); cv2.width=img.naturalWidth; cv2.height=img.naturalHeight;
+    var g=cv2.getContext("2d"); g.drawImage(img,0,0);
+    var P=PLATES[theme];
+    for(var p=0;p<2;p++){
+      var region = theme==="space" ? P.bubbles[p] : {x:P.base[p].x, y:P.base[p].y, rx:0.19, ry:0.115};
+      plateRegionRotate(g, img.naturalWidth, img.naturalHeight, region, playerCfg(p).color, theme==="tanks" ? 1.3 : 1);
+    }
+    plateTintCache[key]=cv2; return cv2;
+  }catch(e){ return img; }
+}
 /* ---- PLATE RENDERING: the drawing is the board; only change is overlaid ---- */
 function drawPlate(c){
-  var img=PLATE_IMGS[CFG.theme]||PLATE_IMG;
+  var img=plateImageFor(CFG.theme);
   c.save();
   c.fillStyle="#f3ecd9"; c.fillRect(0,0,FW,FH); // paper tone while/if the plate loads
-  if(img.complete && img.naturalWidth>0){
+  // FIX PASS: plateImageFor may return a per-match TINTED CANVAS (owner colors)
+  // instead of the raw scan; a canvas has no .complete/.naturalWidth, so the
+  // old image-only guard silently skipped the plate entirely. Accept both.
+  var iw=img?(img.naturalWidth||img.width||0):0, ih=img?(img.naturalHeight||img.height||0):0;
+  if(img && iw>0 && ih>0 && img.complete!==false){
     // contain fit, no stretching — in plate mode the field IS the plate's aspect, so it fills the sheet
-    var s=Math.min(FW/img.naturalWidth, FH/img.naturalHeight);
-    var w=img.naturalWidth*s, h=img.naturalHeight*s;
+    var s=Math.min(FW/iw, FH/ih);
+    var w=iw*s, h=ih*s;
     if(window.G && G.mirror){ // mirrored match: flip the drawing itself, exactly as the geometry was flipped
       c.save(); c.translate(FW,0); c.scale(-1,1);
       c.drawImage(img, (FW-w)/2, (FH-h)/2, w, h);
@@ -4428,6 +4670,44 @@ function drawCastleFlags(c,p){
     c.restore();
   });
 }
+/* SANDBAG BAND (Nov 12, 2026 fix pass: Matthew, the sandbags look a
+   little strange). The diagnosis: the band was two rows of identical
+   FLAT ellipses, one flat tan fill, a hairline outline, no seams, no
+   variation: at playing size they read as pills or coins stacked in a
+   tray, not sacks. The band is now drawn as what it is: two stacked
+   rows of plump rounded sacks, each with a pinched center seam, a
+   tied corner tick, a lighter crown, a soft ground shadow, and a
+   whisper of per-bag variation (size, tilt, tone) from the game's
+   stable seeds, so the row looks stacked by hand. ART ONLY: same
+   anchor in front of the HQ, same overall extent, same two rows;
+   armor, collision and every rule read nothing from these pixels. */
+function drawSandbagBand(c, spacing, bagW, bagH, seed, nF, nB){
+  function bag(bx, by, i, back){
+    var j=sr(seed+i*3.7), j2=sr(seed+i*9.13+2.2);
+    var w=bagW*(0.94+j*0.12), h=bagH*(0.92+j2*0.16);
+    c.save(); c.translate(bx, by); c.rotate((j2-0.5)*0.13);
+    c.fillStyle="rgba(101,80,40,.26)";
+    c.beginPath(); c.ellipse(0, h*0.52, w*0.52, h*0.30, 0, 0, 6.29); c.fill();
+    c.fillStyle= back ? "#c8a75c" : (i%2 ? "#d9ba6f" : "#e2c279");
+    c.strokeStyle="#6d5a26"; c.lineWidth=1.6;
+    c.beginPath();
+    c.moveTo(-w/2+2, -h*0.16);
+    c.bezierCurveTo(-w/2, -h*0.52, -w*0.22, -h*0.58, 0, -h*0.55);
+    c.bezierCurveTo(w*0.22, -h*0.58, w/2, -h*0.52, w/2-2, -h*0.16);
+    c.bezierCurveTo(w/2, h*0.28, w*0.25, h*0.5, 0, h*0.5);
+    c.bezierCurveTo(-w*0.25, h*0.5, -w/2, h*0.28, -w/2+2, -h*0.16);
+    c.fill(); c.stroke();
+    c.fillStyle="rgba(255,242,204,.38)";
+    c.beginPath(); c.ellipse(-w*0.08, -h*0.30, w*0.30, h*0.17, -0.15, 0, 6.29); c.fill();
+    c.strokeStyle="rgba(109,90,38,.8)"; c.lineWidth=1.15;
+    c.beginPath(); c.moveTo(-w*0.46, -h*0.02); c.quadraticCurveTo(0, h*0.13, w*0.46, -h*0.02); c.stroke();
+    c.beginPath(); c.moveTo(w*0.30, -h*0.40); c.lineTo(w*0.40, -h*0.53); c.stroke();
+    c.restore();
+  }
+  var b, f;
+  for(b=0;b<nB;b++) bag((b-(nB-1)/2)*spacing+spacing*0.5, -bagH*0.66, b+9, true);
+  for(f=0;f<nF;f++) bag((f-(nF-1)/2)*spacing, 0, f+4, false);
+}
 function drawBasePlate(c,p){
   if(CFG.theme==="space"){ drawBasePlateSpace(c,p); return; }
   if(CFG.theme==="knights") drawCastleFlags(c,p);
@@ -4440,9 +4720,7 @@ function drawBasePlate(c,p){
   if(CFG.theme==="tanks" && hp>0){
     if(G.bases[p].armor){
       c.save(); c.translate(bc.x+dd.x*(H2/2+5), bc.y+dd.y*(H2/2+5)); c.rotate(Math.atan2(dd.y,dd.x)+Math.PI/2);
-      c.fillStyle="rgba(216,185,110,.95)"; c.strokeStyle="#6d5a26"; c.lineWidth=1.4;
-      for(var bx=-3;bx<=3;bx++){ c.beginPath(); c.ellipse(bx*(W2*0.11), 0, W2*0.065, 7, 0, 0, 6.29); c.fill(); c.stroke(); }
-      for(var bx2=-2;bx2<=2;bx2++){ c.beginPath(); c.ellipse(bx2*(W2*0.11)+W2*0.05, -8, W2*0.065, 7, 0, 0, 6.29); c.fill(); c.stroke(); }
+      drawSandbagBand(c, W2*0.105, W2*0.125, 14.5, p*17+3, 7, 5);
       c.restore();
     } else scorch(c, bc.x+dd.x*H2*0.45, bc.y+dd.y*H2*0.45, W2*0.22, p*13+4);
   }
@@ -4536,9 +4814,10 @@ function drawBase(c,p){
   // body: the generated piece, fitted INSIDE the locked 132x56 footprint
   // (the drawing may stand taller than the footprint, as the mothership
   // already did — the footprint itself, and all collision, is unchanged)
+  var ciB=playerCfg(p).color;
   var img = (CFG.theme==="space" && artReady("mothership")) ? baseArtFor(p)
-    : (CFG.theme==="knights" && artReady("castle")) ? ART["castle"]
-    : (CFG.theme==="tanks" && artReady("hq")) ? ART["hq"] : null;
+    : (CFG.theme==="knights" && artReady("castle")) ? artTinted("castle", ciB, 216)
+    : (CFG.theme==="tanks" && artReady("hq")) ? artTinted("hq", ciB, 56) : null;
   var drewArt=false;
   if(img){
     var fb=fitArt(img, CFG.theme==="knights"?BASE_W*1.08:BASE_W, CFG.theme==="knights"?BASE_H*2.3:CFG.theme==="tanks"?BASE_H*1.55:BASE_H*1.3);
@@ -4569,9 +4848,7 @@ function drawBase(c,p){
   if(CFG.theme==="tanks" && hp>0){
     if(G.bases[p].armor){
       c.save(); c.translate(bc.x+dd.x*(BASE_H/2+3), bc.y+dd.y*(BASE_H/2+3)); c.rotate(Math.atan2(dd.y,dd.x)+Math.PI/2);
-      c.fillStyle="rgba(216,185,110,.95)"; c.strokeStyle="#6d5a26"; c.lineWidth=1.2;
-      for(var bx=-3;bx<=3;bx++){ c.beginPath(); c.ellipse(bx*17, 0, 10.5, 5.5, 0, 0, 6.29); c.fill(); c.stroke(); }
-      for(var bx2=-2;bx2<=2;bx2++){ c.beginPath(); c.ellipse(bx2*17+8, -6, 10.5, 5.5, 0, 0, 6.29); c.fill(); c.stroke(); }
+      drawSandbagBand(c, 16.5, 23, 12, p*17+3, 7, 5);
       c.restore();
     } else {
       scorch(c, bc.x+dd.x*BASE_H*0.4, bc.y+dd.y*BASE_H*0.4, 30, p*13+4);
@@ -5124,14 +5401,18 @@ function momentumEnd(u, end){
    too quickly; Space ONLY): Space fighter movement is 60% of its old
    cap (330 -> 198) and Space fighter shot range is 40% of its old cap
    (430 -> 172). The Space defense turret's shot range scales the same
-   way (430 -> 172), so defense does not grow relatively stronger than
-   fighters. This function is the single source every range flows
+   way (430 -> 172), so defense did not grow relatively stronger than
+   fighters. Nov 12, 2026 (Matthew, from live play: turrets should
+   shoot a little further for defense): the Space turret alone is
+   bumped to 200, deliberately out-ranging the ships' 172 now; ship
+   shot (172) and ship move (198) are exactly as tuned. This function
+   is the single source every range flows
    through — human flick caps, the Aimed preview, CPU candidate
    generation and simulation, and turret fire — and Siege Momentum
    still multiplies movement on top of the new cap exactly as before.
    Knights and Tanks numbers below are untouched. */
 function maxLen(thing, action){
-  if(thing.turret) return CFG.theme==="space" ? 172 : 430; // gated on the theme alone: a Knights tower or Tanks cannon is 430 whatever its kind string says
+  if(thing.turret) return CFG.theme==="space" ? 200 : 430; // gated on the theme alone: a Knights tower or Tanks cannon is 430 whatever its kind string says
   if(thing.kind==="ship") return action==="move"?198:172;
   if(thing.kind==="knight") return thing.mounted?350:145;
   if(thing.kind==="tank"){ if(thing.cls==="heavy") return thing.hp===1?165:(action==="move"?215:300); return action==="move"?340:430; }
@@ -5768,6 +6049,34 @@ function afterAction(thing, action){
    drag) also flips the pick — see flipModeIfArmed in the input code.
    The aim cue reads effectiveAction() from the same state, so the cue
    and the switch can never disagree. */
+/* MOVE ICONS BY BATTLEFIELD (Nov 12, 2026 fix pass: Matthew, the
+   running boy says nothing about travel on any of these battlefields).
+   One hand-drawn glyph per battlefield, swapped everywhere the Move
+   action wears an icon: Space flies a rocket up its dotted flight
+   path; Knights gallops a horse; Tanks rolls a little tank in profile
+   (tread marks alone blurred into a ladder at chrome sizes; the
+   silhouette reads instantly, wheels and all). The glyphs are drawn
+   in currentColor, owner-neutral like the untouched Shoot icon's
+   label, and they follow the theme actually in play: the selected
+   War on the entrance, the match's own theme once one is running
+   (a Random roll never changes the theme, but a started or resumed
+   match re-asserts its own). Knights hides the switch entirely (a
+   charge is the move), so the horse simply waits in the hidden slot
+   and fronts the Knights How to Play. The battle log is a text
+   surface (it saves as text), so its flip line carries the matching
+   emoji instead: rocket, horse, wheel. */
+var MOVE_ICONS={
+  space:'<svg class="moveIco" data-glyph="rocket" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 43 Q13 41 21 32" stroke-dasharray="0.5 6" stroke-width="3.6"/><g transform="rotate(38 33 17)"><path d="M33 3 C37.5 8.5 38.5 14.5 38.5 20.5 L27.5 20.5 C27.5 14.5 28.5 8.5 33 3 Z" fill="currentColor" fill-opacity="0.14"/><circle cx="33" cy="12.5" r="3.1"/><path d="M27.5 20.5 C24.8 23 23.8 26 23.6 28.6 L27.5 25.4 Z"/><path d="M38.5 20.5 C41.2 23 42.2 26 42.4 28.6 L38.5 25.4 Z"/><path d="M30.3 24.5 C31 28 33 31 33 31 C33 31 35 28 35.7 24.5"/></g></svg>',
+  knights:'<svg class="moveIco" data-glyph="horse" viewBox="0 0 48 48" fill="currentColor" aria-hidden="true"><path d="M3.5 21.5 C6 18.5 9.5 17.5 12.5 17.8 C15 13.5 20.5 11.5 26.5 12 L28.5 12.2 C30 8 33 5 36.8 3.6 L39.8 0.8 L41 4.2 C42.6 3.8 44.4 3.9 45.8 4.6 C47.6 5.5 47.4 7.8 45.9 9.6 L41.8 13.2 C42.8 16.8 41.9 20.2 39.2 22.4 L36 24.6 C38.2 28 40.6 30.8 43.6 32.8 L42 36.2 C37.8 35 33.8 31.8 30.6 27.4 C25.6 29.4 19.4 28.8 15 26.4 C13.6 30.4 10.4 34.2 5.8 36.4 L3.8 33.2 C7.2 30.6 9.4 27 10.2 23.4 C7.6 23.2 5.2 22.6 3.5 21.5 Z"/></svg>',
+  tanks:'<svg class="moveIco" data-glyph="tank" viewBox="0 0 48 48" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M31.5 15.5 L45 14.2 L45 17.8 L31.5 18.6 Z M19 21.5 L21.5 14.5 L33 14.5 L35.5 21.5 Z M9.5 29.5 L13.5 21.5 L34.5 21.5 L38.5 29.5 Z M9.75 29 L38.25 29 A5.75 5.75 0 0 1 44 34.75 A5.75 5.75 0 0 1 38.25 40.5 L9.75 40.5 A5.75 5.75 0 0 1 4 34.75 A5.75 5.75 0 0 1 9.75 29 Z M12.5 32.05 A2.7 2.7 0 1 1 12.5 37.45 A2.7 2.7 0 1 1 12.5 32.05 Z M24 32.05 A2.7 2.7 0 1 1 24 37.45 A2.7 2.7 0 1 1 24 32.05 Z M35.5 32.05 A2.7 2.7 0 1 1 35.5 37.45 A2.7 2.7 0 1 1 35.5 32.05 Z"/></svg>'
+};
+function moveGlyphTheme(){ return (CFG && MOVE_ICONS[CFG.theme]) ? CFG.theme : "space"; }
+function applyMoveIcon(){
+  var slot=document.getElementById("moveIcoSlot");
+  if(slot) slot.innerHTML=MOVE_ICONS[moveGlyphTheme()];
+}
+function moveLogGlyph(){ return {space:"\u{1F680}", knights:"\u{1F40E}", tanks:"\u{1F6DE}"}[moveGlyphTheme()]; }
+applyMoveIcon(); // the entrance War wears its glyph from the first frame
 function modeChoiceApplies(t){
   return !!G && !G.over && CFG.theme!=="knights" && CFG.turnStructure==="classic" && !!t && !t.turret;
 }
@@ -5798,7 +6107,7 @@ function autoTurrets(p){
     var foes=allUnits(1-p); if(!foes.length) return;
     foes.sort(function(a,b){ return Math.hypot(a.x-t.x,a.y-t.y)-Math.hypot(b.x-t.x,b.y-t.y); });
     var f=foes[0], d=Math.hypot(f.x-t.x,f.y-t.y);
-    if(d<Math.min(330, maxLen(t,"shoot"))){ log("🤖 Auto-"+thingLabel(t).toLowerCase()+" fires at the nearest enemy!"); // auto fire is a shot: in Space its trigger is capped by the turret's new 172 range (40% tuning); other themes keep the 330 trigger exactly as before
+    if(d<Math.min(330, maxLen(t,"shoot"))){ log("🤖 Auto-"+thingLabel(t).toLowerCase()+" fires at the nearest enemy!"); // auto fire is a shot: in Space its trigger is capped by the turret's range (200 since Nov 12, 2026); other themes keep the 330 trigger exactly as before
       var err=(Math.random()-0.5)*0.3, ang=Math.atan2(f.y-t.y,f.x-t.x)+err;
       resolveShotSilent(t, {x:t.x+Math.cos(ang)*d, y:t.y+Math.sin(ang)*d}, {x:Math.cos(ang),y:Math.sin(ang)});
     }
@@ -6309,7 +6618,7 @@ function flipModeIfArmed(){
   var t=input.thing;
   if(!modeChoiceApplies(t)) return;
   setAction(G.action==="move" ? "shoot" : "move");
-  log("🔀 "+(G.action==="move"?"🏃 MOVE":"💥 SHOOT"));
+  log("🔀 "+(G.action==="move"?moveLogGlyph()+" MOVE":"💥 SHOOT"));
   updateHUD();
 }
 function effectiveAction(t){
@@ -6519,6 +6828,7 @@ function showCoinFlip(onDone){
   m.onclick=function(){ dismiss(); };
 }
 function startMatch(){
+  applyMoveIcon();
   audioInit();
   clearMatchSave(); // MID-MATCH SAVE: a new match (or Rematch) replaces any saved one — the fresh match writes its own save as it is built
   viewingFinalBoard=false; setViewBoardBar(false); // a fresh match never inherits the final-board view
@@ -6591,7 +6901,7 @@ function howHTML(){
   "<p><b>🔓⭐ Field prizes:</b> a captured teammate waits off to the side in the enemy half — any fighter whose move crosses the spot <b>frees</b> them, a fresh fighter <b>above your cap</b> (one per side). <b>Two</b> golden <b>stars</b> sit a little off center, one within each side's reach: the first fighter across either shrugs off the first hit that would damage, unhorse or wreck it (one armor at a time). <b>Long games</b> (90+ turns): at <b>halftime</b> claimed stars are replaced up to the pair and each rescued captive is replaced — never more waiting than that.</p>"+
   "<p><b>Bases &amp; structures:</b> every base shares one <b>capped footprint</b> in its end zone; battles are won in the middle. Structures stand in front of the base and <b>block like obstacles</b> — ram one and you wreck (knights unhorse); shots destroy them in one hit. Crews of anything destroyed <b>escape unharmed</b>: stick figures on land, escape pods in space.</p>"+
   "<p><b>💥 The paper keeps the score:</b> whatever gets wrecked stays on the sheet, burnt out and <b>blocking its lane</b> for the rest of the match; moves bump to a stop on it and shots burn out in it. Shots tear <b>craters</b> in the ground, and a flick whose road crosses one gets knocked a little off line. The aim cue draws the bend before you flick.</p>"+
-  "<p><b>🏃/💥 The switch &amp; tools:</b> the Move/Shoot switch sets itself in Move + Shoot; in Classic your pick sticks until flipped — <b>tap the selected fighter again</b> to flip. The aim cue follows: dots move, dashes shoot. Tools are <b>shared</b> — same flicker, same medium both sides: pencil thin and precise, crayon fat and wobbly, pen between. Only color differs.</p>"+
+  "<p><b>"+MOVE_ICONS[moveGlyphTheme()]+"/💥 The switch &amp; tools:</b> the Move/Shoot switch sets itself in Move + Shoot; in Classic your pick sticks until flipped — <b>tap the selected fighter again</b> to flip. The aim cue follows: dots move, dashes shoot. Tools are <b>shared</b> — same flicker, same medium both sides: pencil thin and precise, crayon fat and wobbly, pen between. Only color differs.</p>"+
   "<p><b>🖥 One screen:</b> no scrolling; on wide screens the sheet turns <b>landscape</b> — the clock alone stays upright. <b>2P:</b> a pill in the current player's color sits at their end; their base and disc pulse with it. Plate boards can <b>mirror-flip</b> as one (Variants). Results offer <b>View Board</b> — the final board, look-only. <b>Random</b> rolls a pack of variants; a Rematch keeps it.</p>"+
   "<p><b>This match:</b> turn structure <b>"+CFG.turnStructure+"</b> · control <b>"+CFG.control+"</b> · friendly fire <b>"+CFG.friendly+"</b> · edge <b>"+CFG.edge+"</b> · obstacles <b>"+CFG.obstacle+"</b> · deployment <b>"+CFG.deployment+"</b> · defense <b>"+CFG.defense+"</b> · Siege Momentum <b>"+(CFG.siege?"on":"off")+"</b> · Field prizes <b>"+(CFG.prizes?"on":"off")+"</b>.</p>";
 }
@@ -6633,6 +6943,7 @@ document.querySelectorAll("[data-close]").forEach(function(b){
 
 /* ---------- Dev Log ---------- */
 document.getElementById("devBody").textContent =
+"Nov 12, 2026 (later) — FIX PASS: HEADER, MOVE ICONS, OWNER COLORS, SANDBAGS, TURRET RANGE (all Matthew, from live play tonight).\n\n1) THE HUB HEADER NO LONGER COVERS THE GAME. On the hub page the Real Sparks header sits in flow above the game and painted over it: the entrance logo clipped under the band, and in a match the top chrome sat beneath it. The game now measures whatever sits above it in flow and lifts both full-screen views below the measure, shrinking their heights by the same amount, and the entrance compacts against the height actually left. Any header height is respected, the standalone game measures zero and is unchanged, and no scrolling appears on either.\n\n2) MOVE WEARS THE BATTLEFIELD. The running boy is retired. The Move switch, the How to Play switch line and the battle log flip line now carry a travel glyph per battlefield: a rocket climbing its dotted flight path in Space, a galloping horse in Knights, a little tank in profile in Tanks (tread marks alone blurred into a ladder at switch size, so the silhouette won). The glyph follows the theme in play, entrance pick included, and the Shoot side is untouched.\n\n3) BASES READ IN THEIR OWNER COLOR. Root cause, found by audit: every hue rotation leaned on a canvas filter call that some browsers accept and quietly ignore, so tinted pieces rendered in their drawn colors there: the mothership sprite is blue ink, so both motherships read blue. All tinting is now done pixel by pixel, the method the prisoner sprites already used, so saturated ink rotates to the owner color while paper, graphite and shading keep their drawn values. That one change recolors the drawn-board mothership, turrets, castle accents and Tanks HQ sprite. The plates needed their own pass, because their bases are baked into the drawings (Space: a blue saucer low, a blue-violet one high; Tanks: khaki and rust HQs): each plate is now re-tinted per match inside each base region, rotating the hue actually drawn there to the owner color, with a touch more saturation for the Tanks earth tones so red and blue read at a glance. Knights plate castles were audited and left alone: earth-toned stone, and their flags were already repainted per owner. Shield masking, cracks, flames and wrecks draw over the tint exactly as before.\n\n4) SPACE TURRETS REACH FURTHER (Matthew: turrets should shoot a little further for defense). The Space defense turret goes from 172 to 200, deliberately out-ranging the ships now. One constant in the one range function, so the flick cap, the aim preview, auto-defense, both CPU sims and the Practice Sheet all read the same 200. Ship shot stays 172, ship move stays 198, Momentum untouched; Knights towers and Tanks cannons unchanged.\n\n5) SANDBAGS REDRAWN. The old band was two rows of identical flat ellipses with a hairline outline: pills in a tray. The band is now two stacked rows of plump rounded sacks with pinched seams, tied corners, crown light, ground shadow and a whisper of per-bag variation, drawn by one shared helper for the plate, the drawn board and the prisoner pen. Art only: same anchor, same extent, and armor and collision read nothing from the pixels.\n\nNOT CHANGED: save keys and payloads, the audio session guard, the footer, Tier 1 behavior (motion, beds, wrecks, craters), and every other range in the game.\n\n————————————————\n\n" +
 "Nov 12, 2026 — FEEL PASS, TIER 1 (Matthew, after playing the build: not enough movement, the sounds feel off per battlefield, not enough explosions, battles too flat). Three parts; staging only, nothing published; Tier 2 (rounds structure) is separate later work and is NOT in here — the lunch clock stands exactly as it was.\n\n1) THE LIVING PAPER. Ambient motion on the background and idle layers ONLY: Space gets twinkling stars on a slow drift and faint debris shards floating past; Knights gets torch flames on the standing towers and the castle gates, drifting dust motes, castle pennants and lance pennons stirring; Tanks gets a soft heat shimmer over the field, dust, and a waving flag over each standing HQ in its owner's color. Idle fighters bob a pixel and a half. None of it is state: every flicker is computed from the clock and stable per-piece seeds, and no position, path, collision, sim or preview reads it — aiming, sliding and physics are bit-for-bit the game's own (proven headlessly: the same scripted flick on an empty field rests at the same point, pre-pass build against this one). The draw loop now runs for the length of a match to carry it.\n\n2) THEMED BEDS. One quiet synthesized bed per battlefield takes the ambience chair while a match runs: Space is a low synth drone (two sines and a breath of triangle through a slowly breathing filter) with soft sonar pings; Knights is plucked minstrel strings over a low open fifth; Tanks is distant brass motifs over a low ground hum. TONAL ONLY, per Matthew's standing verdict: every bed voice is an oscillator — no noise buffers, no crackle, no wind anywhere in a bed (the pluck's attack is a gain swell, not a noise burst). The lunchroom bed keeps the entrance and setup screens, returns when a match is left, and its little room events fall silent during play. Beds ride the ambience bus (slider and toggle govern them, off means off, back on mid-match restores the battle's bed), pause with the page, follow a resume, and the guarded ambient audio session handling is byte-for-byte the approach it was. Whether they SOUND right is Matthew's ear verdict, still owed.\n\n3) BATTLE DAMAGE THAT STAYS. Every destruction (and every base hit) opens with a big layered fireball and a scatter of tumbling debris, and the burnt hulk STAYS on the paper for the rest of the match as a lane blocker: moves bump to a stop against it with no extra damage (a knight keeps his saddle), shots burn out in it, the aim line stops at it, the CPU's sims plan around it, and wrecks of plate structures wear the plate's existing wreck overlay plus the new flames. Flames stand tall for the wreck's first two turns, then settle to glowing embers with an occasional last lick. Deaths off the page edge leave NO wreck (nothing remains on the sheet). Movers killed against an obstacle now die AT the impact point, so their fireball and hulk land where the crash happened (a dead piece's position was previously unread, so nothing else moves). Shots also tear CRATERS that persist: asteroid tunnel mouths, blocked-shot scars, and rubble craters where an asteroid is erased (Space); scorched churned ground where an arrow strikes rock (Knights); shell craters where a cannon shell stops, and a crater wherever a mortar lands, hit or miss (Tanks). A flick whose road crosses a crater's bowl is knocked off line by a FIXED ~10 degrees, pivoting at the entry point and bending away from the crater's heart — fully deterministic, no dice; a rim graze runs free, like every forgiving edge here; only the FIRST crater on the road bends a flick. The Aimed cue draws the bend, the travelled trace shows the kink, and the CPU's move sim bends over the same end point. SAVE: craters join the scribbleSiegeMatch payload as their own list and wrecks ride inside the fighter/structure snapshots as ordinary fields, so a mid-match save reloads with every hulk and crater exactly in place; a pre-pass save carries neither field and resumes with both empty, never a crash; the settings key is untouched, match end still clears the save, a new match or Rematch starts with a clean sheet. How to Play gains exactly one short paragraph (The paper keeps the score).\n\nNOT CHANGED: the win condition (base in 3 hits), Production, defense structures and their reload rule, Move + Shoot, Siege Momentum and Breach, prize placement, the quarter, Space ranges (198 move / 172 shot), Knights lances and rules, Tanks classes, the lunch clock, the copyright footer, both Share controls and their payloads. Verified headlessly (Playwright/Chromium, the game's own functions driven directly): matches start and complete in all three themes in 1P and 2P with zero page errors; the ambient frame counter advances while a match idles; wreck blocking proven both ways (a road that ran free before the kill stops at the hulk after it, for moves and for shots, knights included); crater creation proven for asteroid tunnel/block/destroy, rock arrows, cannon stops and mortar hits and misses, and the deflection proven deterministic (same flick, same resting point, twice) at the fixed angle; beds proven per theme (graph builds, the bed handle reports its theme, and ZERO buffer sources are created while a bed runs — oscillators only); save/resume proven with a wreck and a crater on the board (deep-equal restore), with a stripped pre-pass payload (resumes clean), at match end (key cleared) and across a Rematch (clean sheet); settings bytes unchanged throughout; footer byte-exact.\n\n————————————————\n\n" +
 "Oct 31, 2026 — MID-MATCH SAVING (Matthew's decision, under the house save standard). A match in progress now saves itself as it changes, under its own key (scribbleSiegeMatch) — the settings key and every other key are exactly as they were, untouched by this feature. The save carries the whole position: the match setup as played (theme, 1P/2P, CPU difficulty, variants, colors, control scheme), the board as generated (every obstacle with its carved holes and erased state), the parked quarter, both bases and their damage, every fighter and defense structure (position, facing, hits, held armor star, mounted or on foot, wreck state, turret reload stamps), whose turn it is and the turn PHASE — a save taken after the move resumes at the shot step, not back at the turn start — plus the turn count, the stalemate clock, halftime-refresh and production cooldown state, both prize stars and both prisoners, the traces on the sheet, and the battle log. Writes happen on every state change (they all funnel through the HUD update) with a page-hide backstop, all guarded so a failed write never breaks play. Reopen the game and the entrance offers a gold Resume button naming the saved match's theme, mode and turn; tapping it restores the position exactly — a match saved on the CPU's turn hands the turn back to the CPU. The save clears the moment a match ends (base destroyed, lunch-clock decision, or draw) and when a new match or Rematch begins; menus, How to Play and settings never clear it, and quitting to setup leaves the match waiting on the entrance. A save that will not parse, or carries an unknown version, is discarded quietly and the game opens as normal.\n\n————————————————\n\n" +
 "Oct 31, 2026 — SHARING, PER THE REAL SPARKS STANDARD (Game Manager program, Matthew's direction). One quiet Share button (share icon plus the word Share) in exactly two places: the results modal and the entrance menu. A tap calls navigator.share with the title, one short first-person result line as a plain fact (theme, outcome, and base or castle hits for 1P; theme, winner, and score for 2P; no em-dashes in the payload), and the play URL as its own field from the single PLAY_URL constant (https://games.realsparks.net/scribble-siege/play/). Browsers without the native sheet copy the same text plus the link and confirm with a brief Copied: the tapped button's label changes AND a fixed Copied pill shows on screen, so the confirmation is visible even from the menu (the menu panel now stays open until the confirmation has displayed, then closes). No per-network button rows, no SDKs, no pop-ups, no gates, and no Share control anywhere over live gameplay: an earlier draft also carried a Share in the in-game menu and that third control is REMOVED in this fix pass. The footer gains the standard social row: itch.io, YouTube, LinkedIn, icons only, in that order, opening in a new tab with aria-labels and 44px tap areas. Verified by driving this build in a real browser with stubbed share and clipboard: exact payloads asserted for a 1P win, a 1P clock/draw finish, a 2P result, and the menu Share; the no-share path asserted for clipboard contents and for the Copied confirmation being visibly rendered from both the results modal and the menu; footer order, URLs, new-tab targets, aria-labels and tap sizes checked; Rematch and Change setup still work from the results modal; zero page errors. Staged only, not published: Game Manager coordinates the publish.\n\n————————————————\n\n"+
