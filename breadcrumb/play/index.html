@@ -58,7 +58,10 @@
     min-height:100vh;
   }
   .wrap{max-width:680px; margin:0 auto; padding:18px 16px 28px;}
-  header.top{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:6px 2px 14px;}
+  header.top{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:6px 2px 14px; flex-wrap:wrap;}
+  .help-btn{width:28px; height:28px; border-radius:50%; border:1.5px solid var(--line); background:transparent; color:var(--ink-soft); font:inherit; font-weight:800; font-size:15px; cursor:pointer; line-height:1; flex:0 0 auto; margin-bottom:4px;}
+  .help-btn:hover{border-color:var(--ink); color:var(--ink);}
+  .help-text{flex:0 0 100%; font-size:13.5px; color:var(--ink-soft); line-height:1.45;}
   .brand{display:flex; align-items:center; gap:11px;}
   .mark{
     width:46px; height:46px; border-radius:14px; flex:0 0 auto;
@@ -71,7 +74,7 @@
     font-size:31px; line-height:1; margin:0; font-weight:700; letter-spacing:.2px; color:var(--ink);
   }
   .tagline{margin:3px 0 0; font-size:13px; color:var(--ink-soft);}
-  .datemeta{text-align:right;}
+  .datemeta{text-align:right; margin-left:auto;}
   .date-line{font-size:13px; color:var(--ink-soft); white-space:nowrap;}
   .streak-line{font-size:13px; color:var(--sage-deep); font-weight:700; white-space:nowrap; margin-top:3px;}
   .streak-line:empty{display:none;}
@@ -81,7 +84,6 @@
     background:var(--sage); border:1px solid var(--sage-deep); border-radius:22px;
     box-shadow:var(--shadow); padding:16px; position:relative; overflow:hidden;
   }
-  .journey .invite{color:#D9EBDD;}
   .journey .pill.plain{background:#2A6E59; border-color:#2A6E59; color:#EAF4EC;}
   .journey .path-col svg path:first-child{stroke:#F6EAD2;}
   .journey .contours{opacity:.28;}
@@ -100,7 +102,7 @@
   @keyframes pulse{0%{transform:scale(1)} 35%{transform:scale(1.035)} 100%{transform:scale(1)}}
   .x-badge{position:absolute; top:7px; right:9px; width:15px; height:15px;}
   .contours{position:absolute; top:-14px; left:-10px; width:170px; height:120px; opacity:.16; pointer-events:none;}
-  .journey-row, .journey-meta, .invite, .mode-banner{position:relative;}
+  .journey-row, .journey-meta, .mode-banner{position:relative;}
   .path-col{display:flex; align-items:center; justify-content:center; min-width:40px;}
   .path-col svg{width:40px; height:64px;}
   .journey-meta{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:13px;}
@@ -110,7 +112,6 @@
   }
   .pill.gold{background:var(--gold-soft); border-color:#E3CE8A; color:#6E5710;}
   .pill.plain{background:#F4EFE1; border-color:var(--line); color:var(--ink-soft); font-weight:600;}
-  .invite{margin:11px 2px 0; font-size:14px; color:var(--ink-soft); line-height:1.45;}
   .via-note{margin:11px 2px 0; font-size:14px; line-height:1.5; color:#6E5710; background:var(--gold-soft); border:1px solid #E3CE8A; border-radius:12px; padding:9px 12px;}
   .kind-tag{flex:0 0 auto; font-size:10.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; background:var(--sage-tint); color:var(--sage-deep); border:1px solid var(--line); border-radius:999px; padding:3px 7px;}
   .mode-banner{
@@ -302,6 +303,94 @@
     .article h2{font-size:24px;}
     .wrap{padding:14px 12px 24px;}
   }
+
+  /* Layout cohesion with the Reddit build (Nov 18, 2026): the page
+     is an app shell. Header, journey, your path, and the controls
+     stay frozen; only the article body scrolls inside its card.
+     On desktop the column widens so the play space uses the
+     screen, and the link list becomes a grid. The hub nav bars
+     above the wrap are site furniture and stay as they are. */
+  html{height:100%;}
+  body{display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;}
+  .rs-nav, .rs-subnav{flex:0 0 auto;}
+  .wrap{
+    flex:1 1 auto; min-height:0; width:100%;
+    display:flex; flex-direction:column; overflow:hidden; padding-bottom:14px;
+  }
+  header.top, .journey, .controls, .error-box{flex:0 0 auto;}
+  /* Chrome consolidation (Matthew, Nov 18, 2026, matching the
+     Reddit banner): the path trail, Undo, and Start over live
+     inside the green journey banner, sharing one row on wide
+     screens, so the article card gets the freed height. The
+     remaining controls (daily, levels, practice, settings) are
+     navigation, not wander controls, and keep their own row. */
+  .banner-foot{display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; margin-top:11px; border-top:1px solid rgba(234,244,236,.25); padding-top:9px; position:relative;}
+  .banner-path{flex:1 1 300px; min-width:0; display:flex; align-items:center; gap:10px;}
+  .banner-path .crumb-track{flex:1 1 auto; min-width:0;}
+  .journey .crumbs-label{color:#BFD9C6; margin-bottom:0; flex:0 0 auto;}
+  .journey .crumb{background:#2A6E59; border-color:#3E8268; color:#EAF4EC;}
+  .journey .crumb.current{background:var(--gold-soft); border-color:var(--gold-soft); color:var(--ink);}
+  .journey .crumb-sep{color:#9CC3A9;}
+  .banner-side{display:flex; gap:9px; flex:0 0 auto;}
+  .journey .banner-side .btn{background:transparent; border-color:#D9EBDD; color:#EAF4EC; padding:8px 14px; font-size:14px;}
+  .journey .banner-side .btn:disabled{opacity:.45;}
+  .coach{flex:0 1 auto; max-height:32dvh; overflow-y:auto;}
+  .practice{flex:0 1 auto; max-height:44dvh; overflow-y:auto;}
+  .article{flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden;}
+  #articleBody:not([hidden]){display:flex; flex-direction:column; flex:1 1 auto; min-height:0;}
+  #articleBody .view-switch{align-self:flex-start;}
+  .article-scroll{flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; border-top:1px solid rgba(168,135,75,.5); padding-top:8px;}
+  .history-line{flex:0 0 auto;}
+  footer.site{flex:0 0 auto; margin-top:12px; padding-top:9px;}
+  @media (max-width:700px){
+    /* Phones: the shell only works if the chrome compacts. The
+       hub subnav and the game controls become single scrollable
+       rows, the footer slims down, and the view toggle rides on
+       the article title's row instead of taking its own. */
+    body .rs-subnav .rs-in{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;}
+    .rs-subnav .rs-in::-webkit-scrollbar{display:none;}
+    .rs-subnav a, .rs-subnav .rs-cur{white-space:nowrap;}
+    header.top{padding:2px 2px 8px;}
+    .tagline{display:none;}
+    .mark{width:38px; height:38px;}
+    .journey{padding:12px;}
+    .place-card{padding:9px 10px;}
+    .place-card .place-name{font-size:16px;}
+    .journey-meta{margin-top:9px; gap:6px;}
+    .pill{padding:5px 9px; font-size:12px;}
+    .crumbs-label{display:none;}
+    .banner-foot{flex-wrap:nowrap; gap:10px; margin-top:10px; padding-top:9px;}
+    .banner-path{flex:1 1 auto;}
+    .journey .crumb{padding:5px 10px; font-size:13px;}
+    .journey .banner-side .btn{padding:7px 10px; font-size:13px;}
+    .controls{margin-top:9px; flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; scrollbar-width:none;}
+    .controls::-webkit-scrollbar{display:none;}
+    .controls .btn{flex:0 0 auto; padding:8px 12px; font-size:13.5px;}
+    .article{margin-top:10px; padding:14px 14px 10px;}
+    #articleBody{position:relative;}
+    #articleBody .view-switch{position:absolute; top:0; right:0; margin:0;}
+    #articleBody h2{padding-right:158px;}
+    .filter-row{margin:10px 0 6px;}
+    .filter-row input{padding:9px 12px;}
+    footer.site{margin-top:8px; padding-top:7px; font-size:11.5px; line-height:1.45;}
+    footer.site .social a{width:32px; height:32px;}
+  }
+  @media (min-width:900px){
+    .wrap{max-width:min(1180px, 97vw);}
+    .place-card .place-name{font-size:22px;}
+    .article-text{font-size:17px;}
+    .link-list{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); align-items:start;}
+  }
+  @media (min-width:1500px){
+    .wrap{max-width:min(1380px, 97vw);}
+  }
+  @media (max-height:700px){
+    /* Short screens: give the shell back its page scroll
+       rather than squeezing the article out of existence.
+       Threshold matches the Reddit client's safety valve. */
+    body{height:auto; overflow:auto;}
+    .article{height:56vh;}
+  }
 </style>
   <link rel="canonical" href="https://games.realsparks.net/breadcrumb/play/">
 <style>.rs-nav{background:#fff;border-bottom:1px solid #E4E1D8;font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;color:#3F4653}.rs-nav .rs-in{max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 20px;flex-wrap:wrap}.rs-nav a.rs-logo{display:flex;align-items:center}.rs-nav img.rs-logoimg{height:30px;width:auto;display:block}.rs-links{display:flex;gap:22px;flex-wrap:wrap}.rs-links a{color:#3F4653;text-decoration:none;font-weight:600;font-size:.95rem}.rs-links a:hover{color:#E4572E}.rs-subnav{background:#3F4653;font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif}.rs-subnav .rs-in{max-width:1060px;margin:0 auto;display:flex;gap:4px;align-items:center;padding:7px 20px;flex-wrap:wrap}.rs-subnav a{color:#F2EDE3;text-decoration:none;font-weight:600;font-size:.85rem;padding:3px 9px;border-radius:999px}.rs-subnav a:hover{background:rgba(255,255,255,.16)}.rs-subnav a.rs-all{border:1px solid rgba(255,255,255,.4);color:#fff}.rs-subnav .rs-cur{color:#F5B324;font-weight:700;font-size:.85rem;padding:3px 9px}</style>
@@ -327,6 +416,8 @@
       <div class="date-line" id="dateLine"></div>
       <div class="streak-line" id="streakLine"></div>
     </div>
+    <button class="help-btn" id="helpBtn" type="button" aria-label="How to play">?</button>
+    <p class="help-text" id="helpText" hidden>Wander from the start to the target by tapping links in each article. Take as long as you like.</p>
   </header>
 
   <section class="journey" aria-label="Today's journey">
@@ -365,8 +456,17 @@
       <span class="pill" id="banPill" hidden></span>
     </div>
     <p class="via-note" id="viaNote" hidden></p>
-    <p class="invite" id="inviteLine">Wander from the start to the target by tapping links in each article. Take as long as you like.</p>
     <div class="mode-banner" id="practiceBanner"><span id="modeBannerText"></span><button type="button" id="exitPracticeBtn">Back to today</button></div>
+    <div class="banner-foot">
+      <section class="banner-path" aria-label="Your path so far">
+        <div class="crumbs-label">Your path</div>
+        <div class="crumb-track" id="crumbTrack"></div>
+      </section>
+      <div class="banner-side">
+        <button class="btn" type="button" id="undoBtn">Undo</button>
+        <button class="btn" type="button" id="restartBtn">Start over</button>
+      </div>
+    </div>
   </section>
 
   <section class="coach" id="coachCard">
@@ -379,15 +479,8 @@
     </div>
   </section>
 
-  <section class="crumbs" id="crumbsSection" aria-label="Your path so far">
-    <div class="crumbs-label">Your path</div>
-    <div class="crumb-track" id="crumbTrack"></div>
-  </section>
-
   <div class="controls">
     <button class="btn" type="button" id="dailyBtn">Today's wander</button>
-    <button class="btn" type="button" id="undoBtn">Undo</button>
-    <button class="btn" type="button" id="restartBtn">Start over</button>
     <button class="btn" type="button" id="levelsBtn">Levels</button>
     <button class="btn" type="button" id="practiceBtn">Practice</button>
     <button class="btn" type="button" id="settingsBtn">Settings</button>
@@ -439,9 +532,6 @@
         <button type="button" id="viewArticleBtn">Article</button>
         <button type="button" id="viewListBtn">Link list</button>
       </div>
-      <p class="extract" id="articleExtract"></p>
-      <div class="article-text" id="articleText" hidden></div>
-      <p class="attrib" id="articleAttrib"></p>
       <div class="filter-row" id="filterRow">
         <label class="sr" for="filterInput">Filter links</label>
         <input id="filterInput" type="search" placeholder="Filter links" autocomplete="off">
@@ -450,8 +540,13 @@
         <span class="hintline">Tap a link to wander there.</span>
         <span class="count" id="linkCount"></span>
       </div>
-      <div class="no-results" id="noResults">No links match that filter.</div>
-      <div class="link-list" id="linkList"></div>
+      <div class="article-scroll" id="articleScroll">
+        <p class="extract" id="articleExtract"></p>
+        <div class="article-text" id="articleText" hidden></div>
+        <div class="no-results" id="noResults">No links match that filter.</div>
+        <div class="link-list" id="linkList"></div>
+      </div>
+      <p class="attrib" id="articleAttrib"></p>
     </div>
   </main>
 
@@ -870,9 +965,9 @@
   var lastFailedTitle = null;
 
   var els = {};
-  ["dateLine","streakLine","startName","targetName","targetNote","targetCard","hopPill","parPill","starPill","stylePill","inviteLine","practiceBanner","modeBannerText",
+  ["dateLine","streakLine","startName","targetName","targetNote","targetCard","hopPill","parPill","starPill","stylePill","helpBtn","helpText","practiceBanner","modeBannerText",
    "closeBackdrop","closePanel","closeText","closeFinishBtn","closeKeepBtn","closeXBtn",
-   "crumbTrack","undoBtn","restartBtn","practiceBtn","levelsBtn","errorBox","errorText","retryBtn","loadingBox","articleBody",
+   "crumbTrack","undoBtn","restartBtn","practiceBtn","levelsBtn","errorBox","errorText","retryBtn","loadingBox","articleBody","articleScroll",
    "articleTitle","articleExtract","articleAttrib","filterInput","linkCount","noResults","linkList",
    "articleText","viewArticleBtn","viewListBtn","filterRow","linksHead",
    "winPanel","winStars","winMeta","winTrivia","shareText","shareBtn","copyBtn","winPracticeBtn","winNextBtn","copiedNote",
@@ -1309,7 +1404,9 @@
     renderLinks(article, "");
     applyViewLayout(viewMode());
     if (viewMode() === "article") renderArticleText(article);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    /* App shell: the page itself never scrolls, so a new article
+       starts at the top of the article card's own scroll area. */
+    if (els.articleScroll) els.articleScroll.scrollTop = 0;
   }
 
   function renderLinks(article, filter){
@@ -1803,6 +1900,7 @@
     els.settingsPanel.classList.toggle("show", open === undefined ? undefined : open);
     if (els.settingsPanel.classList.contains("show")) els.settingsPanel.scrollIntoView({ behavior:"smooth", block:"nearest" });
   }
+  els.helpBtn.addEventListener("click", function(){ els.helpText.hidden = !els.helpText.hidden; });
   els.settingsBtn.addEventListener("click", function(){ applyAudioSession(); toggleSettingsPanel(); });
   els.levelsBtn.addEventListener("click", function(){ applyAudioSession(); toggleLevelsPanel(); });
   els.practiceBtn.addEventListener("click", function(){ applyAudioSession(); startPractice(); });
