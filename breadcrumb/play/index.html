@@ -93,6 +93,7 @@
   }
   .place-card .kicker{font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--ink-soft);}
   .place-card .place-name{font-family:Georgia, serif; font-size:19px; line-height:1.15; margin-top:4px; overflow-wrap:anywhere;}
+  .place-card .place-note{font-size:12.5px; font-style:italic; color:var(--ink-soft); margin-top:3px;}
   .place-card.start{border-color:#C8A44F; background:#F3E9C6;}
   .place-card.target{border:1.5px dashed var(--ink); background:#FDF8E7; position:relative;}
   .place-card.target.arrived{animation:pulse 1.1s ease 2; border-color:var(--xred); border-style:solid; background:var(--gold-soft);}
@@ -352,6 +353,7 @@
         <svg class="x-badge" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 2 L14 14 M14 2 L2 14" stroke="#BE3A2B" stroke-width="2.6" stroke-linecap="round"/></svg>
         <div class="kicker">Target</div>
         <div class="place-name" id="targetName">Loading</div>
+        <div class="place-note" id="targetNote" hidden></div>
       </div>
     </div>
     <div class="journey-meta">
@@ -453,6 +455,17 @@
     </div>
   </main>
 
+  <div class="win-backdrop" id="closeBackdrop" style="z-index:57"></div>
+  <section class="win" id="closePanel" style="z-index:58" aria-live="polite" role="dialog" aria-modal="true" aria-label="Close enough">
+    <button class="win-close" type="button" id="closeXBtn" aria-label="Keep hunting">×</button>
+    <p class="arrived-word">Close enough?</p>
+    <p class="win-congrats" id="closeText"></p>
+    <div class="btn-row">
+      <button class="btn gold" type="button" id="closeFinishBtn">Finish here</button>
+      <button class="btn" type="button" id="closeKeepBtn">Keep hunting</button>
+    </div>
+  </section>
+
   <div class="win-backdrop" id="winBackdrop"></div>
   <section class="win" id="winPanel" aria-live="polite" role="dialog" aria-modal="true" aria-label="Your result">
     <button class="win-close" type="button" id="winCloseBtn" aria-label="Close">×</button>
@@ -523,7 +536,7 @@
   var LEVELS = [
     { tier: "First Steps", start: "Coffee", target: "Space Needle", par: 3 },
     { tier: "First Steps", start: "Sushi", target: "Pearl Harbor", par: 3 },
-    { tier: "First Steps", start: "Banana", target: "Godzilla", par: 3 },
+    { tier: "First Steps", start: "Banana", target: "Godzilla", par: 3, targetNote: "the character, not the film" },
     { tier: "Wild Things", start: "Elephant", target: "Kraken", par: 3 },
     { tier: "Wild Things", start: "Frog", target: "Excalibur", par: 3 },
     { tier: "Wild Things", start: "Tiger", target: "El Dorado", par: 3 },
@@ -847,6 +860,8 @@
   var levelIndex = 0;
   var currentPath = [];
   var finished = false;
+  var finishKind = null; /* null | "exact" | "close" */
+  var closeArticle = null; /* the close-enough article a close finish landed on */
   var runRanked = false; /* ranked style held for this whole wander */
   var winAltAction = "practice"; /* what the win panel's second button does */
   var viaChimed = false; /* the waypoint chime rings once per wander */
@@ -855,7 +870,8 @@
   var lastFailedTitle = null;
 
   var els = {};
-  ["dateLine","streakLine","startName","targetName","targetCard","hopPill","parPill","starPill","stylePill","inviteLine","practiceBanner","modeBannerText",
+  ["dateLine","streakLine","startName","targetName","targetNote","targetCard","hopPill","parPill","starPill","stylePill","inviteLine","practiceBanner","modeBannerText",
+   "closeBackdrop","closePanel","closeText","closeFinishBtn","closeKeepBtn","closeXBtn",
    "crumbTrack","undoBtn","restartBtn","practiceBtn","levelsBtn","errorBox","errorText","retryBtn","loadingBox","articleBody",
    "articleTitle","articleExtract","articleAttrib","filterInput","linkCount","noResults","linkList",
    "articleText","viewArticleBtn","viewListBtn","filterRow","linksHead",
@@ -893,6 +909,29 @@
     if (h === par + 1) return 2;
     return 1;
   }
+  /* ---------- The close-enough rule (Matthew, approved Nov 18, 2026) ----------
+     A landed article whose title is the target's title plus a
+     parenthetical disambiguator ("Godzilla (1954 film)" for the
+     target "Godzilla") is close enough to finish on, by the
+     player's choice. Pure title math, checked after redirects
+     resolve, so a redirect into the exact target stays an exact
+     finish. Disambiguation pages never count. Par is still
+     verified against the exact article only, so a close finish
+     caps at 2 stars: a sibling can sit closer than par, and that
+     route was never verified as a shortest route. */
+  function baseTitleOf(t){
+    return String(t || "").replace(/\s*\([^()]*\)\s*$/, "");
+  }
+  function isCloseEnough(landed, target){
+    if (!landed || !target || landed === target) return false;
+    if (/\(disambiguation\)\s*$/i.test(landed) || /\(disambiguation\)\s*$/i.test(target)) return false;
+    var bl = baseTitleOf(landed), bt = baseTitleOf(target);
+    return bl === bt && (bl !== landed || bt !== target);
+  }
+  function finishStars(h, par){
+    var st = starsFor(h, par);
+    return finishKind === "close" ? Math.min(st, 2) : st;
+  }
   function starString(n){
     var s = "";
     for (var i=0;i<3;i++) s += (i < n ? "★" : "☆");
@@ -904,6 +943,8 @@
     els.dateLine.textContent = prettyDate(todayKey());
     els.startName.textContent = pair.start;
     els.targetName.textContent = pair.target;
+    els.targetNote.hidden = !pair.targetNote;
+    if (pair.targetNote) els.targetNote.textContent = pair.targetNote;
     els.hopPill.textContent = hops() + (hops() === 1 ? " step" : " steps");
     /* Casual play carries no pressure: par and stars are never shown.
        They belong to Ranked, where the comparison is the point. */
@@ -913,7 +954,7 @@
     if (!casual){
       els.parPill.textContent = "Par " + pair.par;
       if (finished){
-        var st = starsFor(hops(), pair.par);
+        var st = finishStars(hops(), pair.par);
         els.starPill.textContent = starString(st) + " earned";
       } else if (hops() <= pair.par){
         els.starPill.textContent = "On par pace";
@@ -1392,6 +1433,9 @@
     var pair = activePair();
     currentPath = [pair.start];
     finished = false;
+    finishKind = null;
+    closeArticle = null;
+    hideCloseOffer();
     viaChimed = false;
     runRanked = playStyle() === "ranked";
     hideWin();
@@ -1406,13 +1450,14 @@
       d.path = currentPath.slice();
       d.finished = finished;
       d.ranked = runRanked;
-      if (finished){ d.hops = hops(); d.stars = starsFor(hops(), activePair().par); }
+      d.finishKind = finishKind;
+      if (finished){ d.hops = hops(); d.stars = finishStars(hops(), activePair().par); }
       saveState();
     } else if (mode === "level"){
-      state.level = { index: levelIndex, path: currentPath.slice(), finished: finished, ranked: runRanked };
+      state.level = { index: levelIndex, path: currentPath.slice(), finished: finished, ranked: runRanked, finishKind: finishKind };
       saveState();
     } else {
-      state.practice = { path: currentPath.slice(), finished: finished, ranked: runRanked };
+      state.practice = { path: currentPath.slice(), finished: finished, ranked: runRanked, finishKind: finishKind };
       saveState();
     }
   }
@@ -1420,14 +1465,42 @@
   function recordLevelResult(idx, h, st, ranked){
     var prev = state.levels[idx];
     if (!prev || st > prev.stars || (st === prev.stars && h < prev.hops)){
-      state.levels[idx] = { hops: h, stars: st, ranked: !!ranked };
+      state.levels[idx] = { hops: h, stars: st, ranked: !!ranked, closeEnough: finishKind === "close" };
     }
     saveState();
   }
 
+  /* Bookkeeping shared by exact and close-enough finishes. */
+  function recordFinish(){
+    var pair = activePair();
+    var st = finishStars(hops(), pair.par);
+    if (mode === "daily"){
+      var key = todayKey();
+      state.history[key] = { hops: hops(), par: pair.par, stars: st, start: pair.start, target: pair.target, ranked: runRanked, closeEnough: finishKind === "close" };
+      if (state.streak.lastDate !== key){
+        var yesterday = shiftKey(key, -1);
+        state.streak.count = (state.streak.lastDate === yesterday) ? (state.streak.count || 0) + 1 : 1;
+        state.streak.lastDate = key;
+      }
+      saveState();
+    } else if (mode === "level"){
+      recordLevelResult(levelIndex, hops(), st, runRanked);
+    } else if (mode === "practice"){
+      recordLevelResult(0, hops(), st, runRanked);
+    }
+  }
+
   function checkWin(title){
     var pair = activePair();
-    if (title !== pair.target) return;
+    if (title !== pair.target){
+      /* Not the exact article: a close-enough landing earns the
+         player a choice, never a silent pass. The waypoint promise
+         still governs: no offer until it is kept. */
+      if (!finished && viaSatisfied(pair) && isCloseEnough(title, pair.target)){
+        showCloseOffer(title);
+      }
+      return;
+    }
     if (!viaSatisfied(pair)){
       els.viaNote.hidden = false;
       els.viaNote.textContent = "You found " + pair.target + ", but this wander asks you to pass by way of " + pair.via + " first. Step back with Undo and come back through " + pair.via + ", and the arrival will count.";
@@ -1437,23 +1510,34 @@
     els.viaNote.hidden = true;
     if (!finished){
       finished = true;
+      finishKind = "exact";
       persistProgress();
-      var st = starsFor(hops(), pair.par);
-      if (mode === "daily"){
-        var key = todayKey();
-        state.history[key] = { hops: hops(), par: pair.par, stars: st, start: pair.start, target: pair.target, ranked: runRanked };
-        if (state.streak.lastDate !== key){
-          var yesterday = shiftKey(key, -1);
-          state.streak.count = (state.streak.lastDate === yesterday) ? (state.streak.count || 0) + 1 : 1;
-          state.streak.lastDate = key;
-        }
-        saveState();
-      } else if (mode === "level"){
-        recordLevelResult(levelIndex, hops(), st, runRanked);
-      } else if (mode === "practice"){
-        recordLevelResult(0, hops(), st, runRanked);
-      }
+      recordFinish();
     }
+    renderHeader();
+    showWin();
+    arriveSound();
+  }
+
+  function showCloseOffer(landed){
+    var pair = activePair();
+    closeArticle = landed;
+    els.closeText.textContent = "You found \"" + landed + "\". The target is \"" + pair.target + "\". Close enough to finish here in "
+      + hops() + (hops() === 1 ? " step" : " steps") + ", or keep hunting for the exact article?";
+    els.closePanel.classList.add("show");
+    els.closeBackdrop.classList.add("show");
+  }
+  function hideCloseOffer(){
+    els.closePanel.classList.remove("show");
+    els.closeBackdrop.classList.remove("show");
+  }
+  function finishCloseEnough(){
+    if (finished || !closeArticle) return;
+    hideCloseOffer();
+    finished = true;
+    finishKind = "close";
+    persistProgress();
+    recordFinish();
     renderHeader();
     showWin();
     arriveSound();
@@ -1461,7 +1545,7 @@
 
   function showWin(){
     var pair = activePair();
-    var st = starsFor(hops(), pair.par);
+    var st = finishStars(hops(), pair.par);
     /* The finish presentation follows the run: a ranked finish shows
        par and stars; a casual finish is just the warm arrival, the hop
        count as a plain fact, and the shortest route as after-trivia. */
@@ -1519,9 +1603,15 @@
     els.shareText.textContent = runRanked
       ? label + " · " + hopWord + " · par " + pair.par + " · " + starString(st) + " · ranked"
       : label + " · " + hopWord + " · finished";
+    if (finishKind === "close") els.shareText.textContent += " · close enough";
+    if (finishKind === "close"){
+      els.winMeta.textContent = "You reached " + closeArticle + ", and the exact target was " + pair.target + ". " + els.winMeta.textContent;
+    }
     els.copiedNote.textContent = "";
     /* The congratulations: how the wander measures against par. */
-    if (mode === "practice" && !runRanked){
+    if (finishKind === "close"){
+      els.winCongrats.textContent = "Close enough, and home.";
+    } else if (mode === "practice" && !runRanked){
       els.winCongrats.textContent = "Tour complete. The whole map is yours now.";
     } else if (st === 3){
       els.winCongrats.textContent = "Exactly par, the shortest route there is. Beautifully hunted.";
@@ -1565,13 +1655,22 @@
     els.winFact.hidden = false;
   }
 
+  /* A saved finish resumes as the kind it was: exact, or close
+     enough on the sibling article it ended on. */
+  function resumeFinish(rec, target){
+    var last = currentPath[currentPath.length-1];
+    if (rec && rec.finished && last === target){ finishKind = "exact"; closeArticle = null; return true; }
+    if (rec && rec.finished && rec.finishKind === "close" && isCloseEnough(last, target)){ finishKind = "close"; closeArticle = last; return true; }
+    finishKind = null; closeArticle = null; return false;
+  }
+
   function startDaily(){
     mode = "daily";
     var d = ensureDaily();
     currentPath = (d.path && d.path.length) ? d.path.slice() : [PAIRS[d.pairIndex].start];
-    finished = !!d.finished && currentPath[currentPath.length-1] === PAIRS[d.pairIndex].target;
+    finished = resumeFinish(d, PAIRS[d.pairIndex].target);
     runRanked = !!d.ranked;
-    hideWin();
+    hideWin(); hideCloseOffer();
     els.levelsPanel.classList.remove("show");
     els.settingsPanel.classList.remove("show");
     viaChimed = false;
@@ -1586,14 +1685,15 @@
     var p = state.practice;
     if (p && p.path && p.path.length && p.path[0] === TUTORIAL_PAIR.start){
       currentPath = p.path.slice();
-      finished = !!p.finished && currentPath[currentPath.length-1] === TUTORIAL_PAIR.target;
+      finished = resumeFinish(p, TUTORIAL_PAIR.target);
       runRanked = !!p.ranked;
     } else {
       currentPath = [TUTORIAL_PAIR.start];
       finished = false;
+      finishKind = null; closeArticle = null;
       runRanked = playStyle() === "ranked";
     }
-    hideWin();
+    hideWin(); hideCloseOffer();
     els.levelsPanel.classList.remove("show");
     els.settingsPanel.classList.remove("show");
     persistProgress();
@@ -1610,14 +1710,15 @@
     var lv = state.level;
     if (lv && lv.index === idx && lv.path && lv.path.length && lv.path[0] === LEVELS[idx].start){
       currentPath = lv.path.slice();
-      finished = !!lv.finished && currentPath[currentPath.length-1] === LEVELS[idx].target;
+      finished = resumeFinish(lv, LEVELS[idx].target);
       runRanked = !!lv.ranked;
     } else {
       currentPath = [LEVELS[idx].start];
       finished = false;
+      finishKind = null; closeArticle = null;
       runRanked = playStyle() === "ranked";
     }
-    hideWin();
+    hideWin(); hideCloseOffer();
     els.levelsPanel.classList.remove("show");
     els.settingsPanel.classList.remove("show");
     persistProgress();
@@ -1707,6 +1808,10 @@
   els.practiceBtn.addEventListener("click", function(){ applyAudioSession(); startPractice(); });
   els.dailyBtn.addEventListener("click", function(){ applyAudioSession(); startDaily(); });
   els.resultBtn.addEventListener("click", function(){ applyAudioSession(); if (finished) showWin(); });
+  els.closeFinishBtn.addEventListener("click", function(){ applyAudioSession(); finishCloseEnough(); });
+  els.closeKeepBtn.addEventListener("click", function(){ applyAudioSession(); hideCloseOffer(); });
+  els.closeXBtn.addEventListener("click", function(){ applyAudioSession(); hideCloseOffer(); });
+  els.closeBackdrop.addEventListener("click", function(){ hideCloseOffer(); });
   els.winCloseBtn.addEventListener("click", function(){ applyAudioSession(); hideWin(); });
   els.winAdmireBtn.addEventListener("click", function(){ applyAudioSession(); hideWin(); });
   els.winBackdrop.addEventListener("click", function(){ hideWin(); });
@@ -1832,6 +1937,9 @@
     todayKey: todayKey,
     dailyPairIndex: dailyPairIndex,
     starsFor: starsFor,
+    isCloseEnough: isCloseEnough,
+    baseTitleOf: baseTitleOf,
+    getFinishKind: function(){ return finishKind; },
     saveKey: SAVE_KEY,
     getState: function(){ return state; },
     getPath: function(){ return currentPath.slice(); },
