@@ -32,6 +32,15 @@
   .ss-btn:active{transform:scale(.96)}
   @media (hover:hover){.ss-btn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(10,16,40,.25)}}
   .ss-btn.primary{background:linear-gradient(180deg,#F5BC22,#DE9E06);color:#2A1E00;border-color:#B97F06;font-weight:bold}
+  #ss-menu-wrap{position:relative}
+  .ss-caret{display:inline-block;width:0;height:0;margin-left:6px;vertical-align:middle;border-left:4.5px solid transparent;border-right:4.5px solid transparent;border-top:5px solid currentColor;transition:transform .15s ease}
+  #ss-menu-btn[aria-expanded="true"] .ss-caret{transform:rotate(180deg)}
+  #ss-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;min-width:196px;padding:6px;background:#16224A;border:1px solid rgba(238,199,120,.35);border-radius:14px;box-shadow:0 14px 34px rgba(2,6,20,.55),inset 0 0 0 1px rgba(232,169,12,.18);z-index:20}
+  #ss-menu.open{display:block;animation:ss-menu-in .16s ease}
+  @keyframes ss-menu-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .ss-menu-item{display:flex;align-items:center;width:100%;min-height:40px;padding:9px 13px;background:transparent;border:0;border-radius:9px;color:#F4EDDE;font-family:inherit;font-size:14px;text-align:left;cursor:pointer;transition:background .12s ease}
+  .ss-menu-item:active{background:rgba(238,199,120,.18)}
+  @media (hover:hover){.ss-menu-item:hover{background:rgba(238,199,120,.12)}}
   #ss-stage{position:relative;width:100%;aspect-ratio:10/11;border-radius:12px;overflow:hidden;background:#0A1022;touch-action:none;box-shadow:inset 0 0 0 1px rgba(140,180,255,.14)}
   #ss-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
   .ss-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,10,24,.72);padding:18px;z-index:5}
@@ -99,11 +108,16 @@
   </div>
   <div id="ss-rule"></div>
   <div id="ss-btns">
-      <button class="ss-btn" id="ss-undo" type="button">Undo</button>
-      <button class="ss-btn" id="ss-restart" type="button">Restart</button>
       <button class="ss-btn" id="ss-levels-btn" type="button">Levels</button>
-      <button class="ss-btn" id="ss-sound" type="button">Sound: On</button>
-      <button class="ss-btn" id="ss-help" type="button">How to play</button>
+      <div id="ss-menu-wrap">
+        <button class="ss-btn" id="ss-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Menu<span class="ss-caret"></span></button>
+        <div id="ss-menu" role="menu">
+          <button class="ss-menu-item" id="ss-undo" type="button">Undo</button>
+          <button class="ss-menu-item" id="ss-restart" type="button">Restart</button>
+          <button class="ss-menu-item" id="ss-sound" type="button">Sound: On</button>
+          <button class="ss-menu-item" id="ss-help" type="button">How to play</button>
+        </div>
+      </div>
   </div>
   <div id="ss-stage">
     <canvas id="ss-canvas"></canvas>
@@ -464,6 +478,7 @@ var stage = el('ss-stage'), canvas = el('ss-canvas'), ctx = canvas.getContext('2
 var pulsesEl = el('ss-pulses'), levelLabel = el('ss-level-label');
 var hintEl = el('ss-hint'), noteEl = el('ss-note');
 var winOverlay = el('ss-win'), levelsOverlay = el('ss-levels'), howtoOverlay = el('ss-howto');
+var menuEl = el('ss-menu'), menuBtn = el('ss-menu-btn'), menuWrap = el('ss-menu-wrap');
 
 /* ---------- state ---------- */
 var levelIndex = 0;
@@ -1057,7 +1072,7 @@ function fieldPoint(e){
 canvas.addEventListener('pointerdown', function(e){
   setAudioSession();
   ensureAudio();
-  if(winOverlay.classList.contains('open') || levelsOverlay.classList.contains('open') || howtoOverlay.classList.contains('open')) return;
+  if(winOverlay.classList.contains('open') || levelsOverlay.classList.contains('open') || howtoOverlay.classList.contains('open') || menuEl.classList.contains('open')) return;
   var p = fieldPoint(e);
   if(p.x < 0 || p.x > FIELD_W || p.y < 0 || p.y > FIELD_H) return;
   hintEl.classList.remove('show');
@@ -1077,6 +1092,18 @@ el('ss-sound').addEventListener('click', function(){
   if(save.sound){ ensureAudio(); twinkle(880.00, 0.18, 0, 0.85); }
 });
 el('ss-help').addEventListener('click', function(){ howtoOverlay.classList.add('open'); });
+function closeMenu(){ menuEl.classList.remove('open'); menuBtn.setAttribute('aria-expanded', 'false'); }
+menuBtn.addEventListener('click', function(){
+  var isOpen = menuEl.classList.toggle('open');
+  menuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+});
+Array.prototype.forEach.call(menuEl.querySelectorAll('.ss-menu-item'), function(item){
+  item.addEventListener('click', closeMenu);
+});
+document.addEventListener('click', function(e){
+  if(menuEl.classList.contains('open') && !menuWrap.contains(e.target)) closeMenu();
+});
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMenu(); });
 el('ss-howto-close').addEventListener('click', function(){ howtoOverlay.classList.remove('open'); });
 el('ss-next').addEventListener('click', function(){ if(levelIndex < LEVELS.length - 1){ loadLevel(levelIndex + 1); } });
 el('ss-replay').addEventListener('click', function(){ loadLevel(levelIndex); });
