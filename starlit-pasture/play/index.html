@@ -11,9 +11,10 @@
 <meta property="og:url" content="https://games.realsparks.net/starlit-pasture/play/">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100 0 Q112 88 200 100 Q112 112 100 200 Q88 112 0 100 Q88 88 100 0 Z' fill='%23EEC778'/%3E%3C/svg%3E">
-<style>body{margin:0;padding:16px;background:#10182E;font-family:Georgia,serif}</style>
+<style>body{margin:0;padding:16px;background:#10182E;font-family:Georgia,serif}.ss-topnav{max-width:680px;margin:0 auto 10px;display:flex;align-items:center;justify-content:space-between;gap:14px;font-family:Georgia,'Times New Roman',serif;font-size:13.5px}.ss-topnav a{color:#A9B6D9;text-decoration:none;white-space:nowrap}.ss-topnav a:hover{color:#EEC778}</style>
 </head>
 <body>
+<nav class="ss-topnav" aria-label="Real Sparks games"><a href="https://games.realsparks.net/">← All Real Sparks games</a><a href="https://realsparks.net/">realsparks.net</a></nav>
 <style>
   :root{--hatch-widget-text:#F4EDDE;--hatch-widget-muted:#A9B6D9;--hatch-widget-surface:#0D1730;--hatch-widget-surface-muted:#1B2A52;--hatch-widget-border:rgba(238,199,120,.35);--hatch-widget-shadow:0 18px 50px rgba(2,6,20,.55)}
   #ss-root{box-sizing:border-box;width:100%;max-width:680px;margin:0 auto;font-family:Georgia,'Times New Roman',serif;color:var(--hatch-widget-text);background:var(--hatch-widget-surface);border:1px solid var(--hatch-widget-border);border-radius:18px;padding:14px;box-shadow:var(--hatch-widget-shadow),inset 0 1px 0 rgba(255,233,168,.18)}
@@ -302,20 +303,24 @@ var LEVELS = [
 ];
 
 /* ---------- save ---------- */
-function defaultSave(){ return {unlocked:LEVELS.length, best:{}, sound:true}; }
+function defaultSave(){ return {unlocked:1, best:{}, sound:true}; }
 var save = defaultSave();
 function loadSave(){
   try{
     if(window.hatchWidget && window.hatchWidget.getState){
       var s = window.hatchWidget.getState(defaultSave());
-      if(s && typeof s === 'object'){ save = Object.assign(defaultSave(), s); save.unlocked = LEVELS.length; return; }
+      if(s && typeof s === 'object'){ save = Object.assign(defaultSave(), s); clampUnlocked(); return; }
     }
   }catch(e){}
   try{
     var raw = localStorage.getItem(SAVE_KEY);
     if(raw){ save = Object.assign(defaultSave(), JSON.parse(raw)); }
   }catch(e){}
-  save.unlocked = LEVELS.length;
+  clampUnlocked();
+}
+function clampUnlocked(){
+  var u = Math.floor(Number(save.unlocked)) || 1;
+  save.unlocked = Math.max(1, Math.min(LEVELS.length, u));
 }
 function persist(){
   try{
