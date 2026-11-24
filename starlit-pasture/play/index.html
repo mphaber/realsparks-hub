@@ -67,8 +67,11 @@
   @media (hover:hover){.ss-lvl:hover{transform:translateY(-1px);box-shadow:0 3px 7px rgba(10,16,40,.22)}}
   .ss-lvl:disabled{opacity:.45;cursor:default}
   .ss-lvl .ss-lvl-stars{color:#E8A90C;letter-spacing:2px;font-size:13px}
-  #ss-hint{position:absolute;left:10px;right:10px;bottom:10px;z-index:4;display:none;background:rgba(8,12,28,.82);color:#DCE7FF;border:1px solid rgba(150,180,255,.35);border-radius:10px;padding:8px 12px;font-size:14px;line-height:1.4;text-align:center}
-  #ss-hint.show{display:block}
+  #ss-hint{position:absolute;left:10px;right:10px;bottom:10px;z-index:4;display:none;align-items:center;gap:10px;background:rgba(8,12,28,.82);color:#DCE7FF;border:1px solid rgba(150,180,255,.35);border-radius:10px;padding:8px 12px;font-size:14px;line-height:1.4;text-align:left}
+  #ss-hint.show{display:flex}
+  #ss-hint-text{flex:1}
+  #ss-hint-ok{flex:none;appearance:none;border:1px solid #B97F06;background:linear-gradient(180deg,#F5BC22,#DE9E06);color:#2A1E00;font-family:inherit;font-size:13px;font-weight:bold;border-radius:999px;padding:6px 14px;min-height:32px;cursor:pointer;box-shadow:0 1px 3px rgba(10,16,40,.25)}
+  #ss-hint-ok:active{transform:scale(.96)}
   #ss-note{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6;display:none;background:rgba(8,12,28,.88);color:#FFE9A8;border-radius:999px;padding:6px 14px;font-size:13px;white-space:nowrap}
   #ss-note.show{display:block}
   #ss-foot{margin-top:10px;text-align:center;font-size:12px;color:var(--hatch-widget-muted);line-height:1.5}
@@ -122,7 +125,7 @@
   </div>
   <div id="ss-stage">
     <canvas id="ss-canvas"></canvas>
-    <div id="ss-hint"></div>
+    <div id="ss-hint"><span id="ss-hint-text"></span><button id="ss-hint-ok" type="button">Got it</button></div>
     <div id="ss-note"></div>
     <div class="ss-overlay" id="ss-levels">
       <div class="ss-panel">
@@ -481,7 +484,7 @@ function sndBump(impact){
 function el(id){ return document.getElementById(id); }
 var stage = el('ss-stage'), canvas = el('ss-canvas'), ctx = canvas.getContext('2d');
 var pulsesEl = el('ss-pulses'), levelLabel = el('ss-level-label');
-var hintEl = el('ss-hint'), noteEl = el('ss-note');
+var hintEl = el('ss-hint'), hintTextEl = el('ss-hint-text'), noteEl = el('ss-note');
 var winOverlay = el('ss-win'), levelsOverlay = el('ss-levels'), howtoOverlay = el('ss-howto');
 var menuEl = el('ss-menu'), menuBtn = el('ss-menu-btn'), menuWrap = el('ss-menu-wrap');
 
@@ -538,7 +541,7 @@ function loadLevel(i){
   levelLabel.textContent = 'Level ' + (i + 1) + ' · ' + L.name;
   pulsesEl.textContent = '0';
   if(L.hint){
-    hintEl.textContent = L.hint;
+    hintTextEl.textContent = L.hint;
     hintEl.classList.add('show');
   } else {
     hintEl.classList.remove('show');
@@ -1080,8 +1083,13 @@ canvas.addEventListener('pointerdown', function(e){
   if(winOverlay.classList.contains('open') || levelsOverlay.classList.contains('open') || howtoOverlay.classList.contains('open') || menuEl.classList.contains('open')) return;
   var p = fieldPoint(e);
   if(p.x < 0 || p.x > FIELD_W || p.y < 0 || p.y > FIELD_H) return;
-  hintEl.classList.remove('show');
+  if(hintEl.classList.contains('show')){ hintEl.classList.remove('show'); return; }
   applyPulse(p.x, p.y);
+});
+el('ss-hint-ok').addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+el('ss-hint-ok').addEventListener('click', function(e){
+  e.stopPropagation();
+  hintEl.classList.remove('show');
 });
 document.addEventListener('pointerdown', function(){ setAudioSession(); }, true);
 
